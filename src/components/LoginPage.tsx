@@ -4,10 +4,8 @@ import type { TerritorialLeader } from '../types/territory';
 import { MOCK_ACCOUNTS } from '../data/mockAuthData';
 import { 
   Network, 
-  ShieldCheck, 
   AlertCircle, 
   Lock, 
-  ArrowRight, 
   Loader2, 
   Mail, 
   KeyRound
@@ -212,21 +210,8 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, allLeaders
           </p>
         </div>
 
-        {/* Superadmin Direct Button */}
-        <div className="mt-5">
-          <button
-            type="button"
-            onClick={() => authenticateEmail(superadminEmail, 'Ruben Roque')}
-            className="w-full py-3 px-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-indigo-900 hover:from-slate-800 hover:to-indigo-800 text-white rounded-2xl text-xs font-bold flex items-center justify-center gap-2.5 shadow-md shadow-indigo-900/20 transition-all active:scale-[0.99] border border-indigo-700/30 group"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span className="truncate">Acceder como Superadmin ({superadminEmail})</span>
-            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
-          </button>
-        </div>
-
         {/* Tabs: Google / Email */}
-        <div className="mt-4 bg-slate-100 p-1 rounded-xl flex items-center text-xs font-semibold">
+        <div className="mt-6 bg-slate-100 p-1 rounded-xl flex items-center text-xs font-semibold">
           <button
             type="button"
             onClick={() => setActiveTab('google')}
@@ -317,32 +302,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess, allLeaders
           </div>
         )}
 
-        {/* Quick Roles Sandbox */}
-        <div className="mt-5 pt-4 border-t border-slate-100">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-2 text-center">
-            O probar acceso directo por rol territorial:
-          </span>
-          <div className="grid grid-cols-2 gap-1.5 text-xs">
-            {MOCK_ACCOUNTS.slice(1).map((acc) => (
-              <button
-                key={acc.id}
-                type="button"
-                onClick={() => onLoginSuccess(acc)}
-                className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-left transition-all hover:border-slate-300 flex items-center justify-between group"
-              >
-                <div className="truncate">
-                  <span className="font-semibold text-slate-800 block text-[11px] truncate">
-                    {acc.accountRoleLabel}
-                  </span>
-                  <span className="text-[10px] text-slate-500 truncate block">
-                    {acc.name.split(' ')[0]} {acc.name.split(' ')[1] || ''}
-                  </span>
-                </div>
-                <ArrowRight className="w-3 h-3 text-slate-400 group-hover:text-slate-700 shrink-0 ml-1" />
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* Footer */}
         <div className="mt-5 text-center text-[10px] text-slate-400 flex items-center justify-center gap-1.5">
