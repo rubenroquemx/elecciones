@@ -206,7 +206,8 @@ app.post('/api/sections/:id/structures', async (req, res) => {
 const distPath = path.resolve(__dirname, '../dist');
 app.use(express.static(distPath));
 
-app.get('*', (req, res) => {
+// SPA Fallback compatible con Express 5 (evita error de sintaxis en path-to-regexp)
+app.use((req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
