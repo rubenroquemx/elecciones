@@ -21,12 +21,35 @@ import { EditLeaderModal } from './components/EditLeaderModal';
 import { LevelSummaryBar } from './components/LevelSummaryBar';
 import { SectionsCatalogView } from './components/SectionsCatalogView';
 import { LoginPage } from './components/LoginPage';
+import {
+  fetchLeadersApi,
+  saveLeaderApi,
+  deleteLeaderApi,
+  fetchSectionsApi,
+  saveSectionApi,
+  addStructureApi,
+} from './services/api';
 
 export function App() {
   // Master raw and computed territorial dataset
   const [leadersData, setLeadersData] = useState<TerritorialLeader[]>(() => {
     return calculateHierarchyAggregates(INITIAL_TERRITORY_DATA);
   });
+
+  // Load latest data from PostgreSQL API on mount
+  useEffect(() => {
+    fetchLeadersApi().then((data) => {
+      if (data && data.length > 0) {
+        setLeadersData(calculateHierarchyAggregates(data));
+      }
+    });
+
+    fetchSectionsApi().then((data) => {
+      if (data && data.length > 0) {
+        setSectionsData(data);
+      }
+    });
+  }, []);
 
   // Authenticated user via Google (persisted in localStorage)
   const [authenticatedUser, setAuthenticatedUser] = useState<UserAccount | null>(() => {
@@ -187,6 +210,8 @@ export function App() {
       } else {
         updated = [...prev, savedLeader];
       }
+      // Async persist to PostgreSQL
+      saveLeaderApi(savedLeader, exists).catch(e => console.warn('Sync API error:', e));
       return calculateHierarchyAggregates(updated);
     });
     setSelectedLeaderId(savedLeader.id);
@@ -208,6 +233,8 @@ export function App() {
       if (filters.focusNodeId === id) {
         setFilters(f => ({ ...f, focusNodeId: null }));
       }
+      // Async persist to PostgreSQL
+      deleteLeaderApi(id).catch(e => console.warn('Delete API error:', e));
     }
   }, [selectedLeaderId, filters.focusNodeId]);
 
@@ -220,6 +247,8 @@ export function App() {
       }
       return [savedSection, ...prev];
     });
+    // Async persist to PostgreSQL
+    saveSectionApi(savedSection).catch(e => console.warn('Save Section API error:', e));
   }, []);
 
   const handleAddStructureToSection = useCallback((sectionId: string, newStructure: SectionStructure) => {
@@ -234,6 +263,8 @@ export function App() {
         return sec;
       });
     });
+    // Async persist to PostgreSQL
+    addStructureApi(sectionId, newStructure).catch(e => console.warn('Add Structure API error:', e));
   }, []);
 
   const handleSelectStructureToViewTree = useCallback((structure: SectionStructure, section: ElectoralSection) => {

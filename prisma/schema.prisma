@@ -1,0 +1,82 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Leader {
+  id               String   @id
+  name             String
+  role             String
+  level            String   // 'distrital' | 'territorial' | 'seccional' | 'promotor' | 'promovido'
+  levelIndex       Int      @default(0)
+  parentId         String?
+  parent           Leader?  @relation("LeaderHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children         Leader[] @relation("LeaderHierarchy")
+  territoryName    String
+  code             String?
+  phone            String?
+  email            String?
+  username         String?
+  hasAccount       Boolean  @default(false)
+  metaGoal         Int      @default(0)
+  currentCount     Int      @default(0)
+  status           String   @default("en_progreso") // 'completado' | 'en_progreso' | 'critico' | 'vacante'
+  validationStatus String   @default("validado")   // 'validado' | 'pendiente' | 'rechazado'
+  notes            String?  @db.Text
+  avatarBg         String?  @default("bg-indigo-600")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([level])
+  @@index([parentId])
+  @@index([email])
+}
+
+model ElectoralSection {
+  id              String             @id
+  sectionNumber   String             @unique
+  district        String
+  municipality    String
+  nominalList     Int                @default(0)
+  geometry        Json?              // Coordenadas poligonales GeoJSON
+  structures      SectionStructure[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+}
+
+model SectionStructure {
+  id           String           @id
+  sectionId    String
+  section      ElectoralSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  name         String
+  leaderName   String
+  targetCount  Int              @default(0)
+  currentCount Int              @default(0)
+  status       String           @default("en_progreso")
+  rootLeaderId String?
+  color        String?          @default("bg-sky-500")
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([sectionId])
+}
+
+model UserAccount {
+  id               String   @id
+  email            String   @unique
+  username         String
+  name             String
+  leaderId         String?
+  level            String   // 'admin' | 'distrital' | 'territorial' | 'seccional' | 'promotor'
+  territoryName    String
+  avatarBg         String?
+  picture          String?
+  isSuperAdmin     Boolean  @default(false)
+  accountRoleLabel String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
