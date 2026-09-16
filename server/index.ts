@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -17,14 +18,21 @@ const PORT = Number(process.env.PORT) || 3000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
-// Health Check inmediato para Easypanel / Traefik
+// Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Config pública del servidor
+app.get('/api/config', (req, res) => {
+  res.json({
+    googleClientId: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '791878516583-f9hht0avcqd4cvv3o2rvhovsqe7bdvat.apps.googleusercontent.com',
+    superadminEmail: process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'usrubenroque@gmail.com'
+  });
+});
+
 // --- LEADERS API ---
 
-// 1. Get all leaders
 app.get('/api/leaders', async (req, res) => {
   try {
     const leaders = await prisma.leader.findMany({
@@ -32,12 +40,11 @@ app.get('/api/leaders', async (req, res) => {
     });
     res.json(leaders);
   } catch (err: any) {
-    console.warn('Aviso al consultar líderes en BD (usando fallback en frontend si aplica):', err.message);
-    res.status(500).json({ error: 'Error al obtener líderes territoriales', details: err.message });
+    console.warn('Aviso al consultar líderes en BD:', err.message);
+    res.status(500).json({ error: 'Error al obtener líderes', details: err.message });
   }
 });
 
-// 2. Create a leader
 app.post('/api/leaders', async (req, res) => {
   try {
     const data = req.body;
@@ -71,11 +78,10 @@ app.post('/api/leaders', async (req, res) => {
     res.status(201).json(created);
   } catch (err: any) {
     console.error('Error creating leader:', err);
-    res.status(500).json({ error: 'Error al registrar líder territorial', details: err.message });
+    res.status(500).json({ error: 'Error al registrar líder', details: err.message });
   }
 });
 
-// 3. Update a leader
 app.put('/api/leaders/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -107,11 +113,10 @@ app.put('/api/leaders/:id', async (req, res) => {
     res.json(updated);
   } catch (err: any) {
     console.error('Error updating leader:', err);
-    res.status(500).json({ error: 'Error al actualizar líder territorial', details: err.message });
+    res.status(500).json({ error: 'Error al actualizar líder', details: err.message });
   }
 });
 
-// 4. Delete a leader
 app.delete('/api/leaders/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -121,25 +126,21 @@ app.delete('/api/leaders/:id', async (req, res) => {
     }
 
     const newParentId = target.parentId || null;
-
-    // Re-parent children to parent of deleted node
     await prisma.leader.updateMany({
       where: { parentId: id },
       data: { parentId: newParentId },
     });
 
     await prisma.leader.delete({ where: { id } });
-
-    res.json({ success: true, deletedId: id, reparentedTo: newParentId });
+    res.json({ success: true, deletedId: id });
   } catch (err: any) {
     console.error('Error deleting leader:', err);
-    res.status(500).json({ error: 'Error al eliminar líder territorial', details: err.message });
+    res.status(500).json({ error: 'Error al eliminar líder', details: err.message });
   }
 });
 
-// --- ELECTORAL SECTIONS API ---
+// --- SECTIONS API ---
 
-// 5. Get sections
 app.get('/api/sections', async (req, res) => {
   try {
     const sections = await prisma.electoralSection.findMany({
@@ -148,12 +149,10 @@ app.get('/api/sections', async (req, res) => {
     });
     res.json(sections);
   } catch (err: any) {
-    console.warn('Aviso al consultar secciones en BD:', err.message);
-    res.status(500).json({ error: 'Error al obtener secciones electorales', details: err.message });
+    res.status(500).json({ error: 'Error al obtener secciones', details: err.message });
   }
 });
 
-// 6. Create section
 app.post('/api/sections', async (req, res) => {
   try {
     const data = req.body;
@@ -170,12 +169,10 @@ app.post('/api/sections', async (req, res) => {
     });
     res.status(201).json(created);
   } catch (err: any) {
-    console.error('Error creating section:', err);
-    res.status(500).json({ error: 'Error al crear sección electoral', details: err.message });
+    res.status(500).json({ error: 'Error al crear sección', details: err.message });
   }
 });
 
-// 7. Add structure
 app.post('/api/sections/:id/structures', async (req, res) => {
   try {
     const { id } = req.params;
@@ -197,53 +194,66 @@ app.post('/api/sections/:id/structures', async (req, res) => {
 
     res.status(201).json(createdStructure);
   } catch (err: any) {
-    console.error('Error adding structure to section:', err);
-    res.status(500).json({ error: 'Error al agregar estructura territorial', details: err.message });
+    res.status(500).json({ error: 'Error al agregar estructura', details: err.message });
   }
 });
 
-// --- SERVE COMPILED VITE CLIENT ---
+// --- SERVE COMPILED VITE CLIENT WITH RUNTIME ENV INJECTION ---
 const distPath = path.resolve(__dirname, '../dist');
-app.use(express.static(distPath));
+app.use(express.static(distPath, { index: false }));
 
-// SPA Fallback compatible con Express 5 (evita error de sintaxis en path-to-regexp)
 app.use((req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
+  const indexPath = path.join(distPath, 'index.html');
+  try {
+    if (fs.existsSync(indexPath)) {
+      let html = fs.readFileSync(indexPath, 'utf-8');
+      const envData = {
+        VITE_GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '791878516583-f9hht0avcqd4cvv3o2rvhovsqe7bdvat.apps.googleusercontent.com',
+        VITE_SUPERADMIN_EMAIL: (process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'usrubenroque@gmail.com').toLowerCase(),
+      };
+      const envTag = `<script>window.__ENV__ = ${JSON.stringify(envData)};</script>`;
+      html = html.replace('</head>', `${envTag}</head>`);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+      return;
+    }
+  } catch (e) {
+    console.warn('Fallback a sendFile para index.html:', e);
+  }
+  res.sendFile(indexPath);
 });
 
-// Iniciar servidor inmediatamente para satisfacer healthcheck de Easypanel / Traefik
+// Escuchar en puerto principal
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`=== Servidor de Producción escuchando en http://0.0.0.0:${PORT} ===`);
 });
 
-// Compatibilidad: si el puerto no es 80, también escuchar en el 80 si está libre
+// Compatibilidad con puerto 80
 if (PORT !== 80) {
   try {
     app.listen(80, '0.0.0.0', () => {
-      console.log('=== Servidor también escuchando en puerto 80 para enrutamiento directo ===');
+      console.log('=== Servidor también escuchando en puerto 80 ===');
     });
-  } catch (e) {
-    // Ignorar si el puerto 80 está reservado
-  }
+  } catch (e) {}
 }
 
-// Inicializar la base de datos de manera asíncrona y segura (sin tirar el contenedor si hay espera de red)
+// Sincronización asíncrona de PostgreSQL
 async function syncDatabase() {
   if (!process.env.DATABASE_URL) {
-    console.log('DATABASE_URL no configurada; operando con dataset base.');
+    console.log('DATABASE_URL no configurada; operando con dataset inicial.');
     return;
   }
   try {
-    console.log('Iniciando sincronización de esquema PostgreSQL con Prisma...');
+    console.log('Sincronizando esquema con Prisma...');
     const pushResult = await execAsync('npx prisma db push --skip-generate --accept-data-loss');
     console.log(pushResult.stdout);
 
-    console.log('Verificando siembra inicial de datos...');
+    console.log('Verificando siembra inicial...');
     const seedResult = await execAsync('npx tsx prisma/seed.ts');
     console.log(seedResult.stdout);
-    console.log('✓ Base de datos sincronizada y lista.');
+    console.log('✓ Base de datos PostgreSQL lista y conectada.');
   } catch (error: any) {
-    console.warn('Aviso en inicialización de base de datos:', error.message);
+    console.warn('Aviso en inicialización de BD:', error.message);
   }
 }
 
