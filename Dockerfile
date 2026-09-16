@@ -1,26 +1,26 @@
 FROM node:20-alpine
 
+# Instalar dependencias del sistema necesarias para Prisma en Alpine
+RUN apk add --no-cache openssl libc6-compat
+
 WORKDIR /app
 
-# Instalar dependencias
+# Copiar dependencias e instalarlas
 COPY package*.json ./
 RUN npm ci
 
-# Generar Prisma Client
+# Generar cliente de Prisma
 COPY prisma ./prisma
 RUN npx prisma generate
 
-# Copiar código fuente y compilar frontend Vite
+# Copiar código fuente y compilar frontend
 COPY . .
 RUN npm run build
 
-# Variables de entorno por defecto
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
+EXPOSE 80
 
-# En el arranque del contenedor:
-# 1. Sincroniza las tablas en PostgreSQL con prisma db push
-# 2. Siembra los 378 líderes de Tabasco y secciones electorales si la BD está vacía
-# 3. Arranca el servidor Express (API + Frontend SPA)
-CMD ["sh", "-c", "npx prisma db push --skip-generate && npx tsx prisma/seed.ts && npx tsx server/index.ts"]
+# Arranca directamente el servidor Node (que inicia de inmediato e inicializa la BD en background)
+CMD ["npx", "tsx", "server/index.ts"]
