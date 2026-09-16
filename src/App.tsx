@@ -20,6 +20,7 @@ import { NodeDetailDrawer } from './components/NodeDetailDrawer';
 import { EditLeaderModal } from './components/EditLeaderModal';
 import { LevelSummaryBar } from './components/LevelSummaryBar';
 import { SectionsCatalogView } from './components/SectionsCatalogView';
+import { LoginPage } from './components/LoginPage';
 
 export function App() {
   // Master raw and computed territorial dataset
@@ -27,8 +28,40 @@ export function App() {
     return calculateHierarchyAggregates(INITIAL_TERRITORY_DATA);
   });
 
-  // Active logged-in user account for RBAC visibility and creation rules
-  const [currentUser, setCurrentUser] = useState<UserAccount>(MOCK_ACCOUNTS[0]);
+  // Authenticated user via Google (persisted in localStorage)
+  const [authenticatedUser, setAuthenticatedUser] = useState<UserAccount | null>(() => {
+    try {
+      const saved = localStorage.getItem('territorial_auth_user');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.error('Error loading saved auth user', e);
+    }
+    return null;
+  });
+
+  // Active user account for RBAC visibility and creation rules
+  const [currentUser, setCurrentUser] = useState<UserAccount>(() => {
+    return authenticatedUser || MOCK_ACCOUNTS[0];
+  });
+
+  const handleLoginSuccess = useCallback((user: UserAccount) => {
+    try {
+      localStorage.setItem('territorial_auth_user', JSON.stringify(user));
+    } catch (e) {
+      console.error('Error saving auth user', e);
+    }
+    setAuthenticatedUser(user);
+    setCurrentUser(user);
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    try {
+      localStorage.removeItem('territorial_auth_user');
+    } catch (e) {
+      console.error('Error removing auth user', e);
+    }
+    setAuthenticatedUser(null);
+  }, []);
 
   // Registered Electoral Sections with multi-structures
   const [sectionsData, setSectionsData] = useState<ElectoralSection[]>(INITIAL_SECTIONS);
@@ -259,6 +292,15 @@ export function App() {
     e.target.value = '';
   }, []);
 
+  if (!authenticatedUser) {
+    return (
+      <LoginPage
+        onLoginSuccess={handleLoginSuccess}
+        allLeaders={allComputedLeaders}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
       {/* Top Header & Search Navigation */}
@@ -276,6 +318,7 @@ export function App() {
         currentUser={currentUser}
         onSelectUser={setCurrentUser}
         visibleCount={visibleLeaders.length}
+        onLogout={handleLogout}
       />
 
       {/* Panel de Conteo y Filtro Rápido por Nivel Territorial */}

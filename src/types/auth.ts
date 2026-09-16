@@ -10,4 +10,6 @@ export interface UserAccount {
   territoryName: string;
   avatarBg?: string;
   accountRoleLabel: string;
+  picture?: string;
+  isSuperAdmin?: boolean;
 }

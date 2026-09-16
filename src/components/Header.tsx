@@ -31,6 +31,7 @@ interface HeaderProps {
   currentUser: UserAccount;
   onSelectUser: (user: UserAccount) => void;
   visibleCount: number;
+  onLogout?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -47,6 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
   currentUser,
   onSelectUser,
   visibleCount,
+  onLogout,
 }) => {
   const getAddButtonLabel = () => {
     switch (currentUser.level) {
@@ -103,6 +105,7 @@ export const Header: React.FC<HeaderProps> = ({
             currentUser={currentUser}
             onSelectUser={onSelectUser}
             visibleCount={visibleCount}
+            onLogout={onLogout}
           />
 
           {/* View Mode Buttons */}

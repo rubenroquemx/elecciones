@@ -9,19 +9,22 @@ import {
   Check, 
   Eye, 
   UserPlus, 
-  Sparkles
+  Sparkles,
+  LogOut
 } from 'lucide-react';
 
 interface UserSessionSwitcherProps {
   currentUser: UserAccount;
   onSelectUser: (user: UserAccount) => void;
   visibleCount: number;
+  onLogout?: () => void;
 }
 
 export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
   currentUser,
   onSelectUser,
   visibleCount,
+  onLogout,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -49,9 +52,13 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
         className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-left transition-all shadow-2xs hover:shadow-xs group"
         title="Cambiar sesión de usuario para probar permisos y alcances"
       >
-        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs ${currentUser.avatarBg || 'bg-slate-700'}`}>
-          {currentUser.level === 'admin' ? <Shield className="w-3.5 h-3.5" /> : currentUser.name.charAt(0)}
-        </div>
+        {currentUser.picture ? (
+          <img src={currentUser.picture} alt={currentUser.name} className="w-7 h-7 rounded-lg object-cover shadow-xs shrink-0" />
+        ) : (
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs ${currentUser.avatarBg || 'bg-slate-700'}`}>
+            {currentUser.level === 'admin' ? <Shield className="w-3.5 h-3.5" /> : currentUser.name.charAt(0)}
+          </div>
+        )}
 
         <div className="hidden sm:flex flex-col text-left">
           <div className="flex items-center gap-1.5">
@@ -172,9 +179,23 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
             })}
           </div>
 
-          {/* Footer note */}
-          <div className="p-2.5 bg-slate-50 border-t border-slate-200 text-[10px] text-slate-500 text-center">
-            Regla de Seguridad: Los usuarios solo tienen visibilidad descendente de su rama.
+          {/* Footer note & Logout */}
+          <div className="p-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-500">
+            <span>Visibilidad descendente protegida</span>
+            {onLogout && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onLogout();
+                }}
+                className="flex items-center gap-1 text-rose-600 hover:text-rose-800 font-bold px-2 py-1 rounded hover:bg-rose-50 transition-colors"
+                title="Cerrar sesión en este dispositivo"
+              >
+                <LogOut className="w-3 h-3" />
+                <span>Cerrar sesión</span>
+              </button>
+            )}
           </div>
         </div>
       )}
