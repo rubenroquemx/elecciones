@@ -13,7 +13,19 @@ export const MOCK_ACCOUNTS: UserAccount[] = [
     avatarBg: 'bg-purple-700',
   },
   {
+    id: 'usr-estatal',
+    username: 'javier.may.rodriguez',
+    name: 'Ing. Javier May Rodríguez',
+    email: 'coordinacion.estatal@organizacion-tabasco.mx',
+    leaderId: 'coord-estatal-tab',
+    level: 'estatal',
+    territoryName: 'Estado de Tabasco (Coordinación Estatal)',
+    accountRoleLabel: 'Coordinador Estatal',
+    avatarBg: 'bg-purple-600',
+  },
+  {
     id: 'usr-dist-04',
+
     username: 'jose.ramiro.lopez',
     name: 'Mtro. José Ramiro López Obrador',
     email: 'dist-loc-04@organizacion-tabasco.mx',

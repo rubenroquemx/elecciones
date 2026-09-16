@@ -71,7 +71,7 @@ model UserAccount {
   username         String
   name             String
   leaderId         String?
-  level            String   // 'admin' | 'distrital' | 'territorial' | 'seccional' | 'promotor'
+  level            String   // 'admin' | 'estatal' | 'distrital' | 'territorial' | 'seccional' | 'promotor'
   territoryName    String
   avatarBg         String?
   picture          String?
@@ -80,3 +80,29 @@ model UserAccount {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
+model ElectoralSectionCatalog {
+  id               String   @id @default(uuid())
+  stateId          Int      @map("state_id")
+  stateName        String   @map("state_name")
+  federalDistrict  Int      @map("federal_district")
+  districtHead     String?  @map("district_head")
+  localDistrict    Int      @map("local_district")
+  municipalityId   Int      @map("municipality_id")
+  municipalityName String   @map("municipality_name")
+  section          String   // Clave de 4 dígitos con cero ej. "0484"
+  sectionType      String   @map("section_type") // URBANO(A), MIXTO(A), RURAL
+  nominalMen       Int      @default(0) @map("nominal_men")
+  nominalWomen     Int      @default(0) @map("nominal_women")
+  nominalNonBinary Int      @default(0) @map("nominal_non_binary")
+  nominalTotal     Int      @default(0) @map("nominal_total")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@unique([stateId, section])
+  @@index([stateId, municipalityId])
+  @@index([stateId, federalDistrict])
+  @@index([stateId, localDistrict])
+  @@index([section])
+  @@map("electoral_section_catalogs")
+}
+

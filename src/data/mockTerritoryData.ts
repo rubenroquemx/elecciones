@@ -1,6 +1,12 @@
 import type { TerritorialLeader, TerritorialLevel } from '../types/territory';
 
 export const LEVEL_CONFIG: Record<TerritorialLevel, { label: string; color: string; bgLight: string; border: string }> = {
+  estatal: {
+    label: 'Coordinación Estatal',
+    color: 'text-purple-700',
+    bgLight: 'bg-purple-50 border-purple-200',
+    border: 'border-purple-600',
+  },
   distrital: {
     label: 'Comité de Organización Distrital',
     color: 'text-indigo-700',
@@ -35,13 +41,34 @@ export const LEVEL_CONFIG: Record<TerritorialLevel, { label: string; color: stri
 
 export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
   {
+    "id": "coord-estatal-tab",
+    "name": "Ing. Javier May Rodríguez",
+    "role": "Coordinación Estatal",
+    "level": "estatal",
+    "levelIndex": 0,
+    "parentId": null,
+    "territoryName": "Estado de Tabasco (Coordinación Estatal Operativa)",
+    "code": "EDO-TAB-01",
+    "phone": "+52 993 310 9000",
+    "email": "coordinacion.estatal@organizacion-tabasco.mx",
+    "username": "javier.may.rodriguez",
+    "hasAccount": true,
+    "avatarBg": "bg-purple-700",
+    "metaGoal": 650000,
+    "currentCount": 42500,
+    "status": "en_progreso",
+    "validationStatus": "validado",
+    "notes": "Comité de Dirección y Coordinación Estatal de Tabasco. Supervisa los 21 distritos locales y 17 municipios."
+  },
+  {
     "id": "dist-loc-04",
     "name": "Mtro. José Ramiro López Obrador",
     "role": "Comité de Organización Distrital",
     "level": "distrital",
-    "levelIndex": 0,
-    "parentId": null,
+    "levelIndex": 1,
+    "parentId": "coord-estatal-tab",
     "territoryName": "Distrito Local 04 - Centro Poniente (Tamulté / Atasta)",
+
     "code": "DTO-LOC-04",
     "phone": "+52 993 120 4581",
     "email": "dist-loc-04@organizacion-tabasco.mx",

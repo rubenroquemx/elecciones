@@ -198,6 +198,90 @@ app.post('/api/sections/:id/structures', async (req, res) => {
   }
 });
 
+// --- NATIONAL ELECTORAL CATALOG API ---
+
+// Lista de Estados y Resumen Nacional
+app.get('/api/catalog/states', async (req, res) => {
+  try {
+    const statesJsonPath = path.resolve(__dirname, '../src/data/nationalStatesSummary.json');
+    if (fs.existsSync(statesJsonPath)) {
+      const data = JSON.parse(fs.readFileSync(statesJsonPath, 'utf-8'));
+      return res.json(data);
+    }
+
+    const states = await prisma.electoralSectionCatalog.groupBy({
+      by: ['stateId', 'stateName'],
+      _count: { section: true },
+      _sum: {
+        nominalTotal: true,
+        nominalMen: true,
+        nominalWomen: true,
+        nominalNonBinary: true,
+      },
+      orderBy: { stateId: 'asc' },
+    });
+    res.json(states);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al consultar estados', details: err.message });
+  }
+});
+
+// Secciones del Catálogo con Filtros por Estado, Municipio y Búsqueda
+app.get('/api/catalog/sections', async (req, res) => {
+  try {
+    const stateId = req.query.stateId ? Number(req.query.stateId) : 27; // Default 27 (Tabasco)
+    const municipalityName = req.query.municipality as string;
+    const localDistrict = req.query.localDistrict ? Number(req.query.localDistrict) : undefined;
+    const federalDistrict = req.query.federalDistrict ? Number(req.query.federalDistrict) : undefined;
+    const search = req.query.search as string;
+    const limit = req.query.limit ? Number(req.query.limit) : 200;
+
+    // Fallback a JSON local para Tabasco si la BD aún está sembrando
+    if (stateId === 27) {
+      const tabJsonPath = path.resolve(__dirname, '../src/data/tabascoCatalog.json');
+      if (fs.existsSync(tabJsonPath)) {
+        let sections = JSON.parse(fs.readFileSync(tabJsonPath, 'utf-8'));
+        if (municipalityName && municipalityName !== 'all') {
+          sections = sections.filter((s: any) => s.municipalityName === municipalityName);
+        }
+        if (localDistrict) {
+          sections = sections.filter((s: any) => s.localDistrict === localDistrict);
+        }
+        if (federalDistrict) {
+          sections = sections.filter((s: any) => s.federalDistrict === federalDistrict);
+        }
+        if (search) {
+          const q = search.trim().toLowerCase();
+          sections = sections.filter((s: any) => s.section.includes(q) || s.municipalityName.toLowerCase().includes(q));
+        }
+        return res.json(sections.slice(0, limit));
+      }
+    }
+
+    const where: any = { stateId };
+    if (municipalityName && municipalityName !== 'all') where.municipalityName = municipalityName;
+    if (localDistrict) where.localDistrict = localDistrict;
+    if (federalDistrict) where.federalDistrict = federalDistrict;
+    if (search) {
+      where.OR = [
+        { section: { contains: search } },
+        { municipalityName: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const sections = await prisma.electoralSectionCatalog.findMany({
+      where,
+      take: limit,
+      orderBy: { section: 'asc' },
+    });
+    res.json(sections);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al consultar catálogo de secciones', details: err.message });
+  }
+});
+
+
+
 // --- SERVE COMPILED VITE CLIENT WITH RUNTIME ENV INJECTION ---
 const distPath = path.resolve(__dirname, '../dist');
 app.use(express.static(distPath, { index: false }));

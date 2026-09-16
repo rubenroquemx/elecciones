@@ -1,9 +1,11 @@
 export type TerritorialLevel = 
+  | 'estatal'        // Coordinación Estatal
   | 'distrital'      // Comité de Organización Distrital (local o federal)
-  | 'territorial'    // Comité de Organización Territorial
+  | 'territorial'    // Comité de Organización Territorial (Zona / Ruta)
   | 'seccional'      // Coordinador de Sección
-  | 'promotor'       // Promotor
+  | 'promotor'       // Promotor Territorial
   | 'promovido';     // Promovido (Ciudadano promovido)
+
 
 export interface TerritorialLeader {
   id: string;

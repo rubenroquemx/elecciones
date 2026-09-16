@@ -18,9 +18,10 @@ import type { UserAccount } from '../types/auth';
 import { UserSessionSwitcher } from './UserSessionSwitcher';
 
 interface HeaderProps {
-  currentView: 'flow' | 'table' | 'stats' | 'sections';
-  onViewChange: (view: 'flow' | 'table' | 'stats' | 'sections') => void;
+  currentView: 'kpis' | 'flow' | 'table' | 'stats' | 'sections';
+  onViewChange: (view: 'kpis' | 'flow' | 'table' | 'stats' | 'sections') => void;
   filters: FilterOptions;
+
   onFilterChange: (filters: FilterOptions) => void;
   onOpenAddModal: () => void;
   onExportData: () => void;
@@ -112,6 +113,19 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
             <button
               type="button"
+              onClick={() => onViewChange('kpis')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                currentView === 'kpis'
+                  ? 'bg-white text-indigo-700 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+              }`}
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Escritorio KPIs</span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => onViewChange('flow')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 currentView === 'flow'
@@ -138,19 +152,6 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               type="button"
-              onClick={() => onViewChange('stats')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                currentView === 'stats'
-                  ? 'bg-white text-sky-700 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-              }`}
-            >
-              <BarChart3 className="w-3.5 h-3.5" />
-              <span>Tablero KPIs</span>
-            </button>
-
-            <button
-              type="button"
               onClick={() => onViewChange('sections')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 currentView === 'sections'
@@ -167,6 +168,7 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
           </div>
+
 
           {/* Quick Actions */}
           <div className="flex items-center gap-1.5">

@@ -1,18 +1,19 @@
 import type { TerritorialLeader, HierarchyStats, TerritorialLevel, FilterOptions } from '../types/territory';
 
 export const ORDERED_LEVELS: TerritorialLevel[] = [
-  'distrital',      // Nivel 0: Comité de Organización Distrital (local o federal)
-  'territorial',    // Nivel 1: Comité de Organización Territorial
-  'seccional',      // Nivel 2: Coordinador de Sección
-  'promotor',       // Nivel 3: Promotor
-  'promovido',      // Nivel 4: Promovido (Ciudadano promovido)
+  'estatal',        // Nivel 0: Coordinación Estatal
+  'distrital',      // Nivel 1: Comité de Organización Distrital (local o federal)
+  'territorial',    // Nivel 2: Comité de Organización Territorial (Zona / Ruta)
+  'seccional',      // Nivel 3: Coordinador de Sección
+  'promotor',       // Nivel 4: Promotor Territorial
+  'promovido',      // Nivel 5: Promovido (Ciudadano promovido)
 ];
 
 /**
  * Returns the child level automatically based on a parent leader's level
  */
 export function getChildLevel(parentLevel: TerritorialLevel | null | undefined): TerritorialLevel {
-  if (!parentLevel) return 'distrital';
+  if (!parentLevel) return 'estatal';
   const idx = ORDERED_LEVELS.indexOf(parentLevel);
   if (idx === -1 || idx >= ORDERED_LEVELS.length - 1) return 'promovido';
   return ORDERED_LEVELS[idx + 1];
@@ -23,7 +24,8 @@ export function getChildLevel(parentLevel: TerritorialLevel | null | undefined):
  */
 export function getAllowedChildLevel(creatorLevel: TerritorialLevel | 'admin'): TerritorialLevel | null {
   switch (creatorLevel) {
-    case 'admin': return 'distrital';
+    case 'admin': return 'estatal';
+    case 'estatal': return 'distrital';
     case 'distrital': return 'territorial';
     case 'territorial': return 'seccional';
     case 'seccional': return 'promotor';
@@ -36,7 +38,7 @@ export function getAllowedChildLevel(creatorLevel: TerritorialLevel | 'admin'): 
  * Checks if a role can create system user accounts
  */
 export function canCreateAccounts(level: TerritorialLevel | 'admin'): boolean {
-  return level === 'admin' || level === 'distrital' || level === 'territorial' || level === 'seccional';
+  return level === 'admin' || level === 'estatal' || level === 'distrital' || level === 'territorial' || level === 'seccional';
 }
 
 /**
@@ -44,6 +46,7 @@ export function canCreateAccounts(level: TerritorialLevel | 'admin'): boolean {
  */
 export function getDefaultRoleForLevel(level: TerritorialLevel): string {
   switch (level) {
+    case 'estatal': return 'Coordinación Estatal';
     case 'distrital': return 'Comité de Organización Distrital';
     case 'territorial': return 'Comité de Organización Territorial';
     case 'seccional': return 'Coordinador de Sección';
@@ -52,6 +55,7 @@ export function getDefaultRoleForLevel(level: TerritorialLevel): string {
     default: return 'Integrante Territorial';
   }
 }
+
 
 /**
  * Computes bottom-up metrics and automatically derives the pyramid level based on the superior leader
@@ -171,12 +175,14 @@ export function getVisibleSubtree(rootId: string | null, nodes: TerritorialLeade
  */
 export function getHierarchyStats(nodes: TerritorialLeader[]): HierarchyStats {
   const levelCounts: Record<TerritorialLevel, number> = {
+    estatal: 0,
     distrital: 0,
     territorial: 0,
     seccional: 0,
     promotor: 0,
     promovido: 0,
   };
+
 
   const statusCounts: Record<string, number> = {
     completado: 0,

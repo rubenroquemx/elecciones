@@ -20,7 +20,9 @@ import { NodeDetailDrawer } from './components/NodeDetailDrawer';
 import { EditLeaderModal } from './components/EditLeaderModal';
 import { LevelSummaryBar } from './components/LevelSummaryBar';
 import { SectionsCatalogView } from './components/SectionsCatalogView';
+import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { LoginPage } from './components/LoginPage';
+
 import {
   fetchLeadersApi,
   saveLeaderApi,
@@ -99,8 +101,9 @@ export function App() {
   // Selected leader for drawer inspection
   const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>('dist-loc-04');
 
-  // Active view: Flow / Table / Stats / Sections
-  const [currentView, setCurrentView] = useState<'flow' | 'table' | 'stats' | 'sections'>('flow');
+  // Active view: KPIs Desktop / Flow / Table / Stats / Sections
+  const [currentView, setCurrentView] = useState<'kpis' | 'flow' | 'table' | 'stats' | 'sections'>('kpis');
+
 
   // Filters state
   const [filters, setFilters] = useState<FilterOptions>({
@@ -352,8 +355,8 @@ export function App() {
         onLogout={handleLogout}
       />
 
-      {/* Panel de Conteo y Filtro Rápido por Nivel Territorial */}
-      {currentView !== 'sections' && (
+      {/* Panel de Conteo y Filtro Rápido por Nivel Territorial (solo en Organigrama y Directorio) */}
+      {(currentView === 'flow' || currentView === 'table') && (
         <LevelSummaryBar
           levelCounts={stats.levelCounts}
           totalCount={stats.totalPeople}
@@ -364,6 +367,18 @@ export function App() {
 
       {/* Main Content Area */}
       <main className="flex-1 relative overflow-hidden flex">
+        {currentView === 'kpis' && (
+          <ExecutiveKpiDesktop
+            currentUser={currentUser}
+            stats={stats}
+            visibleLeaders={visibleLeaders}
+            sections={sectionsData}
+            onSelectLeader={handleSelectLeader}
+            onNavigateView={setCurrentView}
+            onOpenAddModal={handleOpenAddModal}
+          />
+        )}
+
         {currentView === 'flow' && (
           <TerritoryFlowCanvas
             leaders={filteredLeaders}
@@ -405,7 +420,7 @@ export function App() {
         )}
 
         {/* Slide-out Leader Inspector Drawer */}
-        {currentView !== 'sections' && (
+        {(currentView === 'flow' || currentView === 'table') && (
           <NodeDetailDrawer
             leader={selectedLeader}
             allLeaders={visibleLeaders}
@@ -417,6 +432,7 @@ export function App() {
           />
         )}
       </main>
+
 
       {/* Add / Edit Leader Modal */}
       <EditLeaderModal
