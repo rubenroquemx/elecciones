@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import type { ElectoralSection, SectionStructure } from '../types/sections';
 import { SectionMapThumbnail } from './SectionMapThumbnail';
 import { 
-  PlusCircle, 
+  PlusCircle,
+  Trophy, 
   Network, 
   Phone, 
   MessageSquare, 
@@ -21,6 +22,7 @@ interface SectionCardProps {
   onSelectStructureToViewTree: (structure: SectionStructure, section: ElectoralSection) => void;
   onEditSection: (section: ElectoralSection) => void;
   onDeleteSection?: (sectionId: string) => void;
+  onViewSectionDetail?: (sectionNumber: string) => void;
 }
 
 export const SectionCard: React.FC<SectionCardProps> = ({
@@ -28,6 +30,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
   onAddStructure,
   onSelectStructureToViewTree,
   onEditSection,
+  onViewSectionDetail,
 }) => {
   const [selectedStructureId, setSelectedStructureId] = useState<string>(
     section.structures[0]?.id || ''
@@ -59,6 +62,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           tipo={section.tipo}
           nominalList={section.nominalList}
           height={145}
+          onViewDetail={() => onViewSectionDetail?.(section.sectionNumber)}
         />
 
         {/* Section Identification Title & Badges */}
@@ -93,6 +97,20 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Botón para desplegar expediente en su propia página */}
+      {onViewSectionDetail && (
+        <div className="px-4 pb-2">
+          <button
+            type="button"
+            onClick={() => onViewSectionDetail(section.sectionNumber)}
+            className="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs hover:shadow cursor-pointer"
+          >
+            <Trophy className="w-3.5 h-3.5 text-amber-500" />
+            <span>Ver Expediente y Meta 2027</span>
+          </button>
+        </div>
+      )}
 
       {/* Numerical Indicators */}
       <div className="px-4 py-2.5 grid grid-cols-3 gap-2 bg-slate-50 border-y border-slate-100 text-center">

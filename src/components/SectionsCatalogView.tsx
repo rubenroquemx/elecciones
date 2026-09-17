@@ -22,6 +22,7 @@ interface SectionsCatalogViewProps {
   onAddStructureToSection: (sectionId: string, structure: SectionStructure) => void;
   onSelectStructureToViewTree: (structure: SectionStructure, section: ElectoralSection) => void;
   onDeleteSection?: (sectionId: string) => void;
+  onViewSectionDetail?: (sectionNumber: string) => void;
 }
 
 export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
@@ -30,6 +31,7 @@ export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
   onAddStructureToSection,
   onSelectStructureToViewTree,
   onDeleteSection,
+  onViewSectionDetail,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMunicipio, setSelectedMunicipio] = useState<string>('TODOS');
@@ -364,6 +366,7 @@ export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
                   setIsCreateModalOpen(true);
                 }}
                 onDeleteSection={onDeleteSection}
+                onViewSectionDetail={onViewSectionDetail}
               />
             ))}
           </div>

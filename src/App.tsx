@@ -21,6 +21,7 @@ import { EditLeaderModal } from './components/EditLeaderModal';
 import { LevelSummaryBar } from './components/LevelSummaryBar';
 import { SectionsCatalogView } from './components/SectionsCatalogView';
 import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
+import { SectionDetailPage } from './components/SectionDetailPage';
 import { LoginPage } from './components/LoginPage';
 
 
@@ -102,9 +103,14 @@ export function App() {
 
   // Selected leader for drawer inspection (starts null so drawer is closed by default)
   const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
+  const [detailSectionNumber, setDetailSectionNumber] = useState<string | null>(null);
 
   // Active navigation: 'escritorio' | 'estructura' | 'secciones'
   const [activeNav, setActiveNav] = useState<MainNavSection>('escritorio');
+  const handleNavChange = useCallback((nav: MainNavSection) => {
+    setActiveNav(nav);
+    setDetailSectionNumber(null);
+  }, []);
   const [structureMode, setStructureMode] = useState<StructureMode>('organigrama');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -343,7 +349,7 @@ export function App() {
       {/* Sidebar Lateral Izquierdo */}
       <Sidebar
         activeNav={activeNav}
-        onNavChange={setActiveNav}
+        onNavChange={handleNavChange}
         structureMode={structureMode}
         onStructureModeChange={setStructureMode}
         currentUser={currentUser}
@@ -386,6 +392,17 @@ export function App() {
 
         {/* Contenido Dinámico */}
         <main className="flex-1 relative overflow-hidden flex">
+          {/* VISTA DE PÁGINA COMPLETA DE DETALLE DE SECCIÓN (SIN POPUPS NI MODALES) */}
+          {detailSectionNumber ? (
+            <SectionDetailPage
+              sectionNumber={detailSectionNumber}
+              allSections={sectionsData}
+              visibleLeaders={visibleLeaders}
+              onBack={() => setDetailSectionNumber(null)}
+              onAddStructure={handleAddStructureToSection}
+            />
+          ) : (
+            <>
           {/* 1. ESCRITORIO (Tablero de KPIs Oficiales) */}
           {activeNav === 'escritorio' && (
             <ExecutiveKpiDesktop
@@ -406,6 +423,7 @@ export function App() {
                 }
               }}
               onOpenAddModal={handleOpenAddModal}
+              onViewSectionDetail={(secNum) => setDetailSectionNumber(secNum)}
             />
           )}
 
@@ -441,7 +459,11 @@ export function App() {
               onSaveSection={handleSaveSection}
               onAddStructureToSection={handleAddStructureToSection}
               onSelectStructureToViewTree={handleSelectStructureToViewTree}
+              onViewSectionDetail={(secNum) => setDetailSectionNumber(secNum)}
             />
+          )}
+
+            </>
           )}
 
           {/* Expediente Territorial Lateral (Drawer) - Solo se muestra si hay un líder seleccionado y se cierra correctamente con el botón X */}

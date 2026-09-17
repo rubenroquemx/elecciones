@@ -13,6 +13,7 @@ interface SectionMapThumbnailProps {
   distritoLocal?: string;
   tipo?: string;
   nominalList?: number;
+  onViewDetail?: () => void;
   className?: string;
   height?: number;
 }
@@ -25,6 +26,7 @@ export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
   distritoLocal,
   tipo,
   nominalList,
+  onViewDetail,
   className = '',
   height = 175,
 }) => {
@@ -155,7 +157,7 @@ export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
   return (
     <>
       <div 
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => { if (onViewDetail) { onViewDetail(); } else { setIsModalOpen(true); } }}
         className={`relative overflow-hidden rounded-xl border border-slate-200 shadow-xs group cursor-pointer ${className}`}
         style={{ height: `${height}px` }}
         title="Haga clic para ver el mapa interactivo OpenStreetMap en esta página"
@@ -219,7 +221,11 @@ export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setIsModalOpen(true);
+              if (onViewDetail) {
+                onViewDetail();
+              } else {
+                setIsModalOpen(true);
+              }
             }}
             title="Ver en tamaño completo (ampliar mapa en esta página)"
             className="p-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 rounded-lg border border-slate-200 shadow-xs transition-all hover:scale-105 flex items-center justify-center cursor-pointer"

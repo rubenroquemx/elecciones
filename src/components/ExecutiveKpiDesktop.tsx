@@ -29,6 +29,7 @@ interface ExecutiveKpiDesktopProps {
   onSelectLeader: (leader: TerritorialLeader) => void;
   onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections') => void;
   onOpenAddModal: () => void;
+  onViewSectionDetail?: (sectionNumber: string) => void;
 }
 
 export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
@@ -39,6 +40,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
 
   onNavigateView,
   onOpenAddModal,
+  onViewSectionDetail,
 }) => {
   // Filtros de navegación geográfica para nivel Nacional / Estatal
   const [selectedStateId, setSelectedStateId] = useState<number>(27); // 27 = Tabasco por defecto
@@ -567,18 +569,24 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                         <td className="py-2 px-3 text-center">
                           <button
                             type="button"
-                            onClick={() => setInspectMapSection({
-                              sectionNumber: sec.section,
-                              municipio: sec.municipalityName,
-                              distritoLocal: `Distrito ${sec.localDistrict}`,
-                              distritoFederal: `Dto. ${sec.federalDistrict} (${sec.districtHead})`,
-                              tipo: sec.sectionType,
-                              nominalTotal: sec.nominalTotal,
-                              nominalMen: sec.nominalMen,
-                              nominalWomen: sec.nominalWomen,
-                              nominalNonBinary: sec.nominalNonBinary,
-                              assignedLeader: assignedLeader?.name,
-                            })}
+                            onClick={() => {
+                              if (onViewSectionDetail) {
+                                onViewSectionDetail(sec.section);
+                              } else {
+                                setInspectMapSection({
+                                  sectionNumber: sec.section,
+                                  municipio: sec.municipalityName,
+                                  distritoLocal: `Distrito ${sec.localDistrict}`,
+                                  distritoFederal: `Dto. ${sec.federalDistrict} (${sec.districtHead})`,
+                                  tipo: sec.sectionType,
+                                  nominalTotal: sec.nominalTotal,
+                                  nominalMen: sec.nominalMen,
+                                  nominalWomen: sec.nominalWomen,
+                                  nominalNonBinary: sec.nominalNonBinary,
+                                  assignedLeader: assignedLeader?.name,
+                                });
+                              }
+                            }}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors shadow-2xs cursor-pointer"
                             title="Desplegar mapa OpenStreetMap en esta página"
                           >
