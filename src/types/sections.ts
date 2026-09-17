@@ -24,6 +24,9 @@ export interface ElectoralSection {
   distritoLocal: string;
   tipo: SectionType;
   nominalList: number;
+  nominalMen?: number;
+  nominalWomen?: number;
+  nominalNonBinary?: number;
   targetGoal: number;
   structures: SectionStructure[];
   center: [number, number]; // [lon, lat]

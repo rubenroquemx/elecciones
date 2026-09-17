@@ -101,12 +101,14 @@ export const SectionMapModal: React.FC<SectionMapModalProps> = ({
   const municipio = propMunicipio || cartoEntry?.municipio || catEntry?.municipalityName || 'Tabasco';
   const distritoLocal = propDistritoLocal || cartoEntry?.distritoLocal || (catEntry ? `Distrito ${catEntry.localDistrict}` : '');
   const distritoFederal = propDistritoFederal || (catEntry ? `Distrito ${catEntry.federalDistrict} (${catEntry.districtHead})` : '');
-  const tipo = propTipo || cartoEntry?.tipo || catEntry?.sectionType || 'Urbana';
+  const tipo = catEntry
+    ? (catEntry.sectionType?.includes('RURAL') ? 'Rural' : catEntry.sectionType?.includes('MIXTO') ? 'Mixta' : 'Urbana')
+    : (propTipo || cartoEntry?.tipo || 'Urbana');
 
-  const nominalTotal = propNominalTotal ?? catEntry?.nominalTotal ?? 0;
-  const nominalMen = propNominalMen ?? catEntry?.nominalMen ?? 0;
-  const nominalWomen = propNominalWomen ?? catEntry?.nominalWomen ?? 0;
-  const nominalNonBinary = propNominalNonBinary ?? catEntry?.nominalNonBinary ?? 0;
+  const nominalTotal = catEntry ? catEntry.nominalTotal : (propNominalTotal ?? 0);
+  const nominalMen = catEntry ? catEntry.nominalMen : (propNominalMen ?? 0);
+  const nominalWomen = catEntry ? catEntry.nominalWomen : (propNominalWomen ?? 0);
+  const nominalNonBinary = catEntry ? catEntry.nominalNonBinary : (propNominalNonBinary ?? 0);
 
   // Initialize and update Leaflet Map
   useEffect(() => {

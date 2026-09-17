@@ -1,5 +1,6 @@
 import type { ElectoralSection, SectionStructure } from '../types/sections';
 import rawCartography from './tabascoSectionsCartography.json';
+import tabascoCatalog from './tabascoCatalog.json';
 
 export interface CartographyEntry {
   id: string;
@@ -19,6 +20,10 @@ export const TABASCO_CARTOGRAPHY: CartographyEntry[] = rawCartography as Cartogr
 // Quick map by section number for lookup
 export const CARTOGRAPHY_BY_SECTION = new Map<string, CartographyEntry>(
   TABASCO_CARTOGRAPHY.map(c => [c.sectionNumber, c])
+);
+
+export const CATALOG_BY_SECTION = new Map<string, typeof tabascoCatalog[0]>(
+  tabascoCatalog.map(c => [c.section, c])
 );
 
 // Sample structures for key showcase sections across different municipalities
@@ -211,8 +216,8 @@ const SAMPLE_STRUCTURES: Record<string, { structures: SectionStructure[]; notes?
 // FULL list of all 1,144 Electoral Sections in Tabasco from the official INE shapefile
 export const INITIAL_SECTIONS: ElectoralSection[] = TABASCO_CARTOGRAPHY.map(carto => {
   const sample = SAMPLE_STRUCTURES[carto.sectionNumber];
-  const numInt = parseInt(carto.sectionNumber, 10) || 1;
-  const nominal = 1400 + ((numInt * 31) % 1800);
+  const cat = CATALOG_BY_SECTION.get(carto.sectionNumber);
+  const nominal = cat ? cat.nominalTotal : 1400;
   const target = Math.round(nominal * 0.45);
 
   return {
@@ -220,9 +225,12 @@ export const INITIAL_SECTIONS: ElectoralSection[] = TABASCO_CARTOGRAPHY.map(cart
     sectionNumber: carto.sectionNumber,
     municipio: carto.municipio,
     municipioId: carto.municipioId,
-    distritoLocal: carto.distritoLocal,
-    tipo: carto.tipo,
+    distritoLocal: cat?.localDistrict ? `Distrito ${cat.localDistrict}` : carto.distritoLocal,
+    tipo: (cat?.sectionType?.includes('RURAL') ? 'Rural' : cat?.sectionType?.includes('MIXTO') ? 'Mixta' : carto.tipo) as any,
     nominalList: nominal,
+    nominalMen: cat?.nominalMen,
+    nominalWomen: cat?.nominalWomen,
+    nominalNonBinary: cat?.nominalNonBinary,
     targetGoal: target,
     center: carto.center,
     bbox: carto.bbox,
