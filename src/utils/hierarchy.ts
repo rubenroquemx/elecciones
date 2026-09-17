@@ -35,6 +35,20 @@ export function getAllowedChildLevel(creatorLevel: TerritorialLevel | 'admin'): 
 }
 
 /**
+ * Returns all levels that a creator of given level is allowed to create:
+ * - Superadmin ('admin'): Can create ANY level.
+ * - Others: Can ONLY create their immediate inferior level.
+ */
+export function getAllowedLevelsForCreator(creatorLevel: TerritorialLevel | 'admin'): TerritorialLevel[] {
+  if (creatorLevel === 'admin') {
+    return [...ORDERED_LEVELS];
+  }
+  const child = getAllowedChildLevel(creatorLevel);
+  return child ? [child] : [];
+}
+
+
+/**
  * Checks if a role can create system user accounts
  */
 export function canCreateAccounts(level: TerritorialLevel | 'admin'): boolean {
