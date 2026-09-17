@@ -12,16 +12,18 @@ import {
   exportToCSV,
   getVisibleSubtree
 } from './utils/hierarchy';
-import { Header } from './components/Header';
+import { Sidebar, type MainNavSection, type StructureMode } from './components/Sidebar';
+import { TopHeader } from './components/TopHeader';
 import { TerritoryFlowCanvas } from './components/TerritoryFlowCanvas';
 import { DirectoryTableView } from './components/DirectoryTableView';
-import { StatsDashboardView } from './components/StatsDashboardView';
 import { NodeDetailDrawer } from './components/NodeDetailDrawer';
 import { EditLeaderModal } from './components/EditLeaderModal';
 import { LevelSummaryBar } from './components/LevelSummaryBar';
 import { SectionsCatalogView } from './components/SectionsCatalogView';
 import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { LoginPage } from './components/LoginPage';
+
+
 
 import {
   fetchLeadersApi,
@@ -98,12 +100,13 @@ export function App() {
     return set;
   });
 
-  // Selected leader for drawer inspection
-  const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>('dist-loc-04');
+  // Selected leader for drawer inspection (starts null so drawer is closed by default)
+  const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
 
-  // Active view: KPIs Desktop / Flow / Table / Stats / Sections
-  const [currentView, setCurrentView] = useState<'kpis' | 'flow' | 'table' | 'stats' | 'sections'>('kpis');
-
+  // Active navigation: 'escritorio' | 'estructura' | 'secciones'
+  const [activeNav, setActiveNav] = useState<MainNavSection>('escritorio');
+  const [structureMode, setStructureMode] = useState<StructureMode>('organigrama');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Filters state
   const [filters, setFilters] = useState<FilterOptions>({
@@ -129,16 +132,13 @@ export function App() {
     return getVisibleSubtree(currentUser.leaderId, allComputedLeaders);
   }, [currentUser.leaderId, allComputedLeaders]);
 
-  // Reset selected leader if current selection falls outside visible subtree
+  // Deselect selected leader ONLY if it was set and is no longer in the visible subtree
   useEffect(() => {
-    if (visibleLeaders.length > 0) {
-      if (!selectedLeaderId || !visibleLeaders.some(l => l.id === selectedLeaderId)) {
-        setSelectedLeaderId(visibleLeaders[0].id);
-      }
-    } else {
+    if (selectedLeaderId !== null && !visibleLeaders.some(l => l.id === selectedLeaderId)) {
       setSelectedLeaderId(null);
     }
   }, [visibleLeaders, selectedLeaderId]);
+
 
   // 3. Filtered leaders for the directory table and flow canvas
   const filteredLeaders = useMemo(() => {
@@ -285,9 +285,12 @@ export function App() {
       setFilters(f => ({ ...f, searchQuery: section.sectionNumber }));
     }
 
-    setCurrentView('flow');
+    setActiveNav('estructura');
+    setStructureMode('organigrama');
     setCollapsedIds(new Set());
   }, [visibleLeaders]);
+
+
 
   // Export to CSV scoped to visible subtree
   const handleExportData = useCallback(() => {
@@ -336,105 +339,127 @@ export function App() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
-      {/* Top Header & Search Navigation */}
-      <Header
-        currentView={currentView}
-        onViewChange={setCurrentView}
-        filters={filters}
-        onFilterChange={setFilters}
-        onOpenAddModal={handleOpenAddModal}
-        onExportData={handleExportData}
-        onImportData={handleImportData}
-        focusLeaderName={focusedLeader ? `${focusedLeader.name} (${focusedLeader.territoryName})` : undefined}
-        onClearFocus={() => setFilters(f => ({ ...f, focusNodeId: null }))}
-        sectionsCount={sectionsData.length}
+    <div className="flex h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
+      {/* Sidebar Lateral Izquierdo */}
+      <Sidebar
+        activeNav={activeNav}
+        onNavChange={setActiveNav}
+        structureMode={structureMode}
+        onStructureModeChange={setStructureMode}
         currentUser={currentUser}
         onSelectUser={setCurrentUser}
         visibleCount={visibleLeaders.length}
+        sectionsCount={sectionsData.length}
+        onOpenAddModal={handleOpenAddModal}
+        onExportData={handleExportData}
+        onImportData={handleImportData}
         onLogout={handleLogout}
+        isMobileOpen={isMobileMenuOpen}
+        onCloseMobile={() => setIsMobileMenuOpen(false)}
       />
 
-      {/* Panel de Conteo y Filtro Rápido por Nivel Territorial (solo en Organigrama y Directorio) */}
-      {(currentView === 'flow' || currentView === 'table') && (
-        <LevelSummaryBar
-          levelCounts={stats.levelCounts}
-          totalCount={stats.totalPeople}
-          currentFilter={filters.levelFilter}
-          onSelectLevel={(level) => setFilters(f => ({ ...f, levelFilter: level }))}
+      {/* Área Principal Derecha */}
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+        {/* Top Header con Breadcrumbs, Switcher de Estructura y Búsqueda */}
+        <TopHeader
+          activeNav={activeNav}
+          structureMode={structureMode}
+          onStructureModeChange={setStructureMode}
+          filters={filters}
+          onFilterChange={setFilters}
+          focusLeaderName={focusedLeader ? `${focusedLeader.name} (${focusedLeader.territoryName})` : undefined}
+          onClearFocus={() => setFilters(f => ({ ...f, focusNodeId: null }))}
+          onToggleMobileMenu={() => setIsMobileMenuOpen(prev => !prev)}
+          onExpandAll={handleExpandAll}
+          onCollapseAll={handleCollapseAll}
         />
-      )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 relative overflow-hidden flex">
-        {currentView === 'kpis' && (
-          <ExecutiveKpiDesktop
-            currentUser={currentUser}
-            stats={stats}
-            visibleLeaders={visibleLeaders}
-            sections={sectionsData}
-            onSelectLeader={handleSelectLeader}
-            onNavigateView={setCurrentView}
-            onOpenAddModal={handleOpenAddModal}
+        {/* Barra de niveles solo activa en vista Estructura */}
+        {activeNav === 'estructura' && (
+          <LevelSummaryBar
+            levelCounts={stats.levelCounts}
+            totalCount={stats.totalPeople}
+            currentFilter={filters.levelFilter}
+            onSelectLevel={(level) => setFilters(f => ({ ...f, levelFilter: level }))}
           />
         )}
 
-        {currentView === 'flow' && (
-          <TerritoryFlowCanvas
-            leaders={filteredLeaders}
-            collapsedIds={collapsedIds}
-            selectedLeader={selectedLeader}
-            onToggleCollapse={handleToggleCollapse}
-            onSelectLeader={handleSelectLeader}
-            onExpandAll={handleExpandAll}
-            onCollapseAll={handleCollapseAll}
-          />
-        )}
+        {/* Contenido Dinámico */}
+        <main className="flex-1 relative overflow-hidden flex">
+          {/* 1. ESCRITORIO (Tablero de KPIs Oficiales) */}
+          {activeNav === 'escritorio' && (
+            <ExecutiveKpiDesktop
+              currentUser={currentUser}
+              stats={stats}
+              visibleLeaders={visibleLeaders}
+              sections={sectionsData}
+              onSelectLeader={handleSelectLeader}
+              onNavigateView={(view) => {
+                if (view === 'flow') {
+                  setActiveNav('estructura');
+                  setStructureMode('organigrama');
+                } else if (view === 'table') {
+                  setActiveNav('estructura');
+                  setStructureMode('lista');
+                } else if (view === 'sections') {
+                  setActiveNav('secciones');
+                }
+              }}
+              onOpenAddModal={handleOpenAddModal}
+            />
+          )}
 
-        {currentView === 'table' && (
-          <DirectoryTableView
-            leaders={filteredLeaders}
-            allLeaders={visibleLeaders}
-            onSelectLeader={handleSelectLeader}
-            onFocusSubtree={handleFocusSubtree}
-            onEditLeader={handleOpenEditModal}
-            onDeleteLeader={handleDeleteLeader}
-          />
-        )}
+          {/* 2. ESTRUCTURA - MODO ORGANIGRAMA */}
+          {activeNav === 'estructura' && structureMode === 'organigrama' && (
+            <TerritoryFlowCanvas
+              leaders={filteredLeaders}
+              collapsedIds={collapsedIds}
+              selectedLeader={selectedLeader}
+              onToggleCollapse={handleToggleCollapse}
+              onSelectLeader={handleSelectLeader}
+              onExpandAll={handleExpandAll}
+              onCollapseAll={handleCollapseAll}
+            />
+          )}
 
-        {currentView === 'stats' && (
-          <StatsDashboardView
-            stats={stats}
-            leaders={visibleLeaders}
-            onSelectLeader={handleSelectLeader}
-          />
-        )}
+          {/* 2. ESTRUCTURA - MODO LISTA (DIRECTORIO) */}
+          {activeNav === 'estructura' && structureMode === 'lista' && (
+            <DirectoryTableView
+              leaders={filteredLeaders}
+              allLeaders={visibleLeaders}
+              onSelectLeader={handleSelectLeader}
+              onFocusSubtree={handleFocusSubtree}
+              onEditLeader={handleOpenEditModal}
+              onDeleteLeader={handleDeleteLeader}
+            />
+          )}
 
-        {currentView === 'sections' && (
-          <SectionsCatalogView
-            sections={sectionsData}
-            onSaveSection={handleSaveSection}
-            onAddStructureToSection={handleAddStructureToSection}
-            onSelectStructureToViewTree={handleSelectStructureToViewTree}
-          />
-        )}
+          {/* 3. SECCIONES & MAPAS */}
+          {activeNav === 'secciones' && (
+            <SectionsCatalogView
+              sections={sectionsData}
+              onSaveSection={handleSaveSection}
+              onAddStructureToSection={handleAddStructureToSection}
+              onSelectStructureToViewTree={handleSelectStructureToViewTree}
+            />
+          )}
 
-        {/* Slide-out Leader Inspector Drawer */}
-        {(currentView === 'flow' || currentView === 'table') && (
-          <NodeDetailDrawer
-            leader={selectedLeader}
-            allLeaders={visibleLeaders}
-            onClose={() => setSelectedLeaderId(null)}
-            onSelectLeader={handleSelectLeader}
-            onFocusSubtree={handleFocusSubtree}
-            onEditLeader={handleOpenEditModal}
-            isFocused={filters.focusNodeId === selectedLeader?.id}
-          />
-        )}
-      </main>
+          {/* Expediente Territorial Lateral (Drawer) - Solo se muestra si hay un líder seleccionado y se cierra correctamente con el botón X */}
+          {selectedLeader && (
+            <NodeDetailDrawer
+              leader={selectedLeader}
+              allLeaders={visibleLeaders}
+              onClose={() => setSelectedLeaderId(null)}
+              onSelectLeader={handleSelectLeader}
+              onFocusSubtree={handleFocusSubtree}
+              onEditLeader={handleOpenEditModal}
+              isFocused={filters.focusNodeId === selectedLeader?.id}
+            />
+          )}
+        </main>
+      </div>
 
-
-      {/* Add / Edit Leader Modal */}
+      {/* Modal de Crear / Editar Líder */}
       <EditLeaderModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -446,5 +471,6 @@ export function App() {
     </div>
   );
 }
+
 
 export default App;
