@@ -23,6 +23,7 @@ interface SectionsCatalogViewProps {
   onSelectStructureToViewTree: (structure: SectionStructure, section: ElectoralSection) => void;
   onDeleteSection?: (sectionId: string) => void;
   onViewSectionDetail?: (sectionNumber: string) => void;
+  stateAbbr?: string;
 }
 
 export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
@@ -32,6 +33,7 @@ export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
   onSelectStructureToViewTree,
   onDeleteSection,
   onViewSectionDetail,
+  stateAbbr,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMunicipio, setSelectedMunicipio] = useState<string>('TODOS');
@@ -220,12 +222,14 @@ export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
           /* Visor Cartográfico General de Secciones OpenStreetMap dentro de la misma página */
           <FullSectionsMapView
             sections={filteredSections}
+            stateAbbr={stateAbbr || 'tab'}
             onOpenAddStructure={handleOpenAddStructure}
             onSelectStructureToViewTree={onSelectStructureToViewTree}
             onEditSection={(sec) => {
               setEditingSection(sec);
               setIsCreateModalOpen(true);
             }}
+            onViewSectionDetail={onViewSectionDetail}
           />
         ) : (
           <>

@@ -5,14 +5,11 @@ import type { ElectoralSection, SectionStructure } from '../types/sections';
 import {
   Search,
   Layers,
-  Satellite,
   Crosshair,
   MapPin,
-  Users,
-  Target,
-  AlertTriangle,
   ArrowUpRight,
   PlusCircle,
+  Loader2,
 } from 'lucide-react';
 
 interface FullSectionsMapViewProps {
@@ -20,53 +17,49 @@ interface FullSectionsMapViewProps {
   onOpenAddStructure: (sectionId: string) => void;
   onSelectStructureToViewTree: (structure: SectionStructure, section: ElectoralSection) => void;
   onEditSection: (section: ElectoralSection) => void;
+  stateAbbr?: string;
+  onViewSectionDetail?: (sectionNumber: string) => void;
 }
 
 export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
   sections,
   onOpenAddStructure,
-  onSelectStructureToViewTree,
   onEditSection,
+  stateAbbr = 'tab',
+  onViewSectionDetail,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const polygonLayersGroupRef = useRef<L.FeatureGroup | null>(null);
+  const geojsonLayerRef = useRef<L.GeoJSON | null>(null);
 
   const [selectedSection, setSelectedSection] = useState<ElectoralSection | null>(() => sections[0] || null);
-  const [mapLayer, setMapLayer] = useState<'osm' | 'sat'>('osm');
-  const [mapSearch, setMapSearch] = useState('');
+  const [mapLayer, setMapLayer] = useState<'streets' | 'sat'>('streets');
   const [filterMunicipality, setFilterMunicipality] = useState<string>('TODOS');
   const [filterStatus, setFilterStatus] = useState<'all' | 'assigned' | 'vacant'>('all');
+  const [mapSearch, setMapSearch] = useState('');
+  const [isLoadingGeo, setIsLoadingGeo] = useState(false);
+  const [totalRendered, setTotalRendered] = useState(0);
 
-  // Municipality list
+  // Quick lookup of structures and metadata from sections prop
+  const sectionsMap = useMemo(() => {
+    const map = new Map<string, ElectoralSection>();
+    sections.forEach((s) => {
+      map.set(s.sectionNumber.padStart(4, '0'), s);
+    });
+    return map;
+  }, [sections]);
+
+  // Municipality list from sections
   const municipalitiesList = useMemo(() => {
     const set = new Set(sections.map((s) => s.municipio));
     return ['TODOS', ...Array.from(set).sort()];
   }, [sections]);
 
-  // Filtered sections to display on the map
-  const activeSections = useMemo(() => {
-    return sections.filter((s) => {
-      if (filterMunicipality !== 'TODOS' && s.municipio !== filterMunicipality) return false;
-      if (filterStatus === 'assigned' && s.structures.length === 0) return false;
-      if (filterStatus === 'vacant' && s.structures.length > 0) return false;
-      if (mapSearch.trim()) {
-        const q = mapSearch.trim().toLowerCase();
-        return (
-          s.sectionNumber.includes(q) ||
-          s.municipio.toLowerCase().includes(q) ||
-          s.distritoLocal.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [sections, filterMunicipality, filterStatus, mapSearch]);
-
   // Initialize and update the OpenStreetMap map
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    // Destroy existing instance
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
@@ -76,9 +69,9 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
       const map = L.map(mapContainerRef.current, {
         zoomControl: false,
         attributionControl: false,
+        preferCanvas: true,
       });
 
-      // OpenStreetMap Tiles API
       const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
       const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 
@@ -90,7 +83,6 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
         subdomains,
       }).addTo(map);
 
-      // OSM Attribution
       L.control
         .attribution({
           position: 'bottomright',
@@ -98,58 +90,166 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
         })
         .addTo(map);
 
-      // Create a feature group for all section polygons
-      const fg = L.featureGroup().addTo(map);
-      polygonLayersGroupRef.current = fg;
-
-      // Limit rendering to first 120 sections for smooth GPU interaction if nationwide, or all if filtered
-      const renderPool = activeSections.slice(0, 150);
-
-      renderPool.forEach((sec) => {
-        if (!sec.polygon || sec.polygon.length < 3) return;
-
-        const isSelected = selectedSection?.id === sec.id;
-        const hasStructure = sec.structures.length > 0;
-
-        const color = isSelected
-          ? '#7c3aed'
-          : hasStructure
-          ? '#10b981'
-          : '#0284c7';
-
-        const latLngs: L.LatLngExpression[] = sec.polygon.map(([lon, lat]) => [lat, lon]);
-
-        const poly = L.polygon(latLngs, {
-          color,
-          weight: isSelected ? 4 : 2,
-          fillColor: color,
-          fillOpacity: isSelected ? 0.45 : hasStructure ? 0.35 : 0.2,
-          lineJoin: 'round',
-        });
-
-        // Tooltip on hover
-        poly.bindTooltip(
-          `<strong>Sección ${sec.sectionNumber}</strong> - ${sec.municipio}<br/>Lista Nominal: ${sec.nominalList.toLocaleString()}`,
-          { direction: 'top', sticky: true }
-        );
-
-        // Click handler to select and highlight
-        poly.on('click', () => {
-          setSelectedSection(sec);
-          map.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 16 });
-        });
-
-        fg.addLayer(poly);
-      });
-
-      // Fit map bounds
-      if (fg.getLayers().length > 0) {
-        map.fitBounds(fg.getBounds(), { padding: [25, 25], maxZoom: 15 });
-      } else {
-        map.setView([17.989, -92.928], 11); // Villahermosa
-      }
-
       mapInstanceRef.current = map;
+
+      // Load official full GeoJSON for the state
+      setIsLoadingGeo(true);
+      const jsonPath = `/geo/secciones/${stateAbbr.toLowerCase()}.json`;
+
+      fetch(jsonPath)
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((geoData) => {
+          if (!mapInstanceRef.current) return;
+
+          let count = 0;
+          const layer = L.geoJSON(geoData, {
+            filter: (feature) => {
+              const props = feature.properties;
+              const secNum = String(props.seccion).padStart(4, '0');
+              const secData = sectionsMap.get(secNum);
+
+              const muni = secData?.municipio || props.municipio || '';
+              if (filterMunicipality !== 'TODOS' && muni.toLowerCase() !== filterMunicipality.toLowerCase()) {
+                return false;
+              }
+
+              const hasStructure = secData && secData.structures.length > 0;
+              if (filterStatus === 'assigned' && !hasStructure) return false;
+              if (filterStatus === 'vacant' && hasStructure) return false;
+
+              if (mapSearch.trim()) {
+                const q = mapSearch.trim().toLowerCase();
+                const matchSec = secNum.includes(q);
+                const matchMuni = muni.toLowerCase().includes(q);
+                if (!matchSec && !matchMuni) return false;
+              }
+
+              count++;
+              return true;
+            },
+            style: (feature) => {
+              const secNum = String(feature?.properties.seccion).padStart(4, '0');
+              const isSelected = selectedSection?.sectionNumber === secNum;
+              const secData = sectionsMap.get(secNum);
+              const hasStructure = secData && secData.structures.length > 0;
+
+              const color = isSelected
+                ? '#f59e0b'
+                : hasStructure
+                ? '#10b981'
+                : '#0284c7';
+
+              return {
+                color: isSelected ? '#b45309' : color,
+                weight: isSelected ? 3 : 1.2,
+                fillColor: color,
+                fillOpacity: isSelected ? 0.6 : hasStructure ? 0.4 : 0.25,
+                lineJoin: 'round',
+              };
+            },
+            onEachFeature: (feature, fLayer) => {
+              const props = feature.properties;
+              const secNum = String(props.seccion).padStart(4, '0');
+              const secData = sectionsMap.get(secNum);
+              const muni = secData?.municipio || props.municipio || '';
+              const nominal = secData?.nominalList || 0;
+
+              fLayer.bindTooltip(
+                `<strong>Sección ${secNum}</strong> - ${muni}<br/>${nominal > 0 ? `Lista Nominal: ${nominal.toLocaleString()}` : ''}`,
+                { direction: 'top', sticky: true }
+              );
+
+              fLayer.on('click', () => {
+                if (secData) {
+                  setSelectedSection(secData);
+                } else {
+                  setSelectedSection({
+                    id: `sec-${secNum}`,
+                    sectionNumber: secNum,
+                    municipio: muni,
+                    municipioId: String(props.municipio_id || ''),
+                    distritoLocal: `Distrito ${props.distrito_l || 1}`,
+                    tipo: props.tipo === 1 ? 'Urbana' : props.tipo === 2 ? 'Rural' : 'Mixta',
+                    nominalList: 1400,
+                    targetGoal: 700,
+                    center: props.centroide || [-92.93, 17.98],
+                    bbox: [0, 0, 0, 0],
+                    polygon: [],
+                    structures: [],
+                  });
+                }
+                if ((fLayer as any).getBounds && (fLayer as any).getBounds().isValid()) {
+                  map.fitBounds((fLayer as any).getBounds(), { padding: [40, 40], maxZoom: 16 });
+                }
+              });
+            },
+          }).addTo(map);
+
+          geojsonLayerRef.current = layer;
+          setTotalRendered(count);
+
+          if (geoData.bbox && filterMunicipality === 'TODOS' && !mapSearch.trim()) {
+            const [minLng, minLat, maxLng, maxLat] = geoData.bbox;
+            map.fitBounds([[minLat, minLng], [maxLat, maxLng]], { padding: [25, 25] });
+          } else if (layer.getBounds().isValid()) {
+            map.fitBounds(layer.getBounds(), { padding: [25, 25] });
+          }
+
+          setIsLoadingGeo(false);
+        })
+        .catch(() => {
+          // Fallback: render all sections from prop without artificial slice!
+          const fg = L.featureGroup().addTo(map);
+          polygonLayersGroupRef.current = fg;
+          let count = 0;
+
+          sections.forEach((sec) => {
+            if (!sec.polygon || sec.polygon.length < 3) return;
+
+            if (filterMunicipality !== 'TODOS' && sec.municipio !== filterMunicipality) return false;
+            const hasStructure = sec.structures.length > 0;
+            if (filterStatus === 'assigned' && !hasStructure) return false;
+            if (filterStatus === 'vacant' && hasStructure) return false;
+
+            if (mapSearch.trim()) {
+              const q = mapSearch.trim().toLowerCase();
+              if (!sec.sectionNumber.includes(q) && !sec.municipio.toLowerCase().includes(q)) return;
+            }
+
+            count++;
+            const isSelected = selectedSection?.id === sec.id;
+            const color = isSelected ? '#f59e0b' : hasStructure ? '#10b981' : '#0284c7';
+            const latLngs: L.LatLngExpression[] = sec.polygon.map(([lon, lat]) => [lat, lon]);
+
+            const poly = L.polygon(latLngs, {
+              color,
+              weight: isSelected ? 3 : 1.2,
+              fillColor: color,
+              fillOpacity: isSelected ? 0.6 : hasStructure ? 0.4 : 0.25,
+            });
+
+            poly.bindTooltip(
+              `<strong>Sección ${sec.sectionNumber}</strong> - ${sec.municipio}<br/>Lista Nominal: ${sec.nominalList.toLocaleString()}`,
+              { direction: 'top', sticky: true }
+            );
+
+            poly.on('click', () => {
+              setSelectedSection(sec);
+              map.fitBounds(poly.getBounds(), { padding: [40, 40], maxZoom: 16 });
+            });
+
+            fg.addLayer(poly);
+          });
+
+          setTotalRendered(count);
+          if (fg.getLayers().length > 0) {
+            map.fitBounds(fg.getBounds(), { padding: [25, 25] });
+          }
+          setIsLoadingGeo(false);
+        });
 
       const timer = setTimeout(() => {
         map.invalidateSize();
@@ -162,290 +262,233 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
       };
     } catch (err) {
       console.warn('Leaflet error in FullSectionsMapView:', err);
+      setIsLoadingGeo(false);
     }
-  }, [activeSections, mapLayer, selectedSection?.id]);
+  }, [stateAbbr, mapLayer, filterMunicipality, filterStatus, mapSearch, selectedSection?.sectionNumber]);
 
   // Recenter / fit all visible sections
   const handleFitAll = () => {
-    if (mapInstanceRef.current && polygonLayersGroupRef.current) {
-      if (polygonLayersGroupRef.current.getLayers().length > 0) {
-        mapInstanceRef.current.fitBounds(polygonLayersGroupRef.current.getBounds(), {
-          padding: [25, 25],
-        });
-      }
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    if (geojsonLayerRef.current && geojsonLayerRef.current.getBounds().isValid()) {
+      map.fitBounds(geojsonLayerRef.current.getBounds(), { padding: [25, 25] });
+    } else if (polygonLayersGroupRef.current && polygonLayersGroupRef.current.getLayers().length > 0) {
+      map.fitBounds(polygonLayersGroupRef.current.getBounds(), { padding: [25, 25] });
     }
   };
 
-  // Zoom controls
   const handleZoomIn = () => mapInstanceRef.current?.zoomIn();
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
 
-  // Focus selected section on map
-  const handleFocusSelected = () => {
-    if (selectedSection && mapInstanceRef.current && selectedSection.polygon.length >= 3) {
-      const latLngs: L.LatLngExpression[] = selectedSection.polygon.map(([lon, lat]) => [lat, lon]);
-      const bounds = L.latLngBounds(latLngs);
-      mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
-    }
-  };
-
   return (
-    <div className="flex-1 flex flex-col h-[750px] bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-      
+    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[750px] relative">
       {/* Top Controls Bar */}
-      <div className="p-3.5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-indigo-600/80 border border-indigo-400/30">
-            <MapPin className="w-4 h-4 text-white" />
+      <div className="p-3 sm:p-4 bg-slate-900 border-b border-slate-800 text-white flex flex-wrap items-center justify-between gap-3 shrink-0 z-10">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-500/20 text-indigo-300 rounded-xl border border-indigo-400/30">
+            <Layers className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-sm font-bold tracking-tight text-white flex items-center gap-1.5">
-              <span>Visor Cartográfico OpenStreetMap</span>
-              <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.2 rounded-full font-semibold">
-                Desplegado en Página
+            <div className="flex items-center gap-2">
+              <h3 className="font-extrabold text-sm sm:text-base text-white tracking-wide">
+                Visor Cartográfico Oficial INE ({stateAbbr.toUpperCase()})
+              </h3>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                {totalRendered.toLocaleString()} secciones desplegadas
               </span>
-            </h3>
+            </div>
             <p className="text-[11px] text-slate-400">
-              {activeSections.length} secciones en el visor • Haga clic en cualquier polígono para inspeccionar
+              Despliegue de polígonos vectoriales oficiales sin recortes ni límites
             </p>
           </div>
         </div>
 
-        {/* Filters & Tools */}
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          {/* Search box */}
+        {/* Filter Controls */}
+        <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
+              placeholder="Buscar sección o municipio..."
               value={mapSearch}
               onChange={(e) => setMapSearch(e.target.value)}
-              placeholder="Buscar sección (ej. 0234)..."
-              className="bg-slate-800 text-white placeholder-slate-400 pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 w-44 sm:w-52"
+              className="pl-8 pr-2.5 py-1 text-xs bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-36 sm:w-48"
             />
           </div>
 
-          {/* Municipality Selector */}
           <select
             value={filterMunicipality}
             onChange={(e) => setFilterMunicipality(e.target.value)}
-            className="bg-slate-800 text-white px-2.5 py-1.5 text-xs rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
+            className="px-2.5 py-1 text-xs bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
           >
             {municipalitiesList.map((m) => (
               <option key={m} value={m}>
-                {m === 'TODOS' ? 'Todos los municipios' : m}
+                {m === 'TODOS' ? 'Todos los Municipios' : m}
               </option>
             ))}
           </select>
 
-          {/* Status filter */}
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="bg-slate-800 text-white px-2.5 py-1.5 text-xs rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 cursor-pointer"
+            className="px-2.5 py-1 text-xs bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
           >
             <option value="all">Todas las secciones</option>
-            <option value="assigned">Con Estructura</option>
+            <option value="assigned">Con estructura</option>
             <option value="vacant">Vacantes</option>
           </select>
 
           {/* Layer switcher */}
-          <div className="flex items-center bg-slate-800 p-0.5 rounded-xl border border-slate-700">
+          <div className="flex items-center bg-slate-800 rounded-lg p-0.5 border border-slate-700">
             <button
               type="button"
-              onClick={() => setMapLayer('osm')}
-              className={`px-2 py-1 rounded-lg font-semibold flex items-center gap-1 transition-colors ${
-                mapLayer === 'osm' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+              onClick={() => setMapLayer('streets')}
+              className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
+                mapLayer === 'streets' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Layers className="w-3 h-3" />
-              <span>OSM</span>
+              Calles
             </button>
             <button
               type="button"
               onClick={() => setMapLayer('sat')}
-              className={`px-2 py-1 rounded-lg font-semibold flex items-center gap-1 transition-colors ${
+              className={`px-2 py-1 text-[11px] font-semibold rounded transition-colors ${
                 mapLayer === 'sat' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Satellite className="w-3 h-3" />
-              <span>Satélite</span>
+              Satélite
             </button>
           </div>
+
+          <button
+            type="button"
+            onClick={handleFitAll}
+            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition-colors cursor-pointer"
+            title="Ajustar a todas las secciones"
+          >
+            <Crosshair className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
-      {/* Main Map View & Inspection Side Panel */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-        
-        {/* Map Container */}
-        <div className="flex-1 h-[60%] md:h-full relative bg-slate-100">
-          <div ref={mapContainerRef} className="w-full h-full z-0" />
+      {/* Map Body */}
+      <div className="flex-1 relative">
+        <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-          {/* Floating Controls */}
-          <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 shadow-md">
-            <button
-              type="button"
-              onClick={handleZoomIn}
-              className="w-8 h-8 bg-white hover:bg-slate-50 text-slate-800 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-base shadow-xs"
-              title="Acercar (+)"
-            >
-              +
-            </button>
-            <button
-              type="button"
-              onClick={handleZoomOut}
-              className="w-8 h-8 bg-white hover:bg-slate-50 text-slate-800 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-base shadow-xs"
-              title="Alejar (-)"
-            >
-              -
-            </button>
-            <button
-              type="button"
-              onClick={handleFitAll}
-              className="w-8 h-8 bg-white hover:bg-slate-50 text-indigo-600 rounded-lg border border-slate-200 flex items-center justify-center shadow-xs"
-              title="Ajustar todas las secciones visibles"
-            >
-              <Crosshair className="w-4 h-4" />
-            </button>
+        {/* Loading Spinner */}
+        {isLoadingGeo && (
+          <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-xs flex flex-col items-center justify-center z-10 text-white">
+            <Loader2 className="w-8 h-8 text-indigo-400 animate-spin mb-2" />
+            <p className="text-xs font-bold">Cargando la totalidad de secciones del estado...</p>
           </div>
+        )}
 
-          {/* Legend */}
-          <div className="absolute bottom-3 left-3 z-10 bg-white/95 backdrop-blur-xs border border-slate-200 p-2.5 rounded-xl text-[11px] shadow-sm flex items-center gap-3">
-            <span className="flex items-center gap-1 font-semibold text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-emerald-500 inline-block border border-white"></span>
-              Con Estructura
-            </span>
-            <span className="flex items-center gap-1 font-semibold text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-sky-500 inline-block border border-white"></span>
-              Vacante
-            </span>
-            <span className="flex items-center gap-1 font-semibold text-slate-700">
-              <span className="w-3 h-3 rounded-full bg-purple-600 inline-block border border-white"></span>
-              Seleccionada
-            </span>
+        {/* Floating Legend */}
+        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md p-3 rounded-xl shadow-md border border-slate-200 z-10 text-xs space-y-1.5 pointer-events-auto">
+          <span className="font-extrabold text-slate-800 block text-[11px] uppercase tracking-wider mb-1">
+            Simbología Cartográfica
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-sm bg-emerald-500 border border-emerald-600 inline-block" />
+            <span className="text-slate-700 text-[11px]">Con Estructura Asignada</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-sm bg-sky-500 border border-sky-600 inline-block" />
+            <span className="text-slate-700 text-[11px]">Sección Vacante / Sin Comité</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-sm bg-amber-500 border border-amber-600 inline-block" />
+            <span className="text-slate-700 text-[11px]">Sección Seleccionada</span>
           </div>
         </div>
 
-        {/* Side Panel: Selected Section Inspection */}
-        {selectedSection ? (
-          <div className="w-full md:w-80 lg:w-96 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-200 p-4 sm:p-5 overflow-y-auto space-y-4 shrink-0">
-            {/* Header */}
-            <div className="flex items-start justify-between">
+        {/* Zoom Controls */}
+        <div className="absolute right-4 bottom-4 flex flex-col gap-1.5 z-10">
+          <button
+            type="button"
+            onClick={handleZoomIn}
+            className="w-8 h-8 bg-white hover:bg-slate-100 text-slate-700 rounded-lg shadow-md border border-slate-200 flex items-center justify-center font-bold text-base transition-colors"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={handleZoomOut}
+            className="w-8 h-8 bg-white hover:bg-slate-100 text-slate-700 rounded-lg shadow-md border border-slate-200 flex items-center justify-center font-bold text-base transition-colors"
+          >
+            -
+          </button>
+        </div>
+
+        {/* Bottom Drawer Preview for Selected Section */}
+        {selectedSection && (
+          <div className="absolute bottom-4 left-4 right-16 sm:right-auto sm:max-w-md bg-white/95 backdrop-blur-md border border-slate-200 rounded-2xl p-4 shadow-xl z-10 space-y-3">
+            <div className="flex items-start justify-between gap-2">
               <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-base font-black text-slate-900">
-                    Sección {selectedSection.sectionNumber}
-                  </h4>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200">
-                    {selectedSection.tipo}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  {selectedSection.tipo || 'Sección Electoral'}
+                </span>
+                <h4 className="text-base font-black text-slate-900 mt-1">
+                  Sección {selectedSection.sectionNumber}
+                </h4>
+                <p className="text-xs text-slate-500 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
                   {selectedSection.municipio} • {selectedSection.distritoLocal}
                 </p>
               </div>
-
               <button
                 type="button"
-                onClick={handleFocusSelected}
-                className="p-1.5 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg border border-indigo-200 transition-colors shadow-2xs"
-                title="Enfocar esta sección en el mapa"
+                onClick={() => setSelectedSection(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 text-sm font-bold"
               >
-                <Crosshair className="w-4 h-4" />
+                ✕
               </button>
             </div>
 
-            {/* Nominal List Metric */}
-            <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
-                <Users className="w-3.5 h-3.5 text-indigo-600" /> Lista Nominal Oficial
-              </span>
-              <div className="text-xl font-black text-slate-900 font-mono">
-                {selectedSection.nominalList.toLocaleString()}
-                <span className="text-xs text-slate-500 font-sans font-normal ml-1">electores</span>
+            <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
+              <div>
+                <span className="text-slate-400 block text-[10px]">Lista Nominal:</span>
+                <strong className="text-slate-900 font-mono text-sm">
+                  {selectedSection.nominalList.toLocaleString()}
+                </strong>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px]">Meta 2027 (51% del 50%):</span>
+                <strong className="text-emerald-700 font-mono text-sm">
+                  {Math.round(selectedSection.nominalList * 0.50 * 0.51).toLocaleString()} votos
+                </strong>
               </div>
             </div>
 
-            {/* Structures in Section */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                  <Target className="w-3.5 h-3.5 text-rose-500" /> Estructura Territorial ({selectedSection.structures.length})
-                </span>
+            <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+              {onViewSectionDetail ? (
                 <button
                   type="button"
-                  onClick={() => onOpenAddStructure(selectedSection.id)}
-                  className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1"
+                  onClick={() => onViewSectionDetail(selectedSection.sectionNumber)}
+                  className="flex-1 py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1 cursor-pointer"
                 >
-                  <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Asignar</span>
+                  <span>Ver Ficha Completa</span>
+                  <ArrowUpRight className="w-3.5 h-3.5" />
                 </button>
-              </div>
-
-              {selectedSection.structures.length === 0 ? (
-                <div className="bg-rose-50/70 border border-rose-200 p-3 rounded-xl text-center">
-                  <AlertTriangle className="w-5 h-5 text-rose-500 mx-auto mb-1" />
-                  <span className="text-xs font-bold text-rose-800 block">Sección Vacante</span>
-                  <span className="text-[11px] text-rose-600">No cuenta con coordinador seccional asignado.</span>
-                </div>
               ) : (
-                <div className="space-y-2 max-h-56 overflow-y-auto">
-                  {selectedSection.structures.map((st) => (
-                    <div
-                      key={st.id}
-                      className="bg-white border border-slate-200 p-3 rounded-xl shadow-xs space-y-1.5"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-800 truncate">
-                          {st.name}
-                        </span>
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          {st.status}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-600 font-medium">
-                        Líder: <strong>{st.leaderName}</strong>
-                      </div>
-                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1 border-t border-slate-100">
-                        <span>Meta: {st.metaGoal} | Logro: {st.currentCount}</span>
-                        <button
-                          type="button"
-                          onClick={() => onSelectStructureToViewTree(st, selectedSection)}
-                          className="text-sky-600 font-bold hover:underline flex items-center gap-0.5"
-                        >
-                          Ver en Árbol <ArrowUpRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => onEditSection(selectedSection)}
+                  className="flex-1 py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-1"
+                >
+                  <span>Editar</span>
+                </button>
               )}
-            </div>
 
-            {/* Action Buttons */}
-            <div className="pt-2 border-t border-slate-200 flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => onEditSection(selectedSection)}
-                className="flex-1 py-2 bg-white hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold border border-slate-300 transition-colors shadow-2xs text-center"
-              >
-                Editar Sección
-              </button>
               <button
                 type="button"
                 onClick={() => onOpenAddStructure(selectedSection.id)}
-                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs text-center"
+                className="py-1.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg border border-slate-300 transition-colors flex items-center justify-center gap-1"
               >
-                + Asignar Líder
+                <PlusCircle className="w-3.5 h-3.5 text-indigo-600" />
+                <span>+ Estructura</span>
               </button>
             </div>
-          </div>
-        ) : (
-          <div className="w-full md:w-80 lg:w-96 bg-slate-50 border-t md:border-t-0 md:border-l border-slate-200 p-6 flex flex-col items-center justify-center text-center text-slate-500 text-xs">
-            <MapPin className="w-8 h-8 text-slate-300 mb-2" />
-            <span className="font-bold text-slate-700">Ninguna sección seleccionada</span>
-            <span className="text-[11px] mt-1">Haga clic en un polígono del mapa para ver sus detalles</span>
           </div>
         )}
       </div>

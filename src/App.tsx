@@ -511,6 +511,7 @@ export function App() {
           {activeNav === 'secciones' && (
             <SectionsCatalogView
               sections={sectionsData}
+              stateAbbr={activeStateData.abbr}
               onSaveSection={handleSaveSection}
               onAddStructureToSection={handleAddStructureToSection}
               onSelectStructureToViewTree={handleSelectStructureToViewTree}
