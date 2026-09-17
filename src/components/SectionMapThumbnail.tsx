@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Layers, Satellite, Maximize2 } from 'lucide-react';
+import { MapPin, Layers, Satellite, Expand } from 'lucide-react';
 import { SectionMapModal } from './SectionMapModal';
 
 interface SectionMapThumbnailProps {
@@ -10,6 +10,9 @@ interface SectionMapThumbnailProps {
   center: [number, number]; // [lon, lat]
   sectionNumber: string;
   municipio: string;
+  distritoLocal?: string;
+  tipo?: string;
+  nominalList?: number;
   className?: string;
   height?: number;
 }
@@ -19,6 +22,9 @@ export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
   center,
   sectionNumber,
   municipio,
+  distritoLocal,
+  tipo,
+  nominalList,
   className = '',
   height = 175,
 }) => {
@@ -203,8 +209,8 @@ export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
               </>
             ) : (
               <>
-                <Layers className="w-3 h-3 text-indigo-600" />
-                <span>OSM</span>
+                <Layers className="w-3 h-3 text-sky-600" />
+                <span>Calles</span>
               </>
             )}
           </button>
@@ -215,10 +221,10 @@ export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
               e.stopPropagation();
               setIsModalOpen(true);
             }}
-            title="Desplegar mapa OpenStreetMap completo en esta página"
-            className="p-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 rounded-lg border border-slate-200 shadow-xs transition-colors flex items-center gap-1"
+            title="Ver en tamaño completo (ampliar mapa en esta página)"
+            className="p-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 rounded-lg border border-slate-200 shadow-xs transition-all hover:scale-105 flex items-center justify-center cursor-pointer"
           >
-            <Maximize2 className="w-3.5 h-3.5 text-indigo-600" />
+            <Expand className="w-4 h-4 text-slate-700 hover:text-indigo-600" />
           </button>
         </div>
 
@@ -239,6 +245,9 @@ export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
         onClose={() => setIsModalOpen(false)}
         sectionNumber={sectionNumber}
         municipio={municipio}
+        distritoLocal={distritoLocal}
+        tipo={tipo}
+        nominalTotal={nominalList}
         polygon={polygon}
         center={center}
       />

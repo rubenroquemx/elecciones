@@ -55,6 +55,9 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           center={section.center}
           sectionNumber={section.sectionNumber}
           municipio={section.municipio}
+          distritoLocal={section.distritoLocal}
+          tipo={section.tipo}
+          nominalList={section.nominalList}
           height={145}
         />
 

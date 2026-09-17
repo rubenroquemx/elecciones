@@ -16,6 +16,8 @@ import {
   AlertTriangle,
   Compass,
   Loader2,
+  Minimize2,
+  Expand,
 } from 'lucide-react';
 import { CARTOGRAPHY_BY_SECTION } from '../data/mockSectionsData';
 import tabascoCatalog from '../data/tabascoCatalog.json';
@@ -63,6 +65,14 @@ export const SectionMapModal: React.FC<SectionMapModalProps> = ({
   const [streetQuery, setStreetQuery] = useState('');
   const [isSearchingStreet, setIsSearchingStreet] = useState(false);
   const [streetSearchResult, setStreetSearchResult] = useState<string | null>(null);
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  const toggleMaximize = () => {
+    setIsMaximized(prev => !prev);
+    setTimeout(() => {
+      mapInstanceRef.current?.invalidateSize();
+    }, 150);
+  };
 
   // Normalize section number (4 digits with leading zeros)
   const normalizedSec = useMemo(() => {
@@ -289,8 +299,8 @@ export const SectionMapModal: React.FC<SectionMapModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-5xl h-[92vh] max-h-[820px] shadow-2xl flex flex-col overflow-hidden">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isMaximized ? 'p-0' : 'p-3 sm:p-5'} bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200`}>
+      <div className={`bg-white border border-slate-200 ${isMaximized ? 'w-screen h-screen rounded-none' : 'rounded-2xl w-full max-w-5xl h-[92vh] max-h-[820px]'} shadow-2xl flex flex-col overflow-hidden transition-all duration-200`}>
         
         {/* Header Superior */}
         <div className="p-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
@@ -316,7 +326,15 @@ export const SectionMapModal: React.FC<SectionMapModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleMaximize}
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              title={isMaximized ? "Restaurar tamaño normal" : "Ver en pantalla completa (tamaño completo)"}
+            >
+              {isMaximized ? <Minimize2 className="w-4 h-4 text-amber-300" /> : <Expand className="w-4 h-4" />}
+            </button>
             <button
               type="button"
               onClick={onClose}
