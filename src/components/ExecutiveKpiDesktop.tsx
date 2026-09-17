@@ -3,6 +3,7 @@ import type { TerritorialLeader, HierarchyStats } from '../types/territory';
 import type { UserAccount } from '../types/auth';
 import type { ElectoralSection } from '../types/sections';
 import nationalStatesSummary from '../data/nationalStatesSummary.json';
+import { SectionMapModal } from './SectionMapModal';
 import tabascoCatalog from '../data/tabascoCatalog.json';
 import {
   Users,
@@ -44,6 +45,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   const [selectedMunicipality, setSelectedMunicipality] = useState<string>('all');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
   const [sectionSearch, setSectionSearch] = useState<string>('');
+  const [inspectMapSection, setInspectMapSection] = useState<any | null>(null);
 
   // Información del estado seleccionado del catálogo oficial INE
   const currentStateInfo = useMemo(() => {
@@ -499,6 +501,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                     <th className="py-2.5 px-3 font-bold text-slate-700 text-right">Mujeres</th>
                     <th className="py-2.5 px-3 font-bold text-slate-700 text-right">Lista Nominal</th>
                     <th className="py-2.5 px-3 font-bold text-slate-700 text-center">Estatus Operativo</th>
+                    <th className="py-2.5 px-3 font-bold text-slate-700 text-center">Mapa OSM</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -560,6 +563,28 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                               <span>Vacante</span>
                             </span>
                           )}
+                        </td>
+                        <td className="py-2 px-3 text-center">
+                          <button
+                            type="button"
+                            onClick={() => setInspectMapSection({
+                              sectionNumber: sec.section,
+                              municipio: sec.municipalityName,
+                              distritoLocal: `Distrito ${sec.localDistrict}`,
+                              distritoFederal: `Dto. ${sec.federalDistrict} (${sec.districtHead})`,
+                              tipo: sec.sectionType,
+                              nominalTotal: sec.nominalTotal,
+                              nominalMen: sec.nominalMen,
+                              nominalWomen: sec.nominalWomen,
+                              nominalNonBinary: sec.nominalNonBinary,
+                              assignedLeader: assignedLeader?.name,
+                            })}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-colors shadow-2xs cursor-pointer"
+                            title="Desplegar mapa OpenStreetMap en esta página"
+                          >
+                            <MapPin className="w-3 h-3 text-indigo-600" />
+                            <span>Ver Mapa</span>
+                          </button>
                         </td>
                       </tr>
                     );
@@ -678,6 +703,23 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
         </div>
 
       </div>
+      {/* Visor de Mapa OpenStreetMap integrado en la misma página */}
+      {inspectMapSection && (
+        <SectionMapModal
+          isOpen={Boolean(inspectMapSection)}
+          onClose={() => setInspectMapSection(null)}
+          sectionNumber={inspectMapSection.sectionNumber}
+          municipio={inspectMapSection.municipio}
+          distritoLocal={inspectMapSection.distritoLocal}
+          distritoFederal={inspectMapSection.distritoFederal}
+          tipo={inspectMapSection.tipo}
+          nominalTotal={inspectMapSection.nominalTotal}
+          nominalMen={inspectMapSection.nominalMen}
+          nominalWomen={inspectMapSection.nominalWomen}
+          nominalNonBinary={inspectMapSection.nominalNonBinary}
+          assignedLeader={inspectMapSection.assignedLeader}
+        />
+      )}
     </div>
   );
 };
