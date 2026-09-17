@@ -22,6 +22,7 @@ import { LevelSummaryBar } from './components/LevelSummaryBar';
 import { SectionsCatalogView } from './components/SectionsCatalogView';
 import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { SectionDetailPage } from './components/SectionDetailPage';
+import { getStateBySlug, getAbbrByStateId, getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import { LoginPage } from './components/LoginPage';
 
 
@@ -104,6 +105,56 @@ export function App() {
   // Selected leader for drawer inspection (starts null so drawer is closed by default)
   const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
   const [detailSectionNumber, setDetailSectionNumber] = useState<string | null>(null);
+
+  // Active State ID from URL pathname (e.g. /ags, /bc, /gro, /tab)
+  const [activeStateId, setActiveStateId] = useState<number>(() => {
+    const slug = window.location.pathname.replace(/^\//, '').toLowerCase().trim();
+    if (slug) {
+      const match = getStateBySlug(slug);
+      if (match) return match.stateId;
+    }
+    return DEFAULT_STATE_ID; // 27 = Tabasco
+  });
+
+  const activeStateData = useMemo(() => {
+    return getStateById(activeStateId) || DEFAULT_STATE;
+  }, [activeStateId]);
+
+  const handleStateChange = useCallback((stateId: number) => {
+    setActiveStateId(stateId);
+    const abbr = getAbbrByStateId(stateId);
+    if (window.location.pathname !== `/${abbr}`) {
+      window.history.pushState({ stateId }, '', `/${abbr}`);
+    }
+  }, []);
+
+  // Sync with browser back/forward buttons (popstate)
+  useEffect(() => {
+    const onPopState = () => {
+      const slug = window.location.pathname.replace(/^\//, '').toLowerCase().trim();
+      if (slug) {
+        const match = getStateBySlug(slug);
+        if (match) {
+          setActiveStateId(match.stateId);
+          return;
+        }
+      }
+      setActiveStateId(DEFAULT_STATE_ID);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  // Initial root URL standardization: if visiting /, replace state with default /tab
+  useEffect(() => {
+    const slug = window.location.pathname.replace(/^\//, '').toLowerCase().trim();
+    if (!slug) {
+      const abbr = getAbbrByStateId(DEFAULT_STATE_ID);
+      window.history.replaceState({ stateId: DEFAULT_STATE_ID }, '', `/${abbr}`);
+    }
+  }, []);
+
 
   // Active navigation: 'escritorio' | 'estructura' | 'secciones'
   const [activeNav, setActiveNav] = useState<MainNavSection>('escritorio');
@@ -378,6 +429,8 @@ export function App() {
           onToggleMobileMenu={() => setIsMobileMenuOpen(prev => !prev)}
           onExpandAll={handleExpandAll}
           onCollapseAll={handleCollapseAll}
+          activeStateName={activeStateData.commonName}
+          activeStateAbbr={activeStateData.abbr}
         />
 
         {/* Barra de niveles solo activa en vista Estructura */}
@@ -410,6 +463,8 @@ export function App() {
               stats={stats}
               visibleLeaders={visibleLeaders}
               sections={sectionsData}
+              activeStateId={activeStateId}
+              onStateChange={handleStateChange}
               onSelectLeader={handleSelectLeader}
               onNavigateView={(view) => {
                 if (view === 'flow') {

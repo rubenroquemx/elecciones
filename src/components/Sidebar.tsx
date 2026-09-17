@@ -30,6 +30,8 @@ interface SidebarProps {
   onLogout?: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
+  activeStateName?: string;
+  activeStateAbbr?: string;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -47,6 +49,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   isMobileOpen = false,
   onCloseMobile,
+  activeStateName = 'Tabasco',
+  activeStateAbbr = 'tab',
 }) => {
   const getAddButtonLabel = () => {
     switch (currentUser.level) {
@@ -86,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-slate-400 font-medium truncate">
-              Tabasco • 6 Niveles
+              {activeStateName} ({activeStateAbbr.toUpperCase()}) • 6 Niveles
             </p>
           </div>
         </div>

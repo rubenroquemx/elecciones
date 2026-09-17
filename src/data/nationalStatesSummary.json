@@ -181,27 +181,15 @@
   },
   {
     "stateId": 16,
-    "stateName": "MICHOACAN  DE OCAMPO",
-    "totalSections": 11,
-    "totalMunicipalities": 4,
-    "totalFederalDistricts": 5,
-    "totalLocalDistricts": 0,
-    "nominalMen": 49300,
-    "nominalWomen": 53645,
-    "nominalNonBinary": 0,
-    "nominalTotal": 102945
-  },
-  {
-    "stateId": 16,
     "stateName": "MICHOACAN DE OCAMPO",
-    "totalSections": 2825,
+    "totalSections": 2836,
     "totalMunicipalities": 113,
     "totalFederalDistricts": 11,
     "totalLocalDistricts": 24,
-    "nominalMen": 1694046,
-    "nominalWomen": 1862129,
+    "nominalMen": 1743346,
+    "nominalWomen": 1915774,
     "nominalNonBinary": 2,
-    "nominalTotal": 3556177
+    "nominalTotal": 3659122
   },
   {
     "stateId": 17,

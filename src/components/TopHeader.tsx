@@ -26,6 +26,8 @@ interface TopHeaderProps {
   onToggleMobileMenu: () => void;
   onExpandAll?: () => void;
   onCollapseAll?: () => void;
+  activeStateName?: string;
+  activeStateAbbr?: string;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -39,6 +41,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onToggleMobileMenu,
   onExpandAll,
   onCollapseAll,
+  activeStateName,
+  activeStateAbbr,
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 shrink-0 z-20 shadow-2xs">
@@ -64,6 +68,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   <>
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
                     <span>Escritorio de Operación</span>
+                    {activeStateName && (
+                      <span className="ml-2 px-2 py-0.5 rounded-md text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        {activeStateName} ({activeStateAbbr?.toUpperCase()})
+                      </span>
+                    )}
                   </>
                 )}
 

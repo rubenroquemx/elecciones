@@ -1,0 +1,578 @@
+[
+  {
+    "stateId": 1,
+    "abbr": "ags",
+    "name": "Aguascalientes",
+    "sectionsCount": 736,
+    "municipalitiesCount": 11,
+    "bbox": [
+      -102.89252,
+      21.62158,
+      -101.84507,
+      22.45985
+    ],
+    "center": [
+      22.04071,
+      -102.3688
+    ],
+    "fileSizeKb": 1437.1
+  },
+  {
+    "stateId": 2,
+    "abbr": "bc",
+    "name": "Baja California",
+    "sectionsCount": 2254,
+    "municipalitiesCount": 7,
+    "bbox": [
+      -118.36511,
+      28.00008,
+      -112.29677,
+      32.72202
+    ],
+    "center": [
+      30.36105,
+      -115.33094
+    ],
+    "fileSizeKb": 5429.2
+  },
+  {
+    "stateId": 3,
+    "abbr": "bcs",
+    "name": "Baja California Sur",
+    "sectionsCount": 535,
+    "municipalitiesCount": 5,
+    "bbox": [
+      -115.22397,
+      22.87171,
+      -109.41179,
+      28.00045
+    ],
+    "center": [
+      25.43608,
+      -112.31788
+    ],
+    "fileSizeKb": 1861.0
+  },
+  {
+    "stateId": 4,
+    "abbr": "camp",
+    "name": "Campeche",
+    "sectionsCount": 555,
+    "municipalitiesCount": 13,
+    "bbox": [
+      -92.46761,
+      17.81369,
+      -89.1092,
+      21.2366
+    ],
+    "center": [
+      19.52515,
+      -90.7884
+    ],
+    "fileSizeKb": 1321.7
+  },
+  {
+    "stateId": 5,
+    "abbr": "coah",
+    "name": "Coahuila",
+    "sectionsCount": 1872,
+    "municipalitiesCount": 38,
+    "bbox": [
+      -103.98567,
+      24.53533,
+      -99.8114,
+      29.87767
+    ],
+    "center": [
+      27.2065,
+      -101.89854
+    ],
+    "fileSizeKb": 4365.7
+  },
+  {
+    "stateId": 6,
+    "abbr": "col",
+    "name": "Colima",
+    "sectionsCount": 430,
+    "municipalitiesCount": 10,
+    "bbox": [
+      -111.05746,
+      18.68477,
+      -103.48692,
+      19.50883
+    ],
+    "center": [
+      19.0968,
+      -107.27219
+    ],
+    "fileSizeKb": 1699.6
+  },
+  {
+    "stateId": 7,
+    "abbr": "chis",
+    "name": "Chiapas",
+    "sectionsCount": 2296,
+    "municipalitiesCount": 124,
+    "bbox": [
+      -94.23249,
+      14.53307,
+      -90.37098,
+      17.99523
+    ],
+    "center": [
+      16.26415,
+      -92.30174
+    ],
+    "fileSizeKb": 12506.5
+  },
+  {
+    "stateId": 8,
+    "abbr": "chih",
+    "name": "Chihuahua",
+    "sectionsCount": 3311,
+    "municipalitiesCount": 67,
+    "bbox": [
+      -109.07197,
+      25.55931,
+      -103.30182,
+      31.78437
+    ],
+    "center": [
+      28.67184,
+      -106.18689
+    ],
+    "fileSizeKb": 7193.6
+  },
+  {
+    "stateId": 9,
+    "abbr": "cdmx",
+    "name": "Ciudad de México",
+    "sectionsCount": 5589,
+    "municipalitiesCount": 16,
+    "bbox": [
+      -99.37423,
+      19.04952,
+      -98.94565,
+      19.59378
+    ],
+    "center": [
+      19.32165,
+      -99.15994
+    ],
+    "fileSizeKb": 5664.8
+  },
+  {
+    "stateId": 10,
+    "abbr": "dgo",
+    "name": "Durango",
+    "sectionsCount": 1415,
+    "municipalitiesCount": 39,
+    "bbox": [
+      -107.21879,
+      22.34594,
+      -102.47461,
+      26.83472
+    ],
+    "center": [
+      24.59033,
+      -104.8467
+    ],
+    "fileSizeKb": 5923.5
+  },
+  {
+    "stateId": 11,
+    "abbr": "gto",
+    "name": "Guanajuato",
+    "sectionsCount": 3357,
+    "municipalitiesCount": 46,
+    "bbox": [
+      -102.09761,
+      19.91641,
+      -99.66917,
+      21.83945
+    ],
+    "center": [
+      20.87793,
+      -100.88339
+    ],
+    "fileSizeKb": 9464.8
+  },
+  {
+    "stateId": 12,
+    "abbr": "gro",
+    "name": "Guerrero",
+    "sectionsCount": 2718,
+    "municipalitiesCount": 85,
+    "bbox": [
+      -102.1844,
+      16.32274,
+      -98.06551,
+      18.8882
+    ],
+    "center": [
+      17.60547,
+      -100.12495
+    ],
+    "fileSizeKb": 10363.4
+  },
+  {
+    "stateId": 13,
+    "abbr": "hgo",
+    "name": "Hidalgo",
+    "sectionsCount": 1894,
+    "municipalitiesCount": 84,
+    "bbox": [
+      -99.85405,
+      19.59887,
+      -97.98509,
+      21.39846
+    ],
+    "center": [
+      20.49867,
+      -98.91957
+    ],
+    "fileSizeKb": 6402.7
+  },
+  {
+    "stateId": 14,
+    "abbr": "jal",
+    "name": "Jalisco",
+    "sectionsCount": 4080,
+    "municipalitiesCount": 125,
+    "bbox": [
+      -105.69715,
+      18.92004,
+      -101.51292,
+      22.75047
+    ],
+    "center": [
+      20.83526,
+      -103.60503
+    ],
+    "fileSizeKb": 13400.8
+  },
+  {
+    "stateId": 15,
+    "abbr": "mex",
+    "name": "Estado de México",
+    "sectionsCount": 7052,
+    "municipalitiesCount": 125,
+    "bbox": [
+      -100.6121,
+      18.36798,
+      -98.60524,
+      20.28524
+    ],
+    "center": [
+      19.32661,
+      -99.60867
+    ],
+    "fileSizeKb": 12967.7
+  },
+  {
+    "stateId": 16,
+    "abbr": "mich",
+    "name": "Michoacán",
+    "sectionsCount": 2825,
+    "municipalitiesCount": 113,
+    "bbox": [
+      -103.7404,
+      17.91345,
+      -100.08106,
+      20.39459
+    ],
+    "center": [
+      19.15402,
+      -101.91073
+    ],
+    "fileSizeKb": 12404.9
+  },
+  {
+    "stateId": 17,
+    "abbr": "mor",
+    "name": "Morelos",
+    "sectionsCount": 949,
+    "municipalitiesCount": 36,
+    "bbox": [
+      -99.49442,
+      18.33237,
+      -98.6294,
+      19.13371
+    ],
+    "center": [
+      18.73304,
+      -99.06191
+    ],
+    "fileSizeKb": 2622.7
+  },
+  {
+    "stateId": 18,
+    "abbr": "nay",
+    "name": "Nayarit",
+    "sectionsCount": 1011,
+    "municipalitiesCount": 20,
+    "bbox": [
+      -106.68976,
+      20.60455,
+      -103.71686,
+      23.07689
+    ],
+    "center": [
+      21.84072,
+      -105.20331
+    ],
+    "fileSizeKb": 3271.6
+  },
+  {
+    "stateId": 19,
+    "abbr": "nl",
+    "name": "Nuevo León",
+    "sectionsCount": 3114,
+    "municipalitiesCount": 51,
+    "bbox": [
+      -101.16752,
+      23.16372,
+      -98.4173,
+      27.79954
+    ],
+    "center": [
+      25.48163,
+      -99.79241
+    ],
+    "fileSizeKb": 6479.1
+  },
+  {
+    "stateId": 20,
+    "abbr": "oax",
+    "name": "Oaxaca",
+    "sectionsCount": 2564,
+    "municipalitiesCount": 570,
+    "bbox": [
+      -98.5641,
+      15.65646,
+      -93.86842,
+      18.65895
+    ],
+    "center": [
+      17.1577,
+      -96.21626
+    ],
+    "fileSizeKb": 14323.0
+  },
+  {
+    "stateId": 21,
+    "abbr": "pue",
+    "name": "Puebla",
+    "sectionsCount": 2965,
+    "municipalitiesCount": 217,
+    "bbox": [
+      -99.069,
+      17.86301,
+      -96.72467,
+      20.83996
+    ],
+    "center": [
+      19.35149,
+      -97.89684
+    ],
+    "fileSizeKb": 13270.5
+  },
+  {
+    "stateId": 22,
+    "abbr": "qro",
+    "name": "Querétaro",
+    "sectionsCount": 1090,
+    "municipalitiesCount": 18,
+    "bbox": [
+      -100.59664,
+      20.0132,
+      -99.04657,
+      21.69263
+    ],
+    "center": [
+      20.85292,
+      -99.82161
+    ],
+    "fileSizeKb": 3438.5
+  },
+  {
+    "stateId": 23,
+    "abbr": "qroo",
+    "name": "Quintana Roo",
+    "sectionsCount": 1151,
+    "municipalitiesCount": 11,
+    "bbox": [
+      -89.41855,
+      17.81364,
+      -86.71249,
+      21.60904
+    ],
+    "center": [
+      19.71134,
+      -88.06552
+    ],
+    "fileSizeKb": 1898.1
+  },
+  {
+    "stateId": 24,
+    "abbr": "slp",
+    "name": "San Luis Potosí",
+    "sectionsCount": 1901,
+    "municipalitiesCount": 58,
+    "bbox": [
+      -102.29015,
+      21.16048,
+      -98.33231,
+      24.49145
+    ],
+    "center": [
+      22.82597,
+      -100.31123
+    ],
+    "fileSizeKb": 6063.4
+  },
+  {
+    "stateId": 25,
+    "abbr": "sin",
+    "name": "Sinaloa",
+    "sectionsCount": 3855,
+    "municipalitiesCount": 20,
+    "bbox": [
+      -109.45045,
+      22.47184,
+      -105.3676,
+      27.078
+    ],
+    "center": [
+      24.77492,
+      -107.40902
+    ],
+    "fileSizeKb": 6001.2
+  },
+  {
+    "stateId": 26,
+    "abbr": "son",
+    "name": "Sonora",
+    "sectionsCount": 1667,
+    "municipalitiesCount": 72,
+    "bbox": [
+      -115.05011,
+      26.30338,
+      -108.45269,
+      32.49346
+    ],
+    "center": [
+      29.39842,
+      -111.7514
+    ],
+    "fileSizeKb": 4564.0
+  },
+  {
+    "stateId": 27,
+    "abbr": "tab",
+    "name": "Tabasco",
+    "sectionsCount": 1191,
+    "municipalitiesCount": 17,
+    "bbox": [
+      -94.12977,
+      17.25125,
+      -90.98326,
+      18.65321
+    ],
+    "center": [
+      17.95223,
+      -92.55651
+    ],
+    "fileSizeKb": 4420.1
+  },
+  {
+    "stateId": 28,
+    "abbr": "tamps",
+    "name": "Tamaulipas",
+    "sectionsCount": 2220,
+    "municipalitiesCount": 43,
+    "bbox": [
+      -100.14459,
+      22.20708,
+      -97.14348,
+      27.68138
+    ],
+    "center": [
+      24.94423,
+      -98.64404
+    ],
+    "fileSizeKb": 4613.2
+  },
+  {
+    "stateId": 29,
+    "abbr": "tlax",
+    "name": "Tlaxcala",
+    "sectionsCount": 634,
+    "municipalitiesCount": 60,
+    "bbox": [
+      -98.72257,
+      19.10478,
+      -97.62741,
+      19.72874
+    ],
+    "center": [
+      19.41676,
+      -98.17499
+    ],
+    "fileSizeKb": 1910.3
+  },
+  {
+    "stateId": 30,
+    "abbr": "ver",
+    "name": "Veracruz",
+    "sectionsCount": 5004,
+    "municipalitiesCount": 212,
+    "bbox": [
+      -98.69238,
+      17.12113,
+      -93.6133,
+      22.47226
+    ],
+    "center": [
+      19.79669,
+      -96.15284
+    ],
+    "fileSizeKb": 19683.5
+  },
+  {
+    "stateId": 31,
+    "abbr": "yuc",
+    "name": "Yucatán",
+    "sectionsCount": 1240,
+    "municipalitiesCount": 106,
+    "bbox": [
+      -90.40524,
+      19.52941,
+      -87.36537,
+      21.625
+    ],
+    "center": [
+      20.5772,
+      -88.88531
+    ],
+    "fileSizeKb": 1552.5
+  },
+  {
+    "stateId": 32,
+    "abbr": "zac",
+    "name": "Zacatecas",
+    "sectionsCount": 1793,
+    "municipalitiesCount": 58,
+    "bbox": [
+      -104.32755,
+      21.04197,
+      -100.75755,
+      25.20186
+    ],
+    "center": [
+      23.12192,
+      -102.54255
+    ],
+    "fileSizeKb": 12318.3
+  }
+]

@@ -2,8 +2,10 @@ import React, { useState, useMemo } from 'react';
 import type { TerritorialLeader, HierarchyStats } from '../types/territory';
 import type { UserAccount } from '../types/auth';
 import type { ElectoralSection } from '../types/sections';
-import nationalStatesSummary from '../data/nationalStatesSummary.json';
 import { SectionMapModal } from './SectionMapModal';
+import { StateVectorMap } from './StateVectorMap';
+import { MEXICAN_STATES, getStateById, DEFAULT_STATE } from '../data/statesData';
+import { Check, Share2, Globe2, TrendingUp } from 'lucide-react';
 import tabascoCatalog from '../data/tabascoCatalog.json';
 import {
   Users,
@@ -30,6 +32,8 @@ interface ExecutiveKpiDesktopProps {
   onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections') => void;
   onOpenAddModal: () => void;
   onViewSectionDetail?: (sectionNumber: string) => void;
+  activeStateId?: number;
+  onStateChange?: (stateId: number) => void;
 }
 
 export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
@@ -37,13 +41,15 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   stats,
   visibleLeaders,
   onSelectLeader,
-
   onNavigateView,
   onOpenAddModal,
   onViewSectionDetail,
+  activeStateId,
+  onStateChange,
 }) => {
-  // Filtros de navegación geográfica para nivel Nacional / Estatal
-  const [selectedStateId, setSelectedStateId] = useState<number>(27); // 27 = Tabasco por defecto
+  // Filtros de navegación geográfica y estado activo
+  const selectedStateId = activeStateId ?? 27;
+  const [copiedUrl, setCopiedUrl] = useState(false);
   const [selectedMunicipality, setSelectedMunicipality] = useState<string>('all');
   const [selectedDistrict, setSelectedDistrict] = useState<string>('all');
   const [sectionSearch, setSectionSearch] = useState<string>('');
@@ -51,8 +57,16 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
 
   // Información del estado seleccionado del catálogo oficial INE
   const currentStateInfo = useMemo(() => {
-    return nationalStatesSummary.find(s => s.stateId === selectedStateId) || nationalStatesSummary[26];
+    return getStateById(selectedStateId) || DEFAULT_STATE;
   }, [selectedStateId]);
+
+  const handleCopyStateUrl = () => {
+    const url = `${window.location.origin}/${currentStateInfo.abbr}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2500);
+    });
+  };
 
   // Secciones oficiales del catálogo para el estado seleccionado
   const stateCatalogSections = useMemo(() => {
@@ -208,30 +222,56 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
               </p>
             </div>
 
-            {/* Selector de Estado Nacional para Superadmin */}
-            {currentUser.level === 'admin' && (
+            {/* Selector de Estado Nacional y Enlace Directo */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="bg-white/10 backdrop-blur border border-white/15 p-3 rounded-xl flex flex-col gap-1.5 min-w-[260px]">
-                <label className="text-[11px] font-bold text-indigo-200 uppercase tracking-wider flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5" />
-                  Estado de la República:
-                </label>
+                <div className="flex items-center justify-between gap-2">
+                  <label className="text-[11px] font-bold text-indigo-200 uppercase tracking-wider flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5" />
+                    Estado de la República:
+                  </label>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 uppercase">
+                    /{currentStateInfo.abbr}
+                  </span>
+                </div>
                 <select
                   value={selectedStateId}
                   onChange={(e) => {
-                    setSelectedStateId(Number(e.target.value));
+                    const newId = Number(e.target.value);
+                    if (onStateChange) onStateChange(newId);
                     setSelectedMunicipality('all');
                     setSelectedDistrict('all');
                   }}
-                  className="bg-slate-900/90 text-white text-xs font-semibold rounded-lg px-3 py-2 border border-indigo-400/40 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                  className="bg-slate-900/90 text-white text-xs font-semibold rounded-lg px-3 py-2 border border-indigo-400/40 focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
                 >
-                  {nationalStatesSummary.map(st => (
+                  {MEXICAN_STATES.map(st => (
                     <option key={st.stateId} value={st.stateId} className="bg-slate-900 text-white">
-                      {st.stateId === 27 ? '★ ' : ''}{st.stateId}. {st.stateName} ({st.nominalTotal.toLocaleString()} votantes)
+                      [{st.abbr.toUpperCase()}] {st.name} ({st.nominalTotal.toLocaleString()} electores)
                     </option>
                   ))}
                 </select>
               </div>
-            )}
+
+              <button
+                type="button"
+                onClick={handleCopyStateUrl}
+                className="px-3.5 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl border border-white/15 flex items-center justify-center gap-2 text-xs font-bold transition-colors cursor-pointer"
+                title={`Copiar URL directa del dashboard de ${currentStateInfo.commonName}`}
+              >
+                {copiedUrl ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span className="text-emerald-300">¡URL Copiada!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-4 h-4 text-indigo-300" />
+                    <span className="hidden sm:inline">Compartir:</span>
+                    <span className="font-mono text-indigo-200">/{currentStateInfo.abbr}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           <div className="mt-4 pt-3 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-400">
@@ -241,6 +281,57 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
             <span className="hidden sm:inline font-mono text-indigo-300 text-[10px]">
               Corte INE DERFE 2025
             </span>
+          </div>
+        </div>
+
+        {/* NAVEGADOR RÁPIDO DE LOS 32 ESTADOS DE LA REPÚBLICA */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <Globe2 className="w-4 h-4 text-indigo-600" />
+              <h3 className="text-xs sm:text-sm font-extrabold text-slate-900 tracking-wide">
+                Navegador Nacional de Estados ({MEXICAN_STATES.length} Entidades)
+              </h3>
+              <span className="text-[11px] text-slate-400 font-medium">
+                — Clic en cualquier estado para abrir su dashboard oficial
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 font-medium">
+                Estado Activo:
+              </span>
+              <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                {currentStateInfo.commonName} ({currentStateInfo.abbr.toUpperCase()})
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50/80 rounded-xl border border-slate-200/80 max-h-36 overflow-y-auto">
+            {MEXICAN_STATES.map((st) => {
+              const isActive = st.stateId === selectedStateId;
+              return (
+                <button
+                  key={st.stateId}
+                  type="button"
+                  onClick={() => {
+                    if (onStateChange) onStateChange(st.stateId);
+                    setSelectedMunicipality('all');
+                    setSelectedDistrict('all');
+                  }}
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-xs font-black scale-105 ring-2 ring-indigo-300'
+                      : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200 hover:text-slate-900'
+                  }`}
+                  title={`${st.name} • ${st.nominalTotal.toLocaleString()} votantes • URL: /${st.abbr}`}
+                >
+                  <span className="uppercase font-mono font-extrabold">{st.abbr}</span>
+                  <span className={`text-[11px] font-normal ${isActive ? 'text-indigo-100' : 'text-slate-500'}`}>
+                    {st.commonName}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -390,6 +481,72 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
             </div>
           </div>
 
+        </div>
+
+        {/* META DE VICTORIA ELECTORAL 2027 OFICIAL DEL ESTADO */}
+        <div className="bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-emerald-500/10 border border-amber-300/40 rounded-2xl p-5 shadow-xs relative overflow-hidden">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-amber-500 text-white tracking-wider">
+                  Fórmula Oficial 2027
+                </span>
+                <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                  <TrendingUp className="w-3.5 h-3.5 text-amber-600" />
+                  Meta Mínima para Ganar {currentStateInfo.commonName}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600">
+                Basado en <strong>50% de participación esperada</strong> y un <strong>51% de votos</strong> sobre votación para victoria absoluta.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 text-center sm:text-left">
+              <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-xl border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Lista Nominal</span>
+                <strong className="text-sm font-mono font-black text-slate-900">{currentStateInfo.nominalTotal.toLocaleString()}</strong>
+              </div>
+              <div className="bg-white/90 backdrop-blur px-4 py-2 rounded-xl border border-slate-200">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block">Votación Esperada (50%)</span>
+                <strong className="text-sm font-mono font-black text-indigo-700">{currentStateInfo.expectedTurnout.toLocaleString()}</strong>
+              </div>
+              <div className="bg-amber-500 text-white px-5 py-2 rounded-xl shadow-xs border border-amber-600">
+                <span className="text-[10px] uppercase font-bold text-amber-100 block">Meta Victoria (51% Votos)</span>
+                <strong className="text-base font-mono font-black">{currentStateInfo.victoryGoalVotes.toLocaleString()} votos</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CARTOGRAFÍA VECTORIAL CON SHAPEFILES OFICIALES DEL INE */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Layers className="w-5 h-5 text-indigo-600" />
+              <div>
+                <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
+                  Cartografía Vectorial Oficial INE: {currentStateInfo.name}
+                </h3>
+                <p className="text-xs text-slate-500">
+                  {currentStateInfo.totalSections.toLocaleString()} secciones • {currentStateInfo.totalMunicipalities} municipios • {currentStateInfo.totalFederalDistricts} distritos federales • {currentStateInfo.totalLocalDistricts} distritos locales
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono font-bold px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg">
+                ✓ Shapefiles Vectorizados ({currentStateInfo.abbr.toUpperCase()})
+              </span>
+            </div>
+          </div>
+
+          <StateVectorMap
+            state={currentStateInfo}
+            onSelectSection={(secNum) => {
+              if (onViewSectionDetail) {
+                onViewSectionDetail(secNum);
+              }
+            }}
+          />
         </div>
 
         {/* 3. FILTROS Y BÚSQUEDA DEL CATÁLOGO ELECTORAL */}
