@@ -23,7 +23,7 @@ import { SectionsCatalogView } from './components/SectionsCatalogView';
 import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { SectionDetailPage } from './components/SectionDetailPage';
 import { getStateBySlug, getAbbrByStateId, getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
-import { LoginPage } from './components/LoginPage';
+// import { LoginPage } from './components/LoginPage';
 
 
 
@@ -57,7 +57,7 @@ export function App() {
     });
   }, []);
 
-  // Authenticated user via Google (persisted in localStorage)
+  // Authenticated user (defaulting to Superadmin for local development)
   const [authenticatedUser, setAuthenticatedUser] = useState<UserAccount | null>(() => {
     try {
       const saved = localStorage.getItem('territorial_auth_user');
@@ -65,7 +65,7 @@ export function App() {
     } catch (e) {
       console.error('Error loading saved auth user', e);
     }
-    return null;
+    return MOCK_ACCOUNTS[0];
   });
 
   // Active user account for RBAC visibility and creation rules
@@ -73,15 +73,15 @@ export function App() {
     return authenticatedUser || MOCK_ACCOUNTS[0];
   });
 
-  const handleLoginSuccess = useCallback((user: UserAccount) => {
-    try {
-      localStorage.setItem('territorial_auth_user', JSON.stringify(user));
-    } catch (e) {
-      console.error('Error saving auth user', e);
-    }
-    setAuthenticatedUser(user);
-    setCurrentUser(user);
-  }, []);
+  // const handleLoginSuccess = useCallback((user: UserAccount) => {
+  //   try {
+  //     localStorage.setItem('territorial_auth_user', JSON.stringify(user));
+  //   } catch (e) {
+  //     console.error('Error saving auth user', e);
+  //   }
+  //   setAuthenticatedUser(user);
+  //   setCurrentUser(user);
+  // }, []);
 
   const handleLogout = useCallback(() => {
     try {
@@ -386,14 +386,8 @@ export function App() {
     e.target.value = '';
   }, []);
 
-  if (!authenticatedUser) {
-    return (
-      <LoginPage
-        onLoginSuccess={handleLoginSuccess}
-        allLeaders={allComputedLeaders}
-      />
-    );
-  }
+  // Modo local: Acceso directo al escritorio sin pantalla de login
+  // (LoginPage deshabilitada temporalmente por solicitud del usuario)
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
