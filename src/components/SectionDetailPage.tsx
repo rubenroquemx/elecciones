@@ -63,12 +63,9 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
     return (sectionNumber || '').trim().padStart(4, '0');
   }, [sectionNumber]);
 
-  // Find section in allSections or cartography
+  // Find section in allSections (scoped to jurisdiction)
   const section = useMemo(() => {
-    return (
-      allSections.find(s => s.sectionNumber === normalizedSec || s.sectionNumber === sectionNumber) ||
-      allSections[0]
-    );
+    return allSections.find(s => s.sectionNumber === normalizedSec || s.sectionNumber === sectionNumber) || null;
   }, [allSections, normalizedSec, sectionNumber]);
 
   // Cartography & catalog lookup
@@ -87,7 +84,9 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
   }, [normalizedSec, sectionNumber]);
 
   // Electoral metrics with 100% exact mathematical synchrony
-  const nominalTotal = catEntry?.nominalTotal ?? section?.nominalList ?? 1400;
+  const nominalTotal = (catEntry?.nominalTotal && catEntry.nominalTotal > 0)
+    ? catEntry.nominalTotal
+    : (section?.nominalList && section.nominalList > 0 ? section.nominalList : 1400);
   const nominalMen = catEntry?.nominalMen ?? section?.nominalMen ?? Math.round(nominalTotal * 0.48);
   const nominalWomen = catEntry?.nominalWomen ?? section?.nominalWomen ?? Math.round(nominalTotal * 0.52);
   const nominalNonBinary = catEntry?.nominalNonBinary ?? section?.nominalNonBinary ?? 0;
@@ -327,6 +326,30 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
     setCopiedCoords(true);
     setTimeout(() => setCopiedCoords(false), 2000);
   };
+
+  if (!section) {
+    return (
+      <div className="flex-1 overflow-y-auto bg-slate-50 p-6 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-md text-center max-w-md">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <h2 className="text-lg font-bold text-slate-900 mb-2">Sección Fuera de Jurisdicción</h2>
+          <p className="text-xs text-slate-500 mb-6">
+            La sección <strong>{sectionNumber}</strong> no pertenece a su demarcación territorial o distrito asignado.
+          </p>
+          <button
+            type="button"
+            onClick={onBack}
+            className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl transition-colors inline-flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Volver al Tablero</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8 space-y-6">
@@ -910,6 +933,8 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
         <AddStructureToSectionModal
           isOpen={isAddStructureOpen}
           sectionNumber={normalizedSec}
+          allLeaders={visibleLeaders}
+          allSections={allSections}
           onClose={() => setIsAddStructureOpen(false)}
           onSave={(st) => {
             onAddStructure?.(section.id, st);

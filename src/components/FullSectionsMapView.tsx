@@ -172,7 +172,7 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
                     municipio: muni,
                     municipioId: String(props.municipio_id || ''),
                     distritoLocal: `Distrito ${props.distrito_l || 1}`,
-                    tipo: props.tipo === 1 ? 'Urbana' : props.tipo === 2 ? 'Rural' : 'Mixta',
+                    tipo: (props.tipo === 2 || props.tipo === 1) ? 'Urbana' : props.tipo === 4 ? 'Rural' : 'Mixta',
                     nominalList: 1400,
                     targetGoal: 700,
                     center: props.centroide || [-92.93, 17.98],

@@ -26,198 +26,144 @@ export const CATALOG_BY_SECTION = new Map<string, typeof tabascoCatalog[0]>(
   tabascoCatalog.map(c => [c.section, c])
 );
 
-// Sample structures for key showcase sections across different municipalities
-const SAMPLE_STRUCTURES: Record<string, { structures: SectionStructure[]; notes?: string }> = {
-  '0234': {
-    notes: 'Sección clave en Villahermosa urbana. 4 casillas electorales en Escuela Primaria 27 de Febrero.',
+// Catálogo oficial de estructuras dadas de alta en base de datos
+export const REGISTERED_STRUCTURES: Record<string, { structures: SectionStructure[]; notes?: string }> = {
+  "0416": {
     structures: [
       {
-        id: 'struct-0234-1',
-        name: 'Promoción del Voto y Afiliación',
-        type: 'promocion',
-        leaderName: 'Lic. Claudia Morales Priego',
-        leaderRole: 'Coordinadora Seccional de Promoción',
-        leaderPhone: '+52 993 145 8920',
-        metaGoal: 700,
-        currentCount: 540,
-        status: 'en_progreso',
-        rootLeaderId: 'node-sec-0234',
-        notes: 'Estructura con alta penetración en colonia Atasta de Serra.',
-      },
-      {
-        id: 'struct-0234-2',
-        name: 'Defensa del Voto (Representantes de Casilla)',
-        type: 'defensa_casilla',
-        leaderName: 'Ing. Fernando May Hernández',
-        leaderRole: 'Responsable General de Casilla (RG)',
-        leaderPhone: '+52 993 234 5678',
-        metaGoal: 8,
-        currentCount: 8,
-        status: 'completado',
-        notes: '4 casillas básicas y contiguas cubiertas al 100% con propietarios y suplentes.',
-      },
-      {
-        id: 'struct-0234-3',
-        name: 'Comité de Protagonistas Juveniles',
-        type: 'sectorial',
-        leaderName: 'Lic. Sofía Rovirosa Valenzuela',
-        leaderRole: 'Enlace Juvenil Seccional',
-        leaderPhone: '+52 993 512 8844',
-        metaGoal: 150,
-        currentCount: 110,
-        status: 'en_progreso',
-        notes: 'Brigadas universitarias de difusión comunitaria.',
-      }
-    ]
-  },
-  '0256': {
-    notes: 'Zona de Tamulté de las Barrancas. Cobertura vecinal sólida.',
-    structures: [
-      {
-        id: 'struct-0256-1',
-        name: 'Promoción Territorial',
-        type: 'promocion',
-        leaderName: 'Mtro. Héctor Javier Zapata',
-        leaderRole: 'Coordinador Seccional',
-        leaderPhone: '+52 993 301 9922',
-        metaGoal: 900,
-        currentCount: 780,
-        status: 'en_progreso',
-        rootLeaderId: 'node-sec-0256',
-      },
-      {
-        id: 'struct-0256-2',
-        name: 'Defensa Electoral (RCs)',
-        type: 'defensa_casilla',
-        leaderName: 'Lic. Mariana Balboa Ortiz',
-        leaderRole: 'Responsable de Casilla',
-        leaderPhone: '+52 993 420 1199',
-        metaGoal: 10,
-        currentCount: 8,
-        status: 'en_progreso',
-      }
-    ]
-  },
-  '0480': {
-    notes: 'Sección territorial en Centro. Meta superada con 680 registros de apoyo.',
-    structures: [
-      {
-        id: 'struct-0480-1',
-        name: 'Estructura Territorial Única',
-        type: 'promocion',
-        leaderName: 'Lic. Guadalupe Domínguez Ramos',
-        leaderRole: 'Coordinadora de Seccional',
-        leaderPhone: '+52 937 114 6633',
-        metaGoal: 650,
-        currentCount: 680,
-        status: 'completado',
-      }
-    ]
-  },
-  '0089': {
-    notes: 'Zona urbana céntrica de Cárdenas, Tabasco.',
-    structures: [
-      {
-        id: 'struct-0089-1',
-        name: 'Promoción en Cabecera Cárdenas',
-        type: 'promocion',
-        leaderName: 'C. Roberto Carlos Palma',
-        leaderRole: 'Coordinador Seccional Cárdenas',
-        leaderPhone: '+52 937 200 4411',
-        metaGoal: 600,
-        currentCount: 450,
-        status: 'en_progreso',
-      },
-      {
-        id: 'struct-0089-2',
-        name: 'Vigilancia de Casillas',
-        type: 'defensa_casilla',
-        leaderName: 'Lic. Laura Elena Frías',
-        leaderRole: 'Representante General',
-        leaderPhone: '+52 937 311 8899',
-        metaGoal: 6,
-        currentCount: 6,
-        status: 'completado',
-      }
-    ]
-  },
-  '0603': {
-    notes: 'Cabecera de Comalcalco. Cobertura activa.',
-    structures: [
-      {
-        id: 'struct-0603-1',
-        name: 'Comité de Base Ciudadano Comalcalco',
-        type: 'sectorial',
-        leaderName: 'Mtro. Alberto Córdova Peralta',
-        leaderRole: 'Enlace Seccional Comalcalco',
-        leaderPhone: '+52 933 102 7744',
-        metaGoal: 600,
-        currentCount: 520,
-        status: 'en_progreso',
-      },
-      {
-        id: 'struct-0603-2',
-        name: 'Vigilancia de Casillas',
-        type: 'defensa_casilla',
-        leaderName: 'C. Jorge Luis Montejo',
-        leaderRole: 'Representante General',
-        leaderPhone: '+52 933 245 9900',
-        metaGoal: 8,
-        currentCount: 4,
-        status: 'critico',
-        notes: 'Faltan 4 representantes para casillas contiguas.',
-      }
-    ]
-  },
-  '0950': {
-    notes: 'Zona urbana y comunidades de Macuspana.',
-    structures: [
-      {
-        id: 'struct-0950-1',
-        name: 'Estructura Comunitaria Macuspana',
-        type: 'promocion',
-        leaderName: 'Don José Reyes Chablé',
-        leaderRole: 'Delegado Seccional',
-        leaderPhone: '+52 936 123 4455',
+        id: "struct-0416-1",
+        name: "Comité de Promoción y Organización",
+        type: "promocion",
+        leaderName: "Profra. Elena Ramos Cruz",
+        leaderRole: "Coordinadora de Sección",
+        leaderPhone: "+52 993 234 8901",
+        curp: "RACE880923MTBRNL02",
+        electorKey: "RMCR88092327M30002",
+        address: "Calle Hidalgo #104",
+        colonia: "Tamulté de las Barrancas",
+        electoralSection: "0416",
+        email: "elena.ramos@organizacion-tabasco.mx",
         metaGoal: 500,
-        currentCount: 460,
-        status: 'en_progreso',
-      }
-    ]
-  },
-  '1131': {
-    notes: 'Zona urbana de Tenosique cercana a la estación del Tren Maya.',
-    structures: [
-      {
-        id: 'struct-1131-1',
-        name: 'Coordinación Territorial Fronteriza',
-        type: 'promocion',
-        leaderName: 'Lic. Carlos Mario Ulin',
-        leaderRole: 'Coordinador de Zona Frontera Sur',
-        leaderPhone: '+52 934 105 8899',
-        metaGoal: 600,
-        currentCount: 520,
-        status: 'en_progreso',
+        currentCount: 3,
+        status: "en_progreso",
+        rootLeaderId: "sec-fed04-0416",
+        notes: "Comité seccional adscrito al COT Tamulté (Ing. Roberto Salgado Domínguez) y Coordinación Federal 04 (Lic. Carlos Eduardo Mendoza Ruiz). Célula con 3 promovidos validados."
       },
       {
-        id: 'struct-1131-2',
-        name: 'Defensa Electoral Seccional',
-        type: 'defensa_casilla',
-        leaderName: 'Dra. Patricia Osorio',
-        leaderRole: 'Representante de Casilla',
-        metaGoal: 6,
-        currentCount: 6,
-        status: 'completado',
+        id: "struct-0416-2",
+        name: "Célula de Representación Territorial",
+        type: "defensa_casilla",
+        leaderName: "Jorge Luis Torres Hernández",
+        leaderRole: "Promotor Territorial / Representante",
+        leaderPhone: "+52 993 345 6712",
+        curp: "TOHJ950614HTBRRS03",
+        electorKey: "TRHN95061427H40003",
+        address: "Calle Nicolás Bravo #45",
+        colonia: "Tamulté de las Barrancas",
+        electoralSection: "0416",
+        email: "jorge.torres@organizacion-tabasco.mx",
+        metaGoal: 8,
+        currentCount: 8,
+        status: "completado",
+        rootLeaderId: "prom-fed04-0416-1",
+        notes: "Célula territorial de vigilancia y representación en casillas de la sección 0416."
       }
-    ]
+    ],
+    notes: "Zona Tamulté Centro - Distrito Federal 04"
+  },
+  "0486": {
+    structures: [
+      {
+        id: "struct-0486-1",
+        name: "Comité de Promoción y Organización",
+        type: "promocion",
+        leaderName: "Ing. Fernando May Hernández",
+        leaderRole: "Coordinador de Sección",
+        leaderPhone: "+52 993 567 8934",
+        curp: "MAHF820318HTBYRN05",
+        electorKey: "MYHN82031827H60005",
+        address: "Calle Central #412",
+        colonia: "Gaviotas Sur (Sector Armenia)",
+        electoralSection: "0486",
+        email: "fernando.may@organizacion-tabasco.mx",
+        metaGoal: 500,
+        currentCount: 3,
+        status: "en_progreso",
+        rootLeaderId: "sec-fed04-0486",
+        notes: "Comité seccional adscrito al COT Gaviotas y La Manga (Lic. Gabriela Narváez Osorio) y Coordinación Federal 04 (Lic. Carlos Eduardo Mendoza Ruiz). Célula con 3 promovidos validados."
+      },
+      {
+        id: "struct-0486-2",
+        name: "Célula de Representación Territorial",
+        type: "defensa_casilla",
+        leaderName: "Verónica Aguilar Padrón",
+        leaderRole: "Promotora Territorial / Representante",
+        leaderPhone: "+52 993 678 9045",
+        curp: "AUPV930829MTBGLR06",
+        electorKey: "AGPD93082927M70006",
+        address: "Andador Río Mezcalapa #118",
+        colonia: "Gaviotas Sur",
+        electoralSection: "0486",
+        email: "veronica.aguilar@organizacion-tabasco.mx",
+        metaGoal: 9,
+        currentCount: 9,
+        status: "completado",
+        rootLeaderId: "prom-fed04-0486-1",
+        notes: "Célula territorial de vigilancia y representación en casillas de la sección 0486."
+      }
+    ],
+    notes: "Zona Gaviotas Sur - Distrito Federal 04"
+  },
+  "0385": {
+    structures: [
+      {
+        id: "struct-0385-1",
+        name: "Comité de Promoción y Organización",
+        type: "promocion",
+        leaderName: "Lic. Carlos Mario García Martínez",
+        leaderRole: "Coordinador de Sección",
+        leaderPhone: "+52 993 890 1267",
+        curp: "GAMC800125HTBRSR08",
+        electorKey: "GRMR80012527H90008",
+        address: "Calle Francisco I. Madero #512",
+        colonia: "Centro Histórico",
+        electoralSection: "0385",
+        email: "carlos.garcia@organizacion-tabasco.mx",
+        metaGoal: 300,
+        currentCount: 3,
+        status: "en_progreso",
+        rootLeaderId: "sec-fed04-0385",
+        notes: "Comité seccional adscrito al COT Centro Histórico (Lic. Martha Elena Vidal Gómez) y Coordinación Federal 04 (Lic. Carlos Eduardo Mendoza Ruiz). Célula con 3 promovidos validados."
+      },
+      {
+        id: "struct-0385-2",
+        name: "Célula de Representación Territorial",
+        type: "defensa_casilla",
+        leaderName: "María Cristina González Cruz",
+        leaderRole: "Promotora Territorial / Representante",
+        leaderPhone: "+52 993 901 2378",
+        curp: "GOCM921017MTBNRN09",
+        electorKey: "GZCR92101727M00009",
+        address: "Calle 27 de Febrero #230",
+        colonia: "Centro Histórico",
+        electoralSection: "0385",
+        email: "cristina.gonzalez@organizacion-tabasco.mx",
+        metaGoal: 2,
+        currentCount: 2,
+        status: "completado",
+        rootLeaderId: "prom-fed04-0385-1",
+        notes: "Célula territorial de vigilancia y representación en casillas de la sección 0385."
+      }
+    ],
+    notes: "Zona Centro Histórico - Distrito Federal 04"
   }
 };
 
 // FULL list of all 1,144 Electoral Sections in Tabasco from the official INE shapefile
 export const INITIAL_SECTIONS: ElectoralSection[] = TABASCO_CARTOGRAPHY.map(carto => {
-  const sample = SAMPLE_STRUCTURES[carto.sectionNumber];
+  const reg = REGISTERED_STRUCTURES[carto.sectionNumber];
   const cat = CATALOG_BY_SECTION.get(carto.sectionNumber);
-  const nominal = cat ? cat.nominalTotal : 1400;
+  const nominal = (cat && cat.nominalTotal > 0) ? cat.nominalTotal : 1400;
   const target = Math.round(nominal * 0.45);
 
   return {
@@ -226,7 +172,15 @@ export const INITIAL_SECTIONS: ElectoralSection[] = TABASCO_CARTOGRAPHY.map(cart
     municipio: carto.municipio,
     municipioId: carto.municipioId,
     distritoLocal: cat?.localDistrict ? `Distrito ${cat.localDistrict}` : carto.distritoLocal,
-    tipo: (cat?.sectionType?.includes('RURAL') ? 'Rural' : cat?.sectionType?.includes('MIXTO') ? 'Mixta' : carto.tipo) as any,
+    tipo: (
+      cat?.sectionType?.includes('URBAN')
+        ? 'Urbana'
+        : cat?.sectionType?.includes('RURAL')
+        ? 'Rural'
+        : cat?.sectionType?.includes('MIXT')
+        ? 'Mixta'
+        : carto.tipo || 'Urbana'
+    ) as any,
     nominalList: nominal,
     nominalMen: cat?.nominalMen,
     nominalWomen: cat?.nominalWomen,
@@ -235,7 +189,7 @@ export const INITIAL_SECTIONS: ElectoralSection[] = TABASCO_CARTOGRAPHY.map(cart
     center: carto.center,
     bbox: carto.bbox,
     polygon: carto.polygon,
-    structures: sample?.structures || [],
-    notes: sample?.notes,
+    structures: reg?.structures || [],
+    notes: reg?.notes,
   };
 });

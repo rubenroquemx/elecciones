@@ -1,21 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import type { TerritorialLeader, TerritorialLevel } from '../types/territory';
+import React, { useState, useEffect, useMemo } from 'react';
+import type { TerritorialLeader, TerritorialLevel, LeaderNote } from '../types/territory';
 import type { UserAccount } from '../types/auth';
-import { LEVEL_CONFIG } from '../data/mockTerritoryData';
+import type { ElectoralSection } from '../types/sections';
 import { 
   getAllowedChildLevel, 
-  getAllowedLevelsForCreator, 
   getDefaultRoleForLevel, 
   ORDERED_LEVELS 
 } from '../utils/hierarchy';
 import { 
+  findElectorByKey, 
+  persistElectorProfile, 
+  normalizeSectionNumber,
+  type ElectorProfile 
+} from '../utils/electorRegistry';
+import { 
   X, 
   Save, 
-  UserPlus, 
-  UserCheck, 
-  ShieldCheck, 
-  Lock,
-  Sparkles
+  Send, 
+  User, 
+  Building2, 
+  Clock, 
+  Check, 
+  Search,
+  MessageSquare,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 
 interface EditLeaderModalProps {
@@ -25,6 +34,7 @@ interface EditLeaderModalProps {
   editingLeader: TerritorialLeader | null;
   allLeaders: TerritorialLeader[];
   currentUser: UserAccount;
+  availableSections?: ElectoralSection[];
 }
 
 export const EditLeaderModal: React.FC<EditLeaderModalProps> = ({
@@ -34,458 +44,725 @@ export const EditLeaderModal: React.FC<EditLeaderModalProps> = ({
   editingLeader,
   allLeaders,
   currentUser,
+  availableSections = [],
 }) => {
   const isSuperAdmin = currentUser.level === 'admin';
-  const allowedLevels: TerritorialLevel[] = getAllowedLevelsForCreator(currentUser.level);
   const defaultInitialLevel: TerritorialLevel = isSuperAdmin 
-    ? 'distrital' 
-    : (getAllowedChildLevel(currentUser.level) || 'promovido');
-  const isPromotorCreator = currentUser.level === 'promotor';
+    ? 'territorial' 
+    : (getAllowedChildLevel(currentUser.level) || 'territorial');
 
-  const [formData, setFormData] = useState<Partial<TerritorialLeader>>({
+  // Form State
+  const [formData, setFormData] = useState<{
+    name: string;
+    address: string;
+    colonia: string;
+    electoralSection: string;
+    curp: string;
+    electorKey: string;
+    phone: string;
+    email: string;
+    committeeAlias: string;
+    assignedSections: string[];
+    notesHistory: LeaderNote[];
+  }>({
     name: '',
-    role: '',
-    level: defaultInitialLevel,
-    levelIndex: ORDERED_LEVELS.indexOf(defaultInitialLevel),
-    parentId: currentUser.leaderId || null,
-    territoryName: '',
-    code: '',
+    address: '',
+    colonia: '',
+    electoralSection: '',
+    curp: '',
+    electorKey: '',
     phone: '',
     email: '',
-    username: '',
-    hasAccount: defaultInitialLevel !== 'promovido',
-    metaGoal: defaultInitialLevel === 'promovido' ? 1 : 1000,
-    currentCount: defaultInitialLevel === 'promovido' ? 1 : 0,
-    status: defaultInitialLevel === 'promovido' ? 'completado' : 'en_progreso',
-    validationStatus: 'validado',
-    notes: '',
+    committeeAlias: '',
+    assignedSections: [],
+    notesHistory: [],
   });
 
-  useEffect(() => {
-    if (editingLeader) {
-      setFormData({
-        ...editingLeader,
-      });
-    } else {
-      // Modo Creación:
-      // Superadmin arranca con distrital (o estatal), los demás fijados estrictamente a su inferior inmediato
-      const targetLevel = isSuperAdmin ? 'distrital' : defaultInitialLevel;
-      const targetLevelIdx = ORDERED_LEVELS.indexOf(targetLevel);
+  // Section search / filter state inside multi-selector
+  const [sectionFilter, setSectionFilter] = useState('');
 
-      let defaultParentId = currentUser.leaderId;
-      if (isSuperAdmin) {
-        // Para superadmin, buscar si hay un líder del nivel superior inmediato
-        const parentLvlIdx = Math.max(0, targetLevelIdx - 1);
-        const parentLvl = ORDERED_LEVELS[parentLvlIdx];
-        const match = allLeaders.find(l => l.level === parentLvl);
-        defaultParentId = match ? match.id : (allLeaders[0]?.id || null);
+  // New note input state
+  const [newNoteText, setNewNoteText] = useState('');
+
+  // Validation error state
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Existing profile auto-detection notice
+  const [existingProfileNotice, setExistingProfileNotice] = useState<string | null>(null);
+  const [matchedProfile, setMatchedProfile] = useState<ElectorProfile | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setErrorMsg(null);
+      setNewNoteText('');
+      setSectionFilter('');
+      return;
+    }
+
+    if (editingLeader) {
+      // Derive assignedSections if not explicitly array
+      let initialAssigned: string[] = editingLeader.assignedSections || [];
+      if (initialAssigned.length === 0 && editingLeader.territoryName) {
+        const matches = editingLeader.territoryName.match(/\d{3,4}/g);
+        if (matches) {
+          initialAssigned = Array.from(new Set(matches.map(m => m.padStart(4, '0'))));
+        }
+      }
+
+      // Notes history initialization
+      let initialNotes: LeaderNote[] = editingLeader.notesHistory || [];
+      if (initialNotes.length === 0 && editingLeader.notes?.trim()) {
+        initialNotes = [{
+          id: `legacy-${editingLeader.id}`,
+          text: editingLeader.notes.trim(),
+          authorName: 'Nota Previa',
+          createdAt: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+        }];
       }
 
       setFormData({
-        id: `node-${Date.now()}`,
+        name: editingLeader.name || '',
+        address: editingLeader.address || '',
+        colonia: editingLeader.colonia || '',
+        electoralSection: editingLeader.electoralSection || '',
+        curp: editingLeader.curp || '',
+        electorKey: editingLeader.electorKey || '',
+        phone: editingLeader.phone || '',
+        email: editingLeader.email || '',
+        committeeAlias: editingLeader.committeeAlias || editingLeader.territoryName || '',
+        assignedSections: initialAssigned,
+        notesHistory: initialNotes,
+      });
+    } else {
+      setFormData({
         name: '',
-        role: getDefaultRoleForLevel(targetLevel),
-        level: targetLevel,
-        levelIndex: targetLevelIdx,
-        parentId: defaultParentId,
-        territoryName: '',
-        code: '',
+        address: '',
+        colonia: '',
+        electoralSection: '',
+        curp: '',
+        electorKey: '',
         phone: '',
         email: '',
-        username: '',
-        hasAccount: targetLevel !== 'promovido',
-        metaGoal: targetLevel === 'promovido' ? 1 : 1000,
-        currentCount: targetLevel === 'promovido' ? 1 : 0,
-        status: targetLevel === 'promovido' ? 'completado' : 'en_progreso',
-        validationStatus: 'validado',
-        notes: '',
-        avatarBg: 'bg-indigo-600',
+        committeeAlias: '',
+        assignedSections: [],
+        notesHistory: [],
       });
     }
-  }, [editingLeader, allLeaders, isOpen, currentUser, isSuperAdmin, defaultInitialLevel]);
+  }, [isOpen, editingLeader]);
+
+  // Filter available sections for the multi-select
+  const filteredSections = useMemo(() => {
+    const q = sectionFilter.trim().toLowerCase();
+    if (!q) return availableSections;
+    return availableSections.filter(sec => 
+      sec.sectionNumber.toLowerCase().includes(q) ||
+      (sec.municipio && sec.municipio.toLowerCase().includes(q))
+    );
+  }, [availableSections, sectionFilter]);
 
   if (!isOpen) return null;
 
-  // Nivel seleccionado actual
-  const currentLevel = (formData.level as TerritorialLevel) || defaultInitialLevel;
-  const currentLevelIndex = ORDERED_LEVELS.indexOf(currentLevel);
-  const curConfig = LEVEL_CONFIG[currentLevel] || LEVEL_CONFIG.promotor;
+  const targetLevel: TerritorialLevel = editingLeader ? editingLeader.level : defaultInitialLevel;
+  const targetRole = editingLeader ? editingLeader.role : (getDefaultRoleForLevel(targetLevel) || 'Comité de Organización Territorial');
 
-  // Candidatos a superior inmediato según el nivel a crear
-  const parentCandidates = allLeaders.filter(l => {
-    if (editingLeader && l.id === editingLeader.id) return false;
-    // Si es estatal, no requiere superior
-    if (currentLevel === 'estatal') return false;
-    // Para otros niveles, su superior idealmente es del nivel anterior
-    if (currentLevelIndex > 0) {
-      const requiredSuperiorLevel = ORDERED_LEVELS[currentLevelIndex - 1];
-      return l.level === requiredSuperiorLevel;
-    }
-    return true;
-  });
-
-  const handleLevelChange = (newLevel: TerritorialLevel) => {
-    const newIdx = ORDERED_LEVELS.indexOf(newLevel);
-    const hasAcc = newLevel !== 'promovido';
-
-    // Buscar superior recomendado para el nuevo nivel
-    let newParentId: string | null = null;
-    if (newLevel !== 'estatal' && newIdx > 0) {
-      const superiorLvl = ORDERED_LEVELS[newIdx - 1];
-      const match = allLeaders.find(l => l.level === superiorLvl);
-      newParentId = match ? match.id : null;
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      level: newLevel,
-      levelIndex: newIdx,
-      role: getDefaultRoleForLevel(newLevel),
-      parentId: newParentId,
-      hasAccount: hasAcc,
-      metaGoal: newLevel === 'promovido' ? 1 : (newLevel === 'estatal' ? 500000 : 1000),
-      currentCount: newLevel === 'promovido' ? 1 : 0,
-      status: newLevel === 'promovido' ? 'completado' : 'en_progreso',
-    }));
+  const toggleSection = (secNumber: string) => {
+    setFormData(prev => {
+      const exists = prev.assignedSections.includes(secNumber);
+      const updated = exists 
+        ? prev.assignedSections.filter(s => s !== secNumber)
+        : [...prev.assignedSections, secNumber].sort();
+      return { ...prev, assignedSections: updated };
+    });
   };
 
-  const handleNameChange = (name: string) => {
-    const cleanUser = name
-      .toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]/g, '.')
-      .replace(/\.+/g, '.')
-      .replace(/^\.|\.$/g, '');
+  const handleAddNote = () => {
+    if (!newNoteText.trim()) return;
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+    const timeStr = now.toLocaleTimeString('es-MX', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const newNote: LeaderNote = {
+      id: `note-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      text: newNoteText.trim(),
+      authorName: currentUser.name || 'Usuario Actual',
+      createdAt: `${dateStr}, ${timeStr} hrs`,
+    };
 
     setFormData(prev => ({
       ...prev,
-      name,
-      username: prev.username || (cleanUser ? `${cleanUser}` : ''),
-      email: prev.email || (cleanUser ? `${cleanUser}@organizacion-tabasco.mx` : ''),
+      notesHistory: [newNote, ...prev.notesHistory]
     }));
+    setNewNoteText('');
+  };
+
+  const handleElectorKeyChange = (rawKey: string) => {
+    const cleanKey = rawKey.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 18);
+    setFormData(prev => ({ ...prev, electorKey: cleanKey }));
+    setErrorMsg(null);
+
+    if (cleanKey.length >= 8) {
+      const existing = findElectorByKey(cleanKey, allLeaders, availableSections);
+      if (existing && (!editingLeader || editingLeader.electorKey?.toUpperCase() !== cleanKey)) {
+        setMatchedProfile(existing);
+        setExistingProfileNotice(`Integrante existente detectado: "${existing.name}". Datos generales precargados automáticamente. Puede asignarlo a esta nueva estructura territorial.`);
+        setFormData(prev => ({
+          ...prev,
+          electorKey: cleanKey,
+          name: existing.name || prev.name,
+          address: existing.address || prev.address,
+          colonia: existing.colonia || prev.colonia,
+          electoralSection: existing.electoralSection || prev.electoralSection,
+          curp: existing.curp || prev.curp,
+          phone: existing.phone || prev.phone,
+          email: existing.email || prev.email,
+        }));
+      } else {
+        setMatchedProfile(null);
+        setExistingProfileNotice(null);
+      }
+    } else {
+      setMatchedProfile(null);
+      setExistingProfileNotice(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name?.trim()) {
-      alert('Por favor ingrese el nombre del integrante.');
+    setErrorMsg(null);
+
+    // Validate Required General Fields
+    if (!formData.name.trim()) {
+      setErrorMsg('El Nombre es obligatorio.');
       return;
     }
-    if (!formData.territoryName?.trim()) {
-      alert('Por favor especifique la demarcación territorial (Distrito, Sección o Zona).');
+    if (!formData.address.trim()) {
+      setErrorMsg('La Dirección es obligatoria.');
+      return;
+    }
+    if (!formData.colonia.trim()) {
+      setErrorMsg('La Colonia es obligatoria.');
+      return;
+    }
+    if (!formData.electoralSection.trim()) {
+      setErrorMsg('La Sección Electoral de residencia es obligatoria.');
+      return;
+    }
+    if (!formData.curp.trim()) {
+      setErrorMsg('La CURP es obligatoria.');
+      return;
+    }
+    if (!formData.electorKey.trim()) {
+      setErrorMsg('La Clave de Elector es obligatoria.');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      setErrorMsg('El Teléfono (WhatsApp) es obligatorio.');
+      return;
+    }
+    if (!formData.email.trim()) {
+      setErrorMsg('El Correo Electrónico es obligatorio.');
       return;
     }
 
-    const effectiveLevel = (formData.level as TerritorialLevel) || defaultInitialLevel;
-    const effectiveLevelIndex = ORDERED_LEVELS.indexOf(effectiveLevel);
-    const hasAcc = effectiveLevel !== 'promovido';
+    // DIRECTRIZ GLOBAL:
+    // Un usuario puede estar en una o más estructuras pero por ningún motivo debe estar en más de una sección electoral.
+    const cleanKey = formData.electorKey.trim().toUpperCase();
+    const existing = matchedProfile || findElectorByKey(cleanKey, allLeaders, availableSections);
+    if (existing && existing.electoralSection) {
+      const inputSec = normalizeSectionNumber(formData.electoralSection);
+      const regSec = normalizeSectionNumber(existing.electoralSection);
+      if (inputSec && regSec && inputSec !== regSec) {
+        setErrorMsg(`Directriz Global: El ciudadano "${existing.name}" (Clave: ${cleanKey}) ya se encuentra registrado en la Sección Electoral ${regSec}. Por ningún motivo puede pertenecer a más de una sección electoral (se ingresó Sección ${inputSec}).`);
+        return;
+      }
+    }
+
+    // Validate Required Operative Fields
+    if (!formData.committeeAlias.trim()) {
+      setErrorMsg('El Alias del Comité es obligatorio.');
+      return;
+    }
+    if (formData.assignedSections.length === 0) {
+      setErrorMsg('Debe asignar mínimo una sección electoral a la Demarcación Territorial Asignada.');
+      return;
+    }
+
+    // Default immediate superior is the current user logged in
+    const effectiveParentId = editingLeader 
+      ? (editingLeader.parentId || currentUser.leaderId || null)
+      : (currentUser.leaderId || allLeaders.find(l => l.email === currentUser.email || l.name === currentUser.name)?.id || currentUser.id || null);
+
+    const effectiveLevelIndex = ORDERED_LEVELS.indexOf(targetLevel);
+
+    // Compose territory display name
+    const territoryDisplay = `${formData.committeeAlias.trim()} (Sec. ${formData.assignedSections.slice(0, 4).join(', ')}${formData.assignedSections.length > 4 ? ` +${formData.assignedSections.length - 4}` : ''})`;
 
     const finalLeader: TerritorialLeader = {
       id: editingLeader?.id || `node-${Date.now()}`,
       name: formData.name.trim(),
-      role: formData.role?.trim() || getDefaultRoleForLevel(effectiveLevel),
-      level: effectiveLevel,
-      levelIndex: effectiveLevelIndex,
-      parentId: formData.parentId || null,
-      territoryName: formData.territoryName.trim(),
-      code: formData.code?.trim() || undefined,
-      phone: formData.phone?.trim() || undefined,
-      email: hasAcc ? (formData.email?.trim() || undefined) : undefined,
-      username: hasAcc ? (formData.username?.trim() || undefined) : undefined,
-      hasAccount: hasAcc,
-      metaGoal: Number(formData.metaGoal) || 0,
-      currentCount: Number(formData.currentCount) || 0,
-      status: formData.status || (hasAcc ? 'en_progreso' : 'completado'),
-      validationStatus: formData.validationStatus || 'validado',
-      notes: formData.notes?.trim() || undefined,
-      avatarBg: formData.avatarBg || curConfig.border.replace('border-', 'bg-') || 'bg-indigo-600',
+      role: targetRole,
+      level: targetLevel,
+      levelIndex: effectiveLevelIndex >= 0 ? effectiveLevelIndex : 2,
+      parentId: effectiveParentId,
+      territoryName: territoryDisplay,
+      committeeAlias: formData.committeeAlias.trim(),
+      assignedSections: formData.assignedSections,
+      address: formData.address.trim(),
+      colonia: formData.colonia.trim(),
+      electoralSection: formData.electoralSection.trim(),
+      curp: formData.curp.trim().toUpperCase(),
+      electorKey: formData.electorKey.trim().toUpperCase(),
+      phone: formData.phone.trim(),
+      email: formData.email.trim().toLowerCase(),
+      username: formData.email.trim().toLowerCase().split('@')[0],
+      hasAccount: true,
+      notesHistory: formData.notesHistory,
+      notes: formData.notesHistory.map(n => `[${n.createdAt} - ${n.authorName}]: ${n.text}`).join('\n\n'),
+      metaGoal: editingLeader?.metaGoal ?? 1000,
+      currentCount: editingLeader?.currentCount ?? 0,
+      status: editingLeader?.status || 'en_progreso',
+      validationStatus: editingLeader?.validationStatus || 'validado',
+      avatarBg: editingLeader?.avatarBg || 'bg-amber-600',
     };
+
+    if (finalLeader.electorKey) {
+      persistElectorProfile({
+        electorKey: finalLeader.electorKey,
+        name: finalLeader.name,
+        address: finalLeader.address,
+        colonia: finalLeader.colonia,
+        electoralSection: normalizeSectionNumber(finalLeader.electoralSection || ''),
+        curp: finalLeader.curp,
+        phone: finalLeader.phone,
+        email: finalLeader.email,
+        structures: [{
+          id: finalLeader.id,
+          structureName: finalLeader.territoryName,
+          type: finalLeader.level,
+          sectionNumber: normalizeSectionNumber(finalLeader.electoralSection || ''),
+          role: finalLeader.role,
+          source: 'leader',
+        }],
+      });
+    }
 
     onSave(finalLeader);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 sticky top-0 z-10">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs">
+      <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl max-h-[92vh] overflow-hidden shadow-2xl flex flex-col">
+        {/* Header - Strictly requested title, no other subtitle */}
+        <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between bg-white shrink-0">
           <div className="flex items-center gap-2.5">
-            {editingLeader ? (
-              <UserCheck className="w-5 h-5 text-sky-600" />
-            ) : isSuperAdmin ? (
-              <ShieldCheck className="w-5 h-5 text-purple-600" />
-            ) : (
-              <UserPlus className="w-5 h-5 text-indigo-600" />
-            )}
-            <div>
-              <h3 className="font-bold text-slate-900 text-base">
-                {editingLeader
-                  ? 'Modificar Registro Territorial'
-                  : isSuperAdmin
-                  ? 'Registrar Integrante (Privilegio Superadmin)'
-                  : isPromotorCreator
-                  ? 'Registrar Nuevo Ciudadano Promovido'
-                  : `Crear: ${curConfig.label}`
-                }
-              </h3>
-              <p className="text-[11px] text-slate-500">
-                {isSuperAdmin
-                  ? 'Como Superadministrador puede registrar cualquier nivel de la estructura jerárquica.'
-                  : `Regla de Mando: Únicamente puede registrar a su inferior inmediato (${curConfig.label}).`
-                }
-              </p>
+            <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-600">
+              <Building2 className="w-5 h-5" />
             </div>
+            <h3 className="font-bold text-slate-900 text-base">
+              {editingLeader
+                ? 'Modificar Comité de Organización Territorial'
+                : 'Registrar Comité de Organización Territorial'}
+            </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Cerrar modal"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+        {/* Scrollable Form Content */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-5 sm:p-6 space-y-6 text-xs">
           
-          {/* SELECTOR DE NIVEL JERÁRQUICO */}
-          {isSuperAdmin && !editingLeader ? (
-            // 1. Superadmin: Selector de Nivel Libre y Desbloqueado
-            <div className="p-3.5 bg-purple-50/80 border border-purple-200 rounded-xl space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-purple-950 font-bold text-xs flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
-                  Nivel Jerárquico a Registrar (Selección Libre de Superadmin) *
-                </label>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-200 text-purple-800 font-bold">
-                  Acceso Total
-                </span>
-              </div>
-              <select
-                value={currentLevel}
-                onChange={(e) => handleLevelChange(e.target.value as TerritorialLevel)}
-                className="w-full bg-white text-slate-900 font-bold px-3 py-2 rounded-lg border border-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-500 shadow-xs cursor-pointer"
-              >
-                {allowedLevels.map((lvl) => {
-                  const cfg = LEVEL_CONFIG[lvl];
-                  return (
-                    <option key={lvl} value={lvl}>
-                      Nivel {ORDERED_LEVELS.indexOf(lvl)}: {cfg ? cfg.label : lvl}
-                    </option>
-                  );
-                })}
-              </select>
-              <p className="text-[11px] text-purple-700">
-                Seleccione el nivel del organigrama. El formulario se adaptará automáticamente a los requerimientos del cargo.
-              </p>
-            </div>
-          ) : (
-            // 2. Otros usuarios: Nivel Bloqueado estrictamente a su inferior inmediato
-            <div className={`p-3 rounded-xl border ${curConfig.bgLight} ${curConfig.border} flex items-center justify-between`}>
-              <div className="min-w-0 flex-1 pr-2">
-                <div className="flex items-center gap-2">
-                  <span className={`text-xs font-bold ${curConfig.color} uppercase tracking-wide`}>
-                    {curConfig.label}
-                  </span>
-                  <span className="text-[10px] bg-white border border-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono font-bold">
-                    Nivel {formData.levelIndex ?? 0}
-                  </span>
-                  <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-semibold flex items-center gap-1">
-                    <Lock className="w-2.5 h-2.5" />
-                    Inferior Inmediato
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-600 mt-1">
-                  {formData.hasAccount 
-                    ? '✓ Cuenta de usuario activa en el sistema con acceso restringido a su propia demarcación.'
-                    : 'ℹ Registro de ciudadano promovido/simpatizante (no requiere acceso de sistema).'
-                  }
-                </p>
-              </div>
-              <span className={`w-3.5 h-3.5 rounded-full shrink-0 ${curConfig.border.replace('border-', 'bg-')}`} />
+          {errorMsg && (
+            <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl font-medium flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+              <span>{errorMsg}</span>
             </div>
           )}
 
-          {/* Nombre y Cargo */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                {currentLevel === 'promovido' ? 'Nombre Completo del Ciudadano *' : 'Nombre Completo del Responsable *'}
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.name || ''}
-                onChange={(e) => handleNameChange(e.target.value)}
-                placeholder={currentLevel === 'promovido' ? "Ej. Roberto Gómez Sánchez" : "Ej. Lic. Roberto Gómez Sánchez"}
-                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Cargo / Rol Operativo
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.role || ''}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                placeholder={curConfig.label}
-                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs"
-              />
-            </div>
-          </div>
-
-          {/* Superior Inmediato */}
-          <div>
-            <label className="block text-slate-700 font-semibold mb-1">
-              {currentLevel === 'promovido' ? 'Promotor Responsable de Afiliación' : 'Superior Inmediato (Líder Directo)'}
-            </label>
-            {isPromotorCreator ? (
-              <div className="px-3 py-2 rounded-lg bg-slate-100 border border-slate-200 text-slate-700 font-medium">
-                {currentUser.name} ({currentUser.territoryName})
+          {existingProfileNotice && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl font-medium flex items-start gap-2.5 shadow-2xs">
+              <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="font-bold text-xs text-emerald-950">
+                  Usuario Existente Identificado
+                </p>
+                <p className="text-[11px] text-emerald-800">
+                  {existingProfileNotice}
+                </p>
+                {matchedProfile?.electoralSection && (
+                  <span className="inline-block mt-1 text-[10px] font-mono font-bold px-2 py-0.5 bg-emerald-200 text-emerald-900 rounded-md">
+                    Sección Electoral Asignada: {matchedProfile.electoralSection}
+                  </span>
+                )}
               </div>
-            ) : (
-              <select
-                value={formData.parentId || ''}
-                onChange={(e) => setFormData({ ...formData, parentId: e.target.value || null })}
-                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 cursor-pointer shadow-2xs"
-              >
-                {currentLevel === 'estatal' && (
-                  <option value="">(Cúspide Estatal - Sin Superior Directo / Raíz)</option>
-                )}
-                {parentCandidates.length === 0 && currentLevel !== 'estatal' && (
-                  <option value="">(Sin superiores disponibles en su ámbito)</option>
-                )}
-                {parentCandidates.map((p) => {
-                  const pCfg = LEVEL_CONFIG[p.level];
-                  return (
-                    <option key={p.id} value={p.id}>
-                      [{pCfg ? pCfg.label.replace('Comité de Organización ', 'Comité ') : p.level}] {p.name} — {p.territoryName}
-                    </option>
-                  );
-                })}
-              </select>
-            )}
+            </div>
+          )}
+
+          {/* ============================================================ */}
+          {/* 1.- DATOS GENERALES */}
+          {/* ============================================================ */}
+          <div className="space-y-3.5">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-800 font-bold text-sm">
+              <span className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black">
+                1
+              </span>
+              <span>Datos Generales</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {/* Nombre* */}
+              <div className="sm:col-span-2">
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Nombre <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Ej. Roberto Gómez Sánchez"
+                    className="w-full bg-white text-slate-800 pl-9 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs font-medium"
+                  />
+                </div>
+              </div>
+
+              {/* Dirección* */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Dirección <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="Calle, número exterior e interior"
+                  className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                />
+              </div>
+
+              {/* Colonia* */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Colonia <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.colonia}
+                  onChange={(e) => setFormData(prev => ({ ...prev, colonia: e.target.value }))}
+                  placeholder="Ej. Tamulté de las Barrancas"
+                  className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                />
+              </div>
+
+              {/* Sección electoral* */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Sección Electoral <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={4}
+                  value={formData.electoralSection}
+                  onChange={(e) => setFormData(prev => ({ ...prev, electoralSection: e.target.value.replace(/\D/g, '') }))}
+                  placeholder="Ej. 0416"
+                  className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs font-mono"
+                />
+              </div>
+
+              {/* CURP* */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  CURP <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={18}
+                  value={formData.curp}
+                  onChange={(e) => setFormData(prev => ({ ...prev, curp: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') }))}
+                  placeholder="18 caracteres alfanuméricos"
+                  className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs uppercase font-mono tracking-wider"
+                />
+              </div>
+
+              {/* Clave de elector* */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Clave de Elector <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={18}
+                  value={formData.electorKey}
+                  onChange={(e) => handleElectorKeyChange(e.target.value)}
+                  placeholder="18 caracteres (Credencial INE)"
+                  className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs uppercase font-mono tracking-wider"
+                />
+              </div>
+
+              {/* Teléfono (whatsapp)* */}
+              <div>
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Teléfono (WhatsApp) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="tel"
+                  required
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="+52 993 123 4567"
+                  className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                />
+              </div>
+
+              {/* Correo electrónico* */}
+              <div className="sm:col-span-2">
+                <label className="block text-slate-700 font-semibold mb-1">
+                  Correo Electrónico <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="ejemplo@organizacion.mx"
+                  className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs"
+                />
+              </div>
+            </div>
           </div>
 
-          {/* Territory & Code */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
+          {/* ============================================================ */}
+          {/* 2.- DATOS OPERATIVOS */}
+          {/* ============================================================ */}
+          <div className="space-y-4 pt-2">
+            <div className="flex items-center gap-2 pb-2 border-b border-slate-200 text-slate-800 font-bold text-sm">
+              <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-black">
+                2
+              </span>
+              <span>Datos Operativos</span>
+            </div>
+
+            {/* Alias del comité* */}
+            <div>
               <label className="block text-slate-700 font-semibold mb-1">
-                Demarcación Territorial Asignada *
+                Alias del Comité <span className="text-rose-500">*</span>
               </label>
               <input
                 type="text"
                 required
-                value={formData.territoryName || ''}
-                onChange={(e) => setFormData({ ...formData, territoryName: e.target.value })}
-                placeholder="Ej. Distrito Local 04, Zona Tamulté o Sección 0234"
-                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs"
+                value={formData.committeeAlias}
+                onChange={(e) => setFormData(prev => ({ ...prev, committeeAlias: e.target.value }))}
+                placeholder="Ej. COT Tamulté Centro, COT Zona Gaviotas Sur"
+                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-2xs font-medium"
               />
             </div>
+
+            {/* Demarcación Territorial Asignada* */}
             <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Clave / Código Oficial
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-slate-700 font-semibold">
+                  Demarcación Territorial Asignada <span className="text-rose-500">*</span>
+                  <span className="text-[11px] text-slate-500 font-normal ml-1">
+                    (Secciones electorales que operará este COT. Mínimo 1)
+                  </span>
+                </label>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                  formData.assignedSections.length > 0 
+                    ? 'bg-emerald-100 text-emerald-800' 
+                    : 'bg-rose-100 text-rose-700'
+                }`}>
+                  {formData.assignedSections.length} {formData.assignedSections.length === 1 ? 'sección' : 'secciones'}
+                </span>
+              </div>
+
+              {/* Selected Badges Area */}
+              <div className="min-h-[42px] p-2 bg-slate-50 border border-slate-200 rounded-lg flex flex-wrap gap-1.5 items-center mb-2">
+                {formData.assignedSections.length === 0 ? (
+                  <span className="text-slate-400 italic text-[11px] px-1">
+                    Ninguna sección asignada todavía. Seleccione abajo al menos una sección.
+                  </span>
+                ) : (
+                  formData.assignedSections.map(sec => (
+                    <span 
+                      key={sec} 
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-mono font-bold text-xs shadow-2xs"
+                    >
+                      <span>Sec. {sec}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(sec)}
+                        className="hover:text-rose-600 rounded p-0.5 transition-colors cursor-pointer"
+                        title="Quitar sección"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+
+              {/* Search & Toggle Picker Section */}
+              <div className="border border-slate-200 rounded-lg p-2.5 bg-white space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
+                    <input
+                      type="text"
+                      value={sectionFilter}
+                      onChange={(e) => setSectionFilter(e.target.value)}
+                      placeholder="Buscar sección por número o municipio..."
+                      className="w-full bg-slate-50 text-slate-800 pl-8 pr-3 py-1.5 rounded-md border border-slate-200 text-xs focus:bg-white focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  {formData.assignedSections.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, assignedSections: [] }))}
+                      className="px-2.5 py-1.5 text-slate-500 hover:text-rose-600 text-[11px] font-semibold transition-colors cursor-pointer"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
+
+                {/* Grid of Sections */}
+                <div className="max-h-36 overflow-y-auto grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-1.5 p-1 bg-slate-50/50 rounded-md border border-slate-100">
+                  {filteredSections.length === 0 ? (
+                    <div className="col-span-full py-3 text-center text-slate-400 italic">
+                      No se encontraron secciones con el criterio de búsqueda.
+                    </div>
+                  ) : (
+                    filteredSections.map(sec => {
+                      const isSelected = formData.assignedSections.includes(sec.sectionNumber);
+                      return (
+                        <button
+                          key={sec.id || sec.sectionNumber}
+                          type="button"
+                          onClick={() => toggleSection(sec.sectionNumber)}
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-md text-xs font-mono font-bold transition-all cursor-pointer border ${
+                            isSelected
+                              ? 'bg-amber-500 text-white border-amber-600 shadow-xs'
+                              : 'bg-white text-slate-700 border-slate-200 hover:border-amber-300 hover:bg-amber-50/50'
+                          }`}
+                        >
+                          <span>{sec.sectionNumber}</span>
+                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Notas (Historial Breve) */}
+            <div className="space-y-2">
+              <label className="block text-slate-700 font-semibold flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <MessageSquare className="w-3.5 h-3.5 text-slate-500" />
+                  Notas
+                </span>
+                <span className="text-[11px] text-slate-400 font-normal">
+                  {formData.notesHistory.length} {formData.notesHistory.length === 1 ? 'nota registrada' : 'notas registradas'}
+                </span>
               </label>
-              <input
-                type="text"
-                value={formData.code || ''}
-                onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                placeholder="Ej. DTO-04 o SEC-0234"
-                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs"
-              />
+
+              {/* Input for new note with send icon-only button */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newNoteText}
+                  onChange={(e) => setNewNoteText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddNote();
+                    }
+                  }}
+                  placeholder="Escribir una nota u observación..."
+                  className="flex-1 bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 shadow-2xs text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddNote}
+                  disabled={!newNoteText.trim()}
+                  aria-label="Enviar nota"
+                  title="Enviar nota"
+                  className="p-2.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:hover:bg-amber-600 text-white rounded-lg transition-all cursor-pointer shadow-xs shrink-0 flex items-center justify-center"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Notes Feed */}
+              <div className="max-h-36 overflow-y-auto space-y-2 p-2 bg-slate-50 border border-slate-200 rounded-lg">
+                {formData.notesHistory.length === 0 ? (
+                  <p className="text-slate-400 italic text-center py-2 text-[11px]">
+                    No hay notas registradas. Escriba arriba y presione el botón de enviar para agregar una.
+                  </p>
+                ) : (
+                  formData.notesHistory.map(note => (
+                    <div 
+                      key={note.id} 
+                      className="bg-white p-2.5 rounded-lg border border-slate-200/80 shadow-2xs space-y-1"
+                    >
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-slate-800 flex items-center gap-1">
+                          <User className="w-3 h-3 text-slate-400" />
+                          {note.authorName}
+                        </span>
+                        <span className="text-slate-400 flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-slate-300" />
+                          {note.createdAt}
+                        </span>
+                      </div>
+                      <p className="text-slate-700 text-xs leading-snug break-words">
+                        {note.text}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
 
-          {/* Phone & Email */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Teléfono / WhatsApp de Contacto
-              </label>
-              <input
-                type="tel"
-                value={formData.phone || ''}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+52 993 123 4567"
-                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Correo Electrónico {formData.hasAccount && '(Credencial de Acceso) *'}
-              </label>
-              <input
-                type="email"
-                required={formData.hasAccount}
-                value={formData.email || ''}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="correo@organizacion-tabasco.mx"
-                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs"
-              />
-            </div>
-          </div>
-
-          {/* Meta y Conteo Actual */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Meta de Captación / Afiliación Asignada
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.metaGoal ?? 0}
-                onChange={(e) => setFormData({ ...formData, metaGoal: parseInt(e.target.value) || 0 })}
-                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs font-mono font-bold"
-              />
-            </div>
-            <div>
-              <label className="block text-slate-700 font-semibold mb-1">
-                Logrado / Registrado a la Fecha
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={formData.currentCount ?? 0}
-                onChange={(e) => setFormData({ ...formData, currentCount: parseInt(e.target.value) || 0 })}
-                className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs font-mono font-bold text-emerald-700"
-              />
-            </div>
-          </div>
-
-          {/* Notas u Observaciones */}
-          <div>
-            <label className="block text-slate-700 font-semibold mb-1">
-              Notas u Observaciones Operativas
-            </label>
-            <textarea
-              rows={2}
-              value={formData.notes || ''}
-              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="Detalles sobre asignación territorial, casillas o compromisos..."
-              className="w-full bg-white text-slate-800 px-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-indigo-500 shadow-2xs resize-none"
-            />
-          </div>
-
-          {/* Footer Buttons */}
-          <div className="pt-3 border-t border-slate-200 flex items-center justify-end gap-2">
+          {/* ============================================================ */}
+          {/* FOOTER BUTTONS */}
+          {/* ============================================================ */}
+          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors"
+              className="px-4 py-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 rounded-xl font-semibold transition-colors cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-md shadow-indigo-600/30 flex items-center gap-1.5 transition-all"
+              className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold shadow-md shadow-amber-600/30 flex items-center gap-2 transition-all cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>{editingLeader ? 'Guardar Cambios' : 'Registrar en Estructura'}</span>
+              <span>{editingLeader ? 'Guardar Cambios' : 'Registrar Comité'}</span>
             </button>
           </div>
         </form>
@@ -493,3 +770,4 @@ export const EditLeaderModal: React.FC<EditLeaderModalProps> = ({
     </div>
   );
 };
+

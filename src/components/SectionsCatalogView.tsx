@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { ElectoralSection, SectionStructure } from '../types/sections';
+import type { TerritorialLeader } from '../types/territory';
 import { SectionCard } from './SectionCard';
 import { FullSectionsMapView } from './FullSectionsMapView';
 import { CreateSectionModal } from './CreateSectionModal';
@@ -18,6 +19,7 @@ import {
 
 interface SectionsCatalogViewProps {
   sections: ElectoralSection[];
+  allLeaders?: TerritorialLeader[];
   onSaveSection: (section: ElectoralSection) => void;
   onAddStructureToSection: (sectionId: string, structure: SectionStructure) => void;
   onSelectStructureToViewTree: (structure: SectionStructure, section: ElectoralSection) => void;
@@ -28,6 +30,7 @@ interface SectionsCatalogViewProps {
 
 export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
   sections,
+  allLeaders = [],
   onSaveSection,
   onAddStructureToSection,
   onSelectStructureToViewTree,
@@ -417,6 +420,8 @@ export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
       <AddStructureToSectionModal
         isOpen={isAddStructureModalOpen}
         sectionNumber={targetSectionForStructure?.sectionNumber || ''}
+        allLeaders={allLeaders}
+        allSections={sections}
         onClose={() => setIsAddStructureModalOpen(false)}
         onSave={handleSaveStructure}
       />

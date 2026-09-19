@@ -7,6 +7,13 @@ export type TerritorialLevel =
   | 'promovido';     // Promovido (Ciudadano promovido)
 
 
+export interface LeaderNote {
+  id: string;
+  text: string;
+  authorName: string;
+  createdAt: string;
+}
+
 export interface TerritorialLeader {
   id: string;
   name: string;
@@ -20,6 +27,18 @@ export interface TerritorialLeader {
   email?: string;
   photoUrl?: string;
   avatarBg?: string;
+
+  // Datos Generales de Registro
+  address?: string;
+  colonia?: string;
+  electoralSection?: string;
+  curp?: string;
+  electorKey?: string;
+
+  // Datos Operativos
+  committeeAlias?: string;
+  assignedSections?: string[];
+  notesHistory?: LeaderNote[];
   
   // Cuenta de sistema
   hasAccount?: boolean;

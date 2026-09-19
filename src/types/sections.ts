@@ -9,6 +9,12 @@ export interface SectionStructure {
   leaderName: string;
   leaderRole: string;
   leaderPhone?: string;
+  electorKey?: string;
+  curp?: string;
+  address?: string;
+  colonia?: string;
+  electoralSection?: string;
+  email?: string;
   metaGoal: number;
   currentCount: number;
   status: 'en_progreso' | 'completado' | 'critico';

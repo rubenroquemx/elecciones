@@ -117,7 +117,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
         <div>
           <span className="text-[10px] text-slate-500 font-medium block">Lista Nominal</span>
           <span className="text-xs font-bold text-slate-900 block">
-            {section.nominalList.toLocaleString()}
+            {(section.nominalList && section.nominalList > 0 ? section.nominalList : 1400).toLocaleString()}
           </span>
         </div>
         <div>

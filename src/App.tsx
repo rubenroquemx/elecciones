@@ -3,7 +3,7 @@ import type { TerritorialLeader, FilterOptions } from './types/territory';
 import type { ElectoralSection, SectionStructure } from './types/sections';
 import type { UserAccount } from './types/auth';
 import { INITIAL_TERRITORY_DATA } from './data/mockTerritoryData';
-import { INITIAL_SECTIONS } from './data/mockSectionsData';
+import { INITIAL_SECTIONS, CATALOG_BY_SECTION } from './data/mockSectionsData';
 import { MOCK_ACCOUNTS } from './data/mockAuthData';
 import { 
   calculateHierarchyAggregates, 
@@ -22,11 +22,7 @@ import { LevelSummaryBar } from './components/LevelSummaryBar';
 import { SectionsCatalogView } from './components/SectionsCatalogView';
 import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { SectionDetailPage } from './components/SectionDetailPage';
-import { getStateBySlug, getAbbrByStateId, getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
-// import { LoginPage } from './components/LoginPage';
-
-
-
+import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
   fetchLeadersApi,
   saveLeaderApi,
@@ -52,36 +48,57 @@ export function App() {
 
     fetchSectionsApi().then((data) => {
       if (data && data.length > 0) {
-        setSectionsData(data);
+        setSectionsData(prev => {
+          const apiMap = new Map(data.map(s => [s.sectionNumber, s]));
+          return prev.map(current => {
+            const apiSec = apiMap.get(current.sectionNumber);
+            if (!apiSec) return current;
+            const existingIds = new Set((current.structures || []).map(st => st.id));
+            const newFromApi = (apiSec.structures || []).filter(st => !existingIds.has(st.id));
+            return {
+              ...apiSec,
+              ...current,
+              structures: [...(current.structures || []), ...newFromApi],
+            };
+          });
+        });
       }
     });
   }, []);
 
-  // Authenticated user (defaulting to Superadmin for local development)
-  const [authenticatedUser, setAuthenticatedUser] = useState<UserAccount | null>(() => {
+  // Ensure root URL without /state slugs
+  useEffect(() => {
+    if (window.location.pathname !== '/' && window.location.pathname !== '') {
+      window.history.replaceState(null, '', '/');
+    }
+  }, []);
+
+  // Authenticated user (defaulting to Carlos Eduardo Mendoza Ruiz - Coordinador Distrital Federal 04)
+  const [currentUser, setCurrentUser] = useState<UserAccount>(() => {
     try {
       const saved = localStorage.getItem('territorial_auth_user');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.id !== 'usr-coord-loc-09' && parsed.username !== 'alejandra.morales.loc09') {
+          return parsed;
+        } else {
+          localStorage.removeItem('territorial_auth_user');
+        }
+      }
     } catch (e) {
       console.error('Error loading saved auth user', e);
     }
     return MOCK_ACCOUNTS[0];
   });
 
-  // Active user account for RBAC visibility and creation rules
-  const [currentUser, setCurrentUser] = useState<UserAccount>(() => {
-    return authenticatedUser || MOCK_ACCOUNTS[0];
-  });
-
-  // const handleLoginSuccess = useCallback((user: UserAccount) => {
-  //   try {
-  //     localStorage.setItem('territorial_auth_user', JSON.stringify(user));
-  //   } catch (e) {
-  //     console.error('Error saving auth user', e);
-  //   }
-  //   setAuthenticatedUser(user);
-  //   setCurrentUser(user);
-  // }, []);
+  const handleSelectUser = useCallback((user: UserAccount) => {
+    setCurrentUser(user);
+    try {
+      localStorage.setItem('territorial_auth_user', JSON.stringify(user));
+    } catch (e) {
+      console.error('Error saving user in localStorage', e);
+    }
+  }, []);
 
   const handleLogout = useCallback(() => {
     try {
@@ -89,11 +106,74 @@ export function App() {
     } catch (e) {
       console.error('Error removing auth user', e);
     }
-    setAuthenticatedUser(null);
+    // Switch to default coordinator
+    setCurrentUser(MOCK_ACCOUNTS[0]);
   }, []);
 
   // Registered Electoral Sections with multi-structures
-  const [sectionsData, setSectionsData] = useState<ElectoralSection[]>(INITIAL_SECTIONS);
+  const [sectionsData, setSectionsData] = useState<ElectoralSection[]>(() => {
+    try {
+      const saved = localStorage.getItem('territorial_user_sections');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const map = new Map(parsed.map((s: ElectoralSection) => [s.sectionNumber, s]));
+          return INITIAL_SECTIONS.map(s => {
+            const userSec = map.get(s.sectionNumber);
+            if (!userSec) return s;
+
+            // Preserve initial registered structures from base dataset
+            const savedStructures = userSec.structures || [];
+            const savedIds = new Set(savedStructures.map((st: SectionStructure) => st.id));
+            const missingBase = (s.structures || []).filter(st => !savedIds.has(st.id));
+            const finalStructures = [...savedStructures, ...missingBase];
+
+            return {
+              ...s,
+              ...userSec,
+              structures: finalStructures.length > 0 ? finalStructures : (s.structures || []),
+            };
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading saved sections', e);
+    }
+    return INITIAL_SECTIONS;
+  });
+
+  // Strict information access scoping for sections (RBAC):
+  // When Carlos Eduardo (distrital) is active, only sections in his assigned district are accessible!
+  const scopedSections = useMemo(() => {
+    if (currentUser.isSuperAdmin || currentUser.level === 'admin' || currentUser.level === 'estatal') {
+      return sectionsData;
+    }
+    if (currentUser.level === 'distrital') {
+      const isFederal = currentUser.accountRoleLabel?.toLowerCase().includes('federal') ||
+                        currentUser.territoryName?.toLowerCase().includes('federal');
+      const text = `${currentUser.territoryName} ${currentUser.accountRoleLabel}`;
+      const match = text.match(/\b(?:distrito|dto)?\s*(?:local|federal)?\s*0*(\d+)\b/i);
+      const distNum = match ? parseInt(match[1], 10) : (isFederal ? 4 : 9);
+
+      return sectionsData.filter(sec => {
+        const cat = CATALOG_BY_SECTION.get(sec.sectionNumber);
+        if (!cat) return true;
+        if (isFederal) {
+          return cat.federalDistrict === distNum;
+        } else {
+          return cat.localDistrict === distNum;
+        }
+      });
+    }
+    if (currentUser.level === 'seccional') {
+      const match = currentUser.territoryName.match(/\d{3,4}/);
+      if (match) {
+        const targetSec = match[0].padStart(4, '0');
+        return sectionsData.filter(s => s.sectionNumber === targetSec);
+      }
+    }
+    return sectionsData;
+  }, [currentUser, sectionsData]);
 
   // Collapsed branches state
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
@@ -102,19 +182,12 @@ export function App() {
     return set;
   });
 
-  // Selected leader for drawer inspection (starts null so drawer is closed by default)
+  // Selected leader for drawer inspection
   const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
   const [detailSectionNumber, setDetailSectionNumber] = useState<string | null>(null);
 
-  // Active State ID from URL pathname (e.g. /ags, /bc, /gro, /tab)
-  const [activeStateId, setActiveStateId] = useState<number>(() => {
-    const slug = window.location.pathname.replace(/^\//, '').toLowerCase().trim();
-    if (slug) {
-      const match = getStateBySlug(slug);
-      if (match) return match.stateId;
-    }
-    return DEFAULT_STATE_ID; // 27 = Tabasco
-  });
+  // Active State ID
+  const [activeStateId, setActiveStateId] = useState<number>(DEFAULT_STATE_ID);
 
   const activeStateData = useMemo(() => {
     return getStateById(activeStateId) || DEFAULT_STATE;
@@ -122,39 +195,7 @@ export function App() {
 
   const handleStateChange = useCallback((stateId: number) => {
     setActiveStateId(stateId);
-    const abbr = getAbbrByStateId(stateId);
-    if (window.location.pathname !== `/${abbr}`) {
-      window.history.pushState({ stateId }, '', `/${abbr}`);
-    }
   }, []);
-
-  // Sync with browser back/forward buttons (popstate)
-  useEffect(() => {
-    const onPopState = () => {
-      const slug = window.location.pathname.replace(/^\//, '').toLowerCase().trim();
-      if (slug) {
-        const match = getStateBySlug(slug);
-        if (match) {
-          setActiveStateId(match.stateId);
-          return;
-        }
-      }
-      setActiveStateId(DEFAULT_STATE_ID);
-    };
-
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
-  }, []);
-
-  // Initial root URL standardization: if visiting /, replace state with default /tab
-  useEffect(() => {
-    const slug = window.location.pathname.replace(/^\//, '').toLowerCase().trim();
-    if (!slug) {
-      const abbr = getAbbrByStateId(DEFAULT_STATE_ID);
-      window.history.replaceState({ stateId: DEFAULT_STATE_ID }, '', `/${abbr}`);
-    }
-  }, []);
-
 
   // Active navigation: 'escritorio' | 'estructura' | 'secciones'
   const [activeNav, setActiveNav] = useState<MainNavSection>('escritorio');
@@ -196,7 +237,6 @@ export function App() {
     }
   }, [visibleLeaders, selectedLeaderId]);
 
-
   // 3. Filtered leaders for the directory table and flow canvas
   const filteredLeaders = useMemo(() => {
     return filterNodes(visibleLeaders, filters);
@@ -235,7 +275,6 @@ export function App() {
   }, []);
 
   const handleCollapseAll = useCallback(() => {
-    // Collapse all nodes that have children except root
     const withKids = visibleLeaders.filter(l => (l.directTeamCount ?? 0) > 0 && l.parentId !== null);
     setCollapsedIds(new Set(withKids.map(l => l.id)));
   }, [visibleLeaders]);
@@ -270,7 +309,6 @@ export function App() {
       } else {
         updated = [...prev, savedLeader];
       }
-      // Async persist to PostgreSQL
       saveLeaderApi(savedLeader, exists).catch(e => console.warn('Sync API error:', e));
       return calculateHierarchyAggregates(updated);
     });
@@ -293,7 +331,6 @@ export function App() {
       if (filters.focusNodeId === id) {
         setFilters(f => ({ ...f, focusNodeId: null }));
       }
-      // Async persist to PostgreSQL
       deleteLeaderApi(id).catch(e => console.warn('Delete API error:', e));
     }
   }, [selectedLeaderId, filters.focusNodeId]);
@@ -302,18 +339,23 @@ export function App() {
   const handleSaveSection = useCallback((savedSection: ElectoralSection) => {
     setSectionsData(prev => {
       const exists = prev.some(s => s.id === savedSection.id);
-      if (exists) {
-        return prev.map(s => (s.id === savedSection.id ? savedSection : s));
+      const updated = exists
+        ? prev.map(s => (s.id === savedSection.id ? savedSection : s))
+        : [savedSection, ...prev];
+      try {
+        const custom = updated.filter(s => s.structures.length > 0 || (s.notes && s.notes.trim().length > 0));
+        localStorage.setItem('territorial_user_sections', JSON.stringify(custom));
+      } catch (e) {
+        console.warn('Error saving sections to localStorage', e);
       }
-      return [savedSection, ...prev];
+      return updated;
     });
-    // Async persist to PostgreSQL
     saveSectionApi(savedSection).catch(e => console.warn('Save Section API error:', e));
   }, []);
 
   const handleAddStructureToSection = useCallback((sectionId: string, newStructure: SectionStructure) => {
     setSectionsData(prev => {
-      return prev.map(sec => {
+      const updated = prev.map(sec => {
         if (sec.id === sectionId) {
           return {
             ...sec,
@@ -322,8 +364,14 @@ export function App() {
         }
         return sec;
       });
+      try {
+        const custom = updated.filter(s => s.structures.length > 0 || (s.notes && s.notes.trim().length > 0));
+        localStorage.setItem('territorial_user_sections', JSON.stringify(custom));
+      } catch (e) {
+        console.warn('Error saving sections to localStorage', e);
+      }
+      return updated;
     });
-    // Async persist to PostgreSQL
     addStructureApi(sectionId, newStructure).catch(e => console.warn('Add Structure API error:', e));
   }, []);
 
@@ -346,8 +394,6 @@ export function App() {
     setStructureMode('organigrama');
     setCollapsedIds(new Set());
   }, [visibleLeaders]);
-
-
 
   // Export to CSV scoped to visible subtree
   const handleExportData = useCallback(() => {
@@ -386,32 +432,29 @@ export function App() {
     e.target.value = '';
   }, []);
 
-  // Modo local: Acceso directo al escritorio sin pantalla de login
-  // (LoginPage deshabilitada temporalmente por solicitud del usuario)
-
   return (
     <div className="flex h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
-      {/* Sidebar Lateral Izquierdo */}
+      {/* Sidebar Lateral Izquierdo Tradicional */}
       <Sidebar
         activeNav={activeNav}
         onNavChange={handleNavChange}
         structureMode={structureMode}
         onStructureModeChange={setStructureMode}
         currentUser={currentUser}
-        onSelectUser={setCurrentUser}
         visibleCount={visibleLeaders.length}
-        sectionsCount={sectionsData.length}
+        sectionsCount={scopedSections.length}
         onOpenAddModal={handleOpenAddModal}
         onExportData={handleExportData}
         onImportData={handleImportData}
-        onLogout={handleLogout}
         isMobileOpen={isMobileMenuOpen}
         onCloseMobile={() => setIsMobileMenuOpen(false)}
+        activeStateName={activeStateData.commonName}
+        activeStateAbbr={activeStateData.abbr}
       />
 
       {/* Área Principal Derecha */}
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* Top Header con Breadcrumbs, Switcher de Estructura y Búsqueda */}
+        {/* Top Header con Breadcrumbs, Switcher de Estructura, Búsqueda y Switcher de Usuario en esquina superior derecha */}
         <TopHeader
           activeNav={activeNav}
           structureMode={structureMode}
@@ -425,6 +468,10 @@ export function App() {
           onCollapseAll={handleCollapseAll}
           activeStateName={activeStateData.commonName}
           activeStateAbbr={activeStateData.abbr}
+          currentUser={currentUser}
+          onSelectUser={handleSelectUser}
+          visibleCount={visibleLeaders.length}
+          onLogout={handleLogout}
         />
 
         {/* Barra de niveles solo activa en vista Estructura */}
@@ -439,84 +486,90 @@ export function App() {
 
         {/* Contenido Dinámico */}
         <main className="flex-1 relative overflow-hidden flex">
-          {/* VISTA DE PÁGINA COMPLETA DE DETALLE DE SECCIÓN (SIN POPUPS NI MODALES) */}
+          {/* Vista de Página Completa de Detalle de Sección */}
           {detailSectionNumber ? (
             <SectionDetailPage
               sectionNumber={detailSectionNumber}
-              allSections={sectionsData}
+              allSections={scopedSections}
               visibleLeaders={visibleLeaders}
               onBack={() => setDetailSectionNumber(null)}
               onAddStructure={handleAddStructureToSection}
             />
           ) : (
             <>
-          {/* 1. ESCRITORIO (Tablero de KPIs Oficiales) */}
-          {activeNav === 'escritorio' && (
-            <ExecutiveKpiDesktop
-              currentUser={currentUser}
-              stats={stats}
-              visibleLeaders={visibleLeaders}
-              sections={sectionsData}
-              activeStateId={activeStateId}
-              onStateChange={handleStateChange}
-              onSelectLeader={handleSelectLeader}
-              onNavigateView={(view) => {
-                if (view === 'flow') {
-                  setActiveNav('estructura');
-                  setStructureMode('organigrama');
-                } else if (view === 'table') {
-                  setActiveNav('estructura');
-                  setStructureMode('lista');
-                } else if (view === 'sections') {
-                  setActiveNav('secciones');
-                }
-              }}
-              onOpenAddModal={handleOpenAddModal}
-              onViewSectionDetail={(secNum) => setDetailSectionNumber(secNum)}
-            />
-          )}
+              {/* 1. ESCRITORIO (Tablero de KPIs Oficiales) */}
+              {activeNav === 'escritorio' && (
+                <ExecutiveKpiDesktop
+                  currentUser={currentUser}
+                  stats={stats}
+                  visibleLeaders={visibleLeaders}
+                  sections={scopedSections}
+                  activeStateId={activeStateId}
+                  onStateChange={handleStateChange}
+                  onSelectLeader={handleSelectLeader}
+                  onNavigateView={(view) => {
+                    if (view === 'flow') {
+                      setActiveNav('estructura');
+                      setStructureMode('organigrama');
+                    } else if (view === 'table') {
+                      setActiveNav('estructura');
+                      setStructureMode('lista');
+                    } else if (view === 'sections') {
+                      setActiveNav('secciones');
+                    }
+                  }}
+                  onOpenAddModal={handleOpenAddModal}
+                  onViewSectionDetail={(secNum) => {
+                    const padded = secNum.padStart(4, '0');
+                    const inScope = scopedSections.some(s => s.sectionNumber === secNum || s.sectionNumber === padded);
+                    if (inScope) {
+                      setDetailSectionNumber(secNum);
+                    }
+                  }}
+                />
+              )}
 
-          {/* 2. ESTRUCTURA - MODO ORGANIGRAMA */}
-          {activeNav === 'estructura' && structureMode === 'organigrama' && (
-            <TerritoryFlowCanvas
-              leaders={filteredLeaders}
-              collapsedIds={collapsedIds}
-              selectedLeader={selectedLeader}
-              onToggleCollapse={handleToggleCollapse}
-              onSelectLeader={handleSelectLeader}
-              onExpandAll={handleExpandAll}
-              onCollapseAll={handleCollapseAll}
-            />
-          )}
+              {/* 2. ESTRUCTURA - MODO ORGANIGRAMA */}
+              {activeNav === 'estructura' && structureMode === 'organigrama' && (
+                <TerritoryFlowCanvas
+                  leaders={filteredLeaders}
+                  collapsedIds={collapsedIds}
+                  selectedLeader={selectedLeader}
+                  onToggleCollapse={handleToggleCollapse}
+                  onSelectLeader={handleSelectLeader}
+                  onExpandAll={handleExpandAll}
+                  onCollapseAll={handleCollapseAll}
+                />
+              )}
 
-          {/* 2. ESTRUCTURA - MODO LISTA (DIRECTORIO) */}
-          {activeNav === 'estructura' && structureMode === 'lista' && (
-            <DirectoryTableView
-              leaders={filteredLeaders}
-              allLeaders={visibleLeaders}
-              onSelectLeader={handleSelectLeader}
-              onFocusSubtree={handleFocusSubtree}
-              onEditLeader={handleOpenEditModal}
-              onDeleteLeader={handleDeleteLeader}
-            />
-          )}
+              {/* 2. ESTRUCTURA - MODO LISTA (DIRECTORIO) */}
+              {activeNav === 'estructura' && structureMode === 'lista' && (
+                <DirectoryTableView
+                  leaders={filteredLeaders}
+                  allLeaders={visibleLeaders}
+                  onSelectLeader={handleSelectLeader}
+                  onFocusSubtree={handleFocusSubtree}
+                  onEditLeader={handleOpenEditModal}
+                  onDeleteLeader={handleDeleteLeader}
+                />
+              )}
 
-          {/* 3. SECCIONES & MAPAS */}
-          {activeNav === 'secciones' && (
-            <SectionsCatalogView
-              sections={sectionsData}
-              stateAbbr={activeStateData.abbr}
-              onSaveSection={handleSaveSection}
-              onAddStructureToSection={handleAddStructureToSection}
-              onSelectStructureToViewTree={handleSelectStructureToViewTree}
-              onViewSectionDetail={(secNum) => setDetailSectionNumber(secNum)}
-            />
-          )}
-
+              {/* 3. SECCIONES & MAPAS */}
+              {activeNav === 'secciones' && (
+                <SectionsCatalogView
+                  sections={scopedSections}
+                  allLeaders={visibleLeaders}
+                  stateAbbr={activeStateData.abbr}
+                  onSaveSection={handleSaveSection}
+                  onAddStructureToSection={handleAddStructureToSection}
+                  onSelectStructureToViewTree={handleSelectStructureToViewTree}
+                  onViewSectionDetail={(secNum) => setDetailSectionNumber(secNum)}
+                />
+              )}
             </>
           )}
 
-          {/* Expediente Territorial Lateral (Drawer) - Solo se muestra si hay un líder seleccionado y se cierra correctamente con el botón X */}
+          {/* Expediente Territorial Lateral (Drawer) */}
           {selectedLeader && (
             <NodeDetailDrawer
               leader={selectedLeader}
@@ -539,10 +592,10 @@ export function App() {
         editingLeader={editingLeader}
         allLeaders={visibleLeaders}
         currentUser={currentUser}
+        availableSections={scopedSections}
       />
     </div>
   );
 }
-
 
 export default App;

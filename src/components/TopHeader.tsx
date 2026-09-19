@@ -12,8 +12,9 @@ import {
   Compass
 } from 'lucide-react';
 import type { FilterOptions } from '../types/territory';
-
+import type { UserAccount } from '../types/auth';
 import type { MainNavSection, StructureMode } from './Sidebar';
+import { UserSessionSwitcher } from './UserSessionSwitcher';
 
 interface TopHeaderProps {
   activeNav: MainNavSection;
@@ -28,6 +29,10 @@ interface TopHeaderProps {
   onCollapseAll?: () => void;
   activeStateName?: string;
   activeStateAbbr?: string;
+  currentUser?: UserAccount;
+  onSelectUser?: (user: UserAccount) => void;
+  visibleCount?: number;
+  onLogout?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -43,6 +48,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onCollapseAll,
   activeStateName,
   activeStateAbbr,
+  currentUser,
+  onSelectUser,
+  visibleCount,
+  onLogout,
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 shrink-0 z-20 shadow-2xs">
@@ -146,66 +155,80 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           )}
         </div>
 
-        {/* Right: Search & Filters (cuando está en Estructura) */}
-        {activeNav === 'estructura' && (
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Search Input */}
-            <div className="relative min-w-[200px] sm:min-w-[240px]">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Buscar por nombre, cargo o sección..."
-                value={filters.searchQuery}
-                onChange={(e) => onFilterChange({ ...filters, searchQuery: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8.5 pr-8 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-400"
-              />
-              {filters.searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => onFilterChange({ ...filters, searchQuery: '' })}
-                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+        {/* Right: Search/Filters (en Estructura) + User Session Switcher (siempre en la esquina superior derecha) */}
+        <div className="flex flex-wrap items-center gap-2.5 ml-auto">
+          {activeNav === 'estructura' && (
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Search Input */}
+              <div className="relative min-w-[170px] sm:min-w-[210px]">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  placeholder="Buscar por nombre, cargo..."
+                  value={filters.searchQuery}
+                  onChange={(e) => onFilterChange({ ...filters, searchQuery: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8.5 pr-8 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all placeholder:text-slate-400"
+                />
+                {filters.searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => onFilterChange({ ...filters, searchQuery: '' })}
+                    className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Status Filter Dropdown */}
+              <select
+                value={filters.statusFilter}
+                onChange={(e) => onFilterChange({ ...filters, statusFilter: e.target.value })}
+                className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">Estatus: Todos</option>
+                <option value="completado">Completado</option>
+                <option value="en_progreso">En Progreso</option>
+                <option value="critico">Crítico</option>
+                <option value="vacante">Vacante</option>
+              </select>
+
+              {/* Organigrama Zoom / Expand Controls */}
+              {structureMode === 'organigrama' && (
+                <div className="hidden sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                  <button
+                    type="button"
+                    onClick={onExpandAll}
+                    className="p-1 text-slate-600 hover:text-indigo-600 rounded hover:bg-white transition-colors"
+                    title="Expandir todas las ramas"
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onCollapseAll}
+                    className="p-1 text-slate-600 hover:text-indigo-600 rounded hover:bg-white transition-colors"
+                    title="Colapsar estructura"
+                  >
+                    <Minimize2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               )}
             </div>
+          )}
 
-            {/* Status Filter Dropdown */}
-            <select
-              value={filters.statusFilter}
-              onChange={(e) => onFilterChange({ ...filters, statusFilter: e.target.value })}
-              className="bg-slate-50 border border-slate-300 rounded-xl px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="all">Estatus: Todos</option>
-              <option value="completado">Completado</option>
-              <option value="en_progreso">En Progreso</option>
-              <option value="critico">Crítico</option>
-              <option value="vacante">Vacante</option>
-            </select>
-
-            {/* Organigrama Zoom / Expand Controls */}
-            {structureMode === 'organigrama' && (
-              <div className="hidden sm:flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                <button
-                  type="button"
-                  onClick={onExpandAll}
-                  className="p-1 text-slate-600 hover:text-indigo-600 rounded hover:bg-white transition-colors"
-                  title="Expandir todas las ramas"
-                >
-                  <Maximize2 className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={onCollapseAll}
-                  className="p-1 text-slate-600 hover:text-indigo-600 rounded hover:bg-white transition-colors"
-                  title="Colapsar estructura"
-                >
-                  <Minimize2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+          {/* User Session Switcher - Top Bar Esquina Superior Derecha */}
+          {currentUser && onSelectUser && (
+            <div className="border-l border-slate-200 pl-2">
+              <UserSessionSwitcher
+                currentUser={currentUser}
+                onSelectUser={onSelectUser}
+                visibleCount={visibleCount ?? 0}
+                onLogout={onLogout}
+              />
+            </div>
+          )}
+        </div>
 
       </div>
 

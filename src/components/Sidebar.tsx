@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 
 import type { UserAccount } from '../types/auth';
-import { UserSessionSwitcher } from './UserSessionSwitcher';
 
 export type MainNavSection = 'escritorio' | 'estructura' | 'secciones';
 export type StructureMode = 'organigrama' | 'lista';
@@ -21,7 +20,7 @@ interface SidebarProps {
   structureMode: StructureMode;
   onStructureModeChange: (mode: StructureMode) => void;
   currentUser: UserAccount;
-  onSelectUser: (user: UserAccount) => void;
+  onSelectUser?: (user: UserAccount) => void;
   visibleCount: number;
   sectionsCount: number;
   onOpenAddModal: () => void;
@@ -40,13 +39,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   structureMode,
   onStructureModeChange,
   currentUser,
-  onSelectUser,
   visibleCount,
   sectionsCount,
   onOpenAddModal,
   onExportData,
   onImportData,
-  onLogout,
   isMobileOpen = false,
   onCloseMobile,
   activeStateName = 'Tabasco',
@@ -254,17 +251,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* User Session Footer Card */}
-        <div className="p-4 border-t border-slate-800/80 bg-slate-950/60">
-          <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-2">
-            Sesión Activa
+        {/* User Session Footer Badge (Indicador estático de sesión) */}
+        <div className="p-3.5 border-t border-slate-800/80 bg-slate-950/60">
+          <div className="flex items-center gap-2.5">
+            {currentUser.picture ? (
+              <img src={currentUser.picture} alt={currentUser.name} className="w-8 h-8 rounded-lg object-cover shadow-xs shrink-0" />
+            ) : (
+              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs ${currentUser.avatarBg || 'bg-slate-700'}`}>
+                {currentUser.level === 'admin' ? 'A' : currentUser.name.charAt(0)}
+              </div>
+            )}
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-bold text-white truncate">
+                {currentUser.name}
+              </div>
+              <div className="text-[10px] text-slate-400 truncate">
+                {currentUser.accountRoleLabel}
+              </div>
+            </div>
+            <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Sesión activa" />
           </div>
-          <UserSessionSwitcher
-            currentUser={currentUser}
-            onSelectUser={onSelectUser}
-            visibleCount={visibleCount}
-            onLogout={onLogout}
-          />
         </div>
       </aside>
     </>

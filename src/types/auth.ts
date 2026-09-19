@@ -12,4 +12,5 @@ export interface UserAccount {
   accountRoleLabel: string;
   picture?: string;
   isSuperAdmin?: boolean;
+  assignedBy?: string;
 }
