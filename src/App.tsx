@@ -22,6 +22,8 @@ import { LevelSummaryBar } from './components/LevelSummaryBar';
 import { SectionsCatalogView } from './components/SectionsCatalogView';
 import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { SectionDetailPage } from './components/SectionDetailPage';
+import { GlobalSearchModal } from './components/GlobalSearchModal';
+import { QuickFieldCaptureModal } from './components/QuickFieldCaptureModal';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
   fetchLeadersApi,
@@ -218,6 +220,37 @@ export function App() {
   // Edit / Add modal state
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingLeader, setEditingLeader] = useState<TerritorialLeader | null>(null);
+
+  // Quick field capture modal state
+  const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
+
+  // Global Omnibox Search state & Ctrl+K shortcut
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsGlobalSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleSelectSectionFromSearch = useCallback((secNum: string) => {
+    setDetailSectionNumber(secNum);
+    setActiveNav('secciones');
+    setIsGlobalSearchOpen(false);
+  }, []);
+
+  const handleSelectLeaderFromSearch = useCallback((leader: TerritorialLeader) => {
+    setSelectedLeaderId(leader.id);
+    setActiveNav('estructura');
+    setStructureMode('organigrama');
+    setFilters(f => ({ ...f, focusNodeId: leader.id }));
+    setIsGlobalSearchOpen(false);
+  }, []);
 
   // 1. Re-calculate global aggregates across the master dataset
   const allComputedLeaders = useMemo(() => {
@@ -444,6 +477,7 @@ export function App() {
         visibleCount={visibleLeaders.length}
         sectionsCount={scopedSections.length}
         onOpenAddModal={handleOpenAddModal}
+        onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
         onExportData={handleExportData}
         onImportData={handleImportData}
         isMobileOpen={isMobileMenuOpen}
@@ -472,6 +506,7 @@ export function App() {
           onSelectUser={handleSelectUser}
           visibleCount={visibleLeaders.length}
           onLogout={handleLogout}
+          onOpenGlobalSearch={() => setIsGlobalSearchOpen(true)}
         />
 
         {/* Barra de niveles solo activa en vista Estructura */}
@@ -519,6 +554,7 @@ export function App() {
                     }
                   }}
                   onOpenAddModal={handleOpenAddModal}
+                  onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
                   onViewSectionDetail={(secNum) => {
                     const padded = secNum.padStart(4, '0');
                     const inScope = scopedSections.some(s => s.sectionNumber === secNum || s.sectionNumber === padded);
@@ -593,6 +629,28 @@ export function App() {
         allLeaders={visibleLeaders}
         currentUser={currentUser}
         availableSections={scopedSections}
+      />
+
+      {/* Modal de Búsqueda Global Omnibox (Ctrl + K) */}
+      <GlobalSearchModal
+        isOpen={isGlobalSearchOpen}
+        onClose={() => setIsGlobalSearchOpen(false)}
+        sections={scopedSections}
+        leaders={visibleLeaders}
+        onSelectSection={handleSelectSectionFromSearch}
+        onSelectLeader={handleSelectLeaderFromSearch}
+      />
+
+      {/* Modal de Captura Rápida de Campo (Móvil / 1-Click WhatsApp) */}
+      <QuickFieldCaptureModal
+        isOpen={isQuickCaptureOpen}
+        onClose={() => setIsQuickCaptureOpen(false)}
+        availableSections={scopedSections}
+        allLeaders={visibleLeaders}
+        currentUserLeaderId={visibleLeaders[0]?.id || null}
+        onSuccess={(newLeader) => {
+          handleSaveLeader(newLeader);
+        }}
       />
     </div>
   );

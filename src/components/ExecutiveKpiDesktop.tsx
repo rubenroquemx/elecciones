@@ -21,6 +21,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
+  Smartphone,
+  Flame,
+  ArrowRight,
 } from 'lucide-react';
 
 interface ExecutiveKpiDesktopProps {
@@ -31,6 +34,7 @@ interface ExecutiveKpiDesktopProps {
   onSelectLeader: (leader: TerritorialLeader) => void;
   onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections') => void;
   onOpenAddModal: () => void;
+  onOpenQuickCapture?: () => void;
   onViewSectionDetail?: (sectionNumber: string) => void;
   activeStateId?: number;
   onStateChange?: (stateId: number) => void;
@@ -44,6 +48,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   onSelectLeader,
   onNavigateView,
   onOpenAddModal,
+  onOpenQuickCapture,
   onViewSectionDetail,
   activeStateId,
 }) => {
@@ -71,6 +76,14 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   const currentStateInfo = useMemo(() => {
     return getStateById(selectedStateId) || DEFAULT_STATE;
   }, [selectedStateId]);
+
+  // Secciones prioritarias vacantes (con mayor lista nominal sin estructura asignada)
+  const topPriorityVacantSections = useMemo(() => {
+    return sections
+      .filter(s => !s.structures || s.structures.length === 0)
+      .sort((a, b) => (b.nominalList || 0) - (a.nominalList || 0))
+      .slice(0, 4);
+  }, [sections]);
 
 
   // Secciones oficiales del catálogo para el estado seleccionado
@@ -607,6 +620,105 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
               </div>
             </div>
 
+          </div>
+        </div>
+
+        {/* CENTRO DE ACCIÓN INMEDIATA Y PRIORIDADES CRÍTICAS 2027 */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-rose-50 text-rose-600 rounded-xl border border-rose-200">
+                <Flame className="w-5 h-5 animate-pulse" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  Centro de Acción Territorial e Inmediata
+                  <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full border border-rose-200">
+                    Prioridades 2027
+                  </span>
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Focos prioritarios de cobertura territorial y herramientas de movilización rápida en campo
+                </p>
+              </div>
+            </div>
+
+            {onOpenQuickCapture && (
+              <button
+                type="button"
+                onClick={onOpenQuickCapture}
+                className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+              >
+                <Smartphone className="w-4 h-4 text-emerald-100" />
+                <span>Captura Rápida de Campo</span>
+                <span className="bg-emerald-700/60 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">1-Click WA</span>
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {topPriorityVacantSections.length === 0 ? (
+              <div className="sm:col-span-2 lg:col-span-4 p-6 text-center bg-emerald-50/50 rounded-xl border border-emerald-200/60">
+                <p className="text-xs font-bold text-emerald-800">
+                  🎉 ¡Excelente cobertura! No hay secciones vacantes registradas en esta demarcación.
+                </p>
+              </div>
+            ) : (
+              topPriorityVacantSections.map((sec, idx) => {
+                const metaMinima = Math.round(sec.nominalList * 0.50 * 0.51);
+                return (
+                  <div
+                    key={sec.id || sec.sectionNumber}
+                    className="bg-slate-50 hover:bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-4 transition-all duration-200 shadow-2xs hover:shadow-xs flex flex-col justify-between group"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-1 mb-2">
+                        <span className="font-mono text-sm font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                          Sección {sec.sectionNumber}
+                        </span>
+                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                          🔴 Vacante #{idx + 1}
+                        </span>
+                      </div>
+
+                      <div className="text-xs font-semibold text-slate-700 truncate" title={sec.municipio}>
+                        {sec.municipio}
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        {sec.distritoLocal || 'Distrito Local'}
+                      </div>
+
+                      <div className="mt-3 pt-2.5 border-t border-slate-200/60 grid grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-medium">Lista Nominal</span>
+                          <span className="font-mono font-bold text-slate-800">
+                            {sec.nominalList.toLocaleString()}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-medium">Meta 2027 (51%)</span>
+                          <span className="font-mono font-bold text-emerald-700">
+                            {metaMinima.toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onViewSectionDetail?.(sec.sectionNumber)}
+                        className="flex-1 py-1.5 px-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white rounded-lg text-xs font-bold transition-colors text-center flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <span>Ver Ficha y Cartografía</span>
+                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

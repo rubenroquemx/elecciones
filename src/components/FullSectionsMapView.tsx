@@ -36,7 +36,7 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
   const [selectedSection, setSelectedSection] = useState<ElectoralSection | null>(() => sections[0] || null);
   const [mapLayer, setMapLayer] = useState<'streets' | 'sat'>('streets');
   const [filterMunicipality, setFilterMunicipality] = useState<string>('TODOS');
-  const [filterStatus, setFilterStatus] = useState<'all' | 'assigned' | 'vacant'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'vacant' | 'in_progress' | 'covered'>('all');
   const [mapSearch, setMapSearch] = useState('');
   const [isLoadingGeo, setIsLoadingGeo] = useState(false);
   const [totalRendered, setTotalRendered] = useState(0);
@@ -54,6 +54,33 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
   const municipalitiesList = useMemo(() => {
     const set = new Set(sections.map((s) => s.municipio));
     return ['TODOS', ...Array.from(set).sort()];
+  }, [sections]);
+
+  // Tactical status statistics for heatmap & filter bar
+  const statusStats = useMemo(() => {
+    let vacant = 0;
+    let inProgress = 0;
+    let covered = 0;
+
+    sections.forEach((s) => {
+      const structs = s.structures.length;
+      if (structs === 0) {
+        vacant++;
+      } else {
+        const nominal = s.nominalList || 1400;
+        const metaVictoria = Math.round(nominal * 0.50 * 0.51);
+        const logro = s.structures
+          .filter(st => st.type === 'promocion' || st.type === 'general' || st.type === 'sectorial')
+          .reduce((sum, st) => sum + (st.currentCount || 0), 0);
+        if (logro >= metaVictoria || logro >= Math.round(metaVictoria * 0.5)) {
+          covered++;
+        } else {
+          inProgress++;
+        }
+      }
+    });
+
+    return { vacant, inProgress, covered, total: sections.length };
   }, [sections]);
 
   // Initialize and update the OpenStreetMap map
@@ -98,14 +125,16 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
 
       fetch(jsonPath)
         .then((res) => {
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
           return res.json();
         })
         .then((geoData) => {
-          if (!mapInstanceRef.current) return;
-
           let count = 0;
-          const layer = L.geoJSON(geoData, {
+          const fg = L.featureGroup().addTo(map);
+          polygonLayersGroupRef.current = fg;
+
+          // Process and render polygons with Tactical Traffic Light Heatmap
+          const geoLayer = L.geoJSON(geoData, {
             filter: (feature) => {
               const props = feature.properties;
               const secNum = String(props.seccion).padStart(4, '0');
@@ -116,9 +145,18 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
                 return false;
               }
 
-              const hasStructure = secData && secData.structures.length > 0;
-              if (filterStatus === 'assigned' && !hasStructure) return false;
-              if (filterStatus === 'vacant' && hasStructure) return false;
+              const isVacant = !secData || secData.structures.length === 0;
+              const nominal = secData?.nominalList || 1400;
+              const metaVictoria = Math.round(nominal * 0.50 * 0.51);
+              const logro = secData?.structures
+                .filter(st => st.type === 'promocion' || st.type === 'general' || st.type === 'sectorial')
+                .reduce((sum, st) => sum + (st.currentCount || 0), 0) || 0;
+              const isCovered = !isVacant && (logro >= metaVictoria || logro >= Math.round(metaVictoria * 0.5));
+              const isInProgress = !isVacant && !isCovered;
+
+              if (filterStatus === 'vacant' && !isVacant) return false;
+              if (filterStatus === 'in_progress' && !isInProgress) return false;
+              if (filterStatus === 'covered' && !isCovered) return false;
 
               if (mapSearch.trim()) {
                 const q = mapSearch.trim().toLowerCase();
@@ -134,19 +172,42 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
               const secNum = String(feature?.properties.seccion).padStart(4, '0');
               const isSelected = selectedSection?.sectionNumber === secNum;
               const secData = sectionsMap.get(secNum);
-              const hasStructure = secData && secData.structures.length > 0;
+              const isVacant = !secData || secData.structures.length === 0;
+              const nominal = secData?.nominalList || 1400;
+              const metaVictoria = Math.round(nominal * 0.50 * 0.51);
+              const logro = secData?.structures
+                .filter(st => st.type === 'promocion' || st.type === 'general' || st.type === 'sectorial')
+                .reduce((sum, st) => sum + (st.currentCount || 0), 0) || 0;
+              const isCovered = !isVacant && (logro >= metaVictoria || logro >= Math.round(metaVictoria * 0.5));
 
-              const color = isSelected
-                ? '#f59e0b'
-                : hasStructure
-                ? '#10b981'
-                : '#0284c7';
+              let color = '#ef4444'; // Red (Vacante)
+              let fillOpacity = 0.32;
+
+              if (!isVacant) {
+                if (isCovered) {
+                  color = '#10b981'; // Green (Cubierta)
+                  fillOpacity = 0.52;
+                } else {
+                  color = '#f59e0b'; // Amber (En Conformación)
+                  fillOpacity = 0.45;
+                }
+              }
+
+              if (isSelected) {
+                return {
+                  color: '#4f46e5',
+                  weight: 3.5,
+                  fillColor: '#6366f1',
+                  fillOpacity: 0.75,
+                  lineJoin: 'round',
+                };
+              }
 
               return {
-                color: isSelected ? '#b45309' : color,
-                weight: isSelected ? 3 : 1.2,
+                color: isSelected ? '#3730a3' : color,
+                weight: 1.5,
                 fillColor: color,
-                fillOpacity: isSelected ? 0.6 : hasStructure ? 0.4 : 0.25,
+                fillOpacity,
                 lineJoin: 'round',
               };
             },
@@ -156,9 +217,21 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
               const secData = sectionsMap.get(secNum);
               const muni = secData?.municipio || props.municipio || '';
               const nominal = secData?.nominalList || 0;
+              const isVacant = !secData || secData.structures.length === 0;
+              const coordinator = secData?.structures[0]?.leaderName || 'Sin asignar';
+              const statusBadge = isVacant ? '🔴 Vacante' : '🟡 En Avance';
 
               fLayer.bindTooltip(
-                `<strong>Sección ${secNum}</strong> - ${muni}<br/>${nominal > 0 ? `Lista Nominal: ${nominal.toLocaleString()}` : ''}`,
+                `<div style="font-family: inherit; font-size: 11px; padding: 2px;">
+                  <div style="font-weight: 800; color: #0f172a; display: flex; justify-content: space-between; gap: 8px;">
+                    <span>Sección ${secNum}</span>
+                    <span>${statusBadge}</span>
+                  </div>
+                  <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${muni} • ${nominal > 0 ? `Lista: ${nominal.toLocaleString()}` : ''}</div>
+                  <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #334155;">
+                    <strong>Coordinación:</strong> ${coordinator}
+                  </div>
+                </div>`,
                 { direction: 'top', sticky: true }
               );
 
@@ -188,14 +261,14 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
             },
           }).addTo(map);
 
-          geojsonLayerRef.current = layer;
+          geojsonLayerRef.current = geoLayer;
           setTotalRendered(count);
 
           if (geoData.bbox && filterMunicipality === 'TODOS' && !mapSearch.trim()) {
             const [minLng, minLat, maxLng, maxLat] = geoData.bbox;
             map.fitBounds([[minLat, minLng], [maxLat, maxLng]], { padding: [25, 25] });
-          } else if (layer.getBounds().isValid()) {
-            map.fitBounds(layer.getBounds(), { padding: [25, 25] });
+          } else if (geoLayer.getBounds().isValid()) {
+            map.fitBounds(geoLayer.getBounds(), { padding: [25, 25] });
           }
 
           setIsLoadingGeo(false);
@@ -209,10 +282,18 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
           sections.forEach((sec) => {
             if (!sec.polygon || sec.polygon.length < 3) return;
 
-            if (filterMunicipality !== 'TODOS' && sec.municipio !== filterMunicipality) return false;
+            if (filterMunicipality !== 'TODOS' && sec.municipio !== filterMunicipality) return;
             const hasStructure = sec.structures.length > 0;
-            if (filterStatus === 'assigned' && !hasStructure) return false;
-            if (filterStatus === 'vacant' && hasStructure) return false;
+            const metaVictoria = Math.round(sec.nominalList * 0.50 * 0.51);
+            const logro = sec.structures
+              .filter(s => s.type === 'promocion' || s.type === 'general')
+              .reduce((sum, s) => sum + s.currentCount, 0);
+            const isCovered = !hasStructure ? false : (logro >= metaVictoria || logro >= Math.round(metaVictoria * 0.5));
+            const isInProgress = hasStructure && !isCovered;
+
+            if (filterStatus === 'vacant' && hasStructure) return;
+            if (filterStatus === 'covered' && !isCovered) return;
+            if (filterStatus === 'in_progress' && !isInProgress) return;
 
             if (mapSearch.trim()) {
               const q = mapSearch.trim().toLowerCase();
@@ -331,11 +412,12 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value as any)}
-            className="px-2.5 py-1 text-xs bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer"
+            className="px-2.5 py-1 text-xs bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-indigo-400 cursor-pointer font-semibold"
           >
-            <option value="all">Todas las secciones</option>
-            <option value="assigned">Con estructura</option>
-            <option value="vacant">Vacantes</option>
+            <option value="all">Todas ({statusStats.total})</option>
+            <option value="vacant">🔴 Vacantes ({statusStats.vacant})</option>
+            <option value="in_progress">🟡 En Avance ({statusStats.inProgress})</option>
+            <option value="covered">🟢 Cubiertas ({statusStats.covered})</option>
           </select>
 
           {/* Layer switcher */}
@@ -383,22 +465,28 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
           </div>
         )}
 
-        {/* Floating Legend */}
-        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-md p-3 rounded-xl shadow-md border border-slate-200 z-10 text-xs space-y-1.5 pointer-events-auto">
-          <span className="font-extrabold text-slate-800 block text-[11px] uppercase tracking-wider mb-1">
-            Simbología Cartográfica
+        {/* Floating Tactical Legend */}
+        <div className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur-md p-3.5 rounded-xl shadow-xl border border-slate-700/80 z-10 text-xs space-y-2 pointer-events-auto text-white">
+          <span className="font-extrabold text-slate-200 block text-[10px] uppercase tracking-wider">
+            Semáforo Táctico Electoral 2027
           </span>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-sm bg-emerald-500 border border-emerald-600 inline-block" />
-            <span className="text-slate-700 text-[11px]">Con Estructura Asignada</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-sm bg-sky-500 border border-sky-600 inline-block" />
-            <span className="text-slate-700 text-[11px]">Sección Vacante / Sin Comité</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-sm bg-amber-500 border border-amber-600 inline-block" />
-            <span className="text-slate-700 text-[11px]">Sección Seleccionada</span>
+          <div className="space-y-1.5 text-[11px]">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 shadow-xs" />
+              <span className="text-slate-200">Meta Cubierta / Avanzada ({statusStats.covered})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-amber-500 shadow-xs" />
+              <span className="text-slate-200">En Avance / Conformación ({statusStats.inProgress})</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-rose-500 shadow-xs" />
+              <span className="text-slate-200">Vacante / Sin Estructura ({statusStats.vacant})</span>
+            </div>
+            <div className="flex items-center gap-2 pt-1 border-t border-slate-800">
+              <span className="w-3 h-3 rounded-sm bg-indigo-600 border border-indigo-400" />
+              <span className="text-indigo-300 font-semibold">Sección Seleccionada</span>
+            </div>
           </div>
         </div>
 

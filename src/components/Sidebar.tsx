@@ -6,7 +6,8 @@ import {
   MapPin,
   UserPlus,
   Download,
-  Upload
+  Upload,
+  Smartphone
 } from 'lucide-react';
 
 import type { UserAccount } from '../types/auth';
@@ -24,6 +25,7 @@ interface SidebarProps {
   visibleCount: number;
   sectionsCount: number;
   onOpenAddModal: () => void;
+  onOpenQuickCapture?: () => void;
   onExportData: () => void;
   onImportData: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onLogout?: () => void;
@@ -42,6 +44,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   visibleCount,
   sectionsCount,
   onOpenAddModal,
+  onOpenQuickCapture,
   onExportData,
   onImportData,
   isMobileOpen = false,
@@ -210,6 +213,24 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
               Acciones Rápidas
             </span>
+
+            {onOpenQuickCapture && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenQuickCapture();
+                  onCloseMobile?.();
+                }}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/30 transition-all active:scale-98 cursor-pointer"
+                title="Captura Rápida de Campo con validación de clave de elector y WhatsApp directo"
+              >
+                <div className="flex items-center gap-2">
+                  <Smartphone className="w-4 h-4 text-emerald-200" />
+                  <span>Captura Rápida</span>
+                </div>
+                <span className="bg-emerald-400/20 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">Móvil</span>
+              </button>
+            )}
 
             <button
               type="button"

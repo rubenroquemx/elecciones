@@ -6,6 +6,7 @@ import type { TerritorialLeader } from '../types/territory';
 import { CARTOGRAPHY_BY_SECTION } from '../data/mockSectionsData';
 import tabascoCatalog from '../data/tabascoCatalog.json';
 import { AddStructureToSectionModal } from './AddStructureToSectionModal';
+import { PrintableSectionReport } from './PrintableSectionReport';
 import {
   ArrowLeft,
   MapPin,
@@ -29,6 +30,7 @@ import {
   TrendingUp,
   Loader2,
   Sparkles,
+  Printer,
 } from 'lucide-react';
 
 interface SectionDetailPageProps {
@@ -57,6 +59,7 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
   const [isSearchingStreet, setIsSearchingStreet] = useState(false);
   const [streetSearchResult, setStreetSearchResult] = useState<string | null>(null);
   const [isAddStructureOpen, setIsAddStructureOpen] = useState(false);
+  const [isPrintReportOpen, setIsPrintReportOpen] = useState(false);
 
   // Normalize section number (4 digits)
   const normalizedSec = useMemo(() => {
@@ -382,6 +385,15 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsPrintReportOpen(true)}
+              className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold rounded-xl shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              title="Generar Ficha de Sección y Padrón Imprimible"
+            >
+              <Printer className="w-4 h-4 text-slate-600" />
+              <span>Imprimir Ficha</span>
+            </button>
             <button
               type="button"
               onClick={() => setIsAddStructureOpen(true)}
@@ -940,6 +952,15 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
             onAddStructure?.(section.id, st);
             setIsAddStructureOpen(false);
           }}
+        />
+      )}
+
+      {/* Modal para Ficha de Sección y Padrón Imprimible */}
+      {isPrintReportOpen && section && (
+        <PrintableSectionReport
+          section={section}
+          leaders={visibleLeaders}
+          onClose={() => setIsPrintReportOpen(false)}
         />
       )}
     </div>

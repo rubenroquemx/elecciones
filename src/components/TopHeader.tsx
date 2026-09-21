@@ -33,6 +33,7 @@ interface TopHeaderProps {
   onSelectUser?: (user: UserAccount) => void;
   visibleCount?: number;
   onLogout?: () => void;
+  onOpenGlobalSearch?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -52,6 +53,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onSelectUser,
   visibleCount,
   onLogout,
+  onOpenGlobalSearch,
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 shrink-0 z-20 shadow-2xs">
@@ -215,6 +217,22 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 </div>
               )}
             </div>
+          )}
+
+          {/* Omnibox Search Button */}
+          {onOpenGlobalSearch && (
+            <button
+              type="button"
+              onClick={onOpenGlobalSearch}
+              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900 rounded-xl text-xs border border-slate-200 transition-all shadow-2xs group cursor-pointer"
+              title="Búsqueda Universal en todo el sistema (Ctrl + K)"
+            >
+              <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600" />
+              <span className="hidden sm:inline">Buscar...</span>
+              <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-white border border-slate-200 rounded text-slate-400 shadow-2xs">
+                Ctrl K
+              </kbd>
+            </button>
           )}
 
           {/* User Session Switcher - Top Bar Esquina Superior Derecha */}
