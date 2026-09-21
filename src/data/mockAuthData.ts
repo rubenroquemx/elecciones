@@ -14,17 +14,6 @@ export const MOCK_ACCOUNTS: UserAccount[] = [
     isSuperAdmin: true,
   },
   {
-    id: 'usr-estatal',
-    username: 'javier.may.rodriguez',
-    name: 'Ing. Javier May Rodríguez',
-    email: 'coordinacion.estatal@organizacion-tabasco.mx',
-    leaderId: 'coord-estatal-tab',
-    level: 'estatal',
-    territoryName: 'Estado de Tabasco (Coordinación Estatal)',
-    accountRoleLabel: 'Coordinador Estatal',
-    avatarBg: 'bg-purple-600',
-  },
-  {
     id: 'usr-coord-fed-04',
     username: 'carlos.mendoza.fed04',
     name: 'Lic. Carlos Eduardo Mendoza Ruiz',
@@ -34,7 +23,7 @@ export const MOCK_ACCOUNTS: UserAccount[] = [
     territoryName: 'Distrito Federal 04 - Centro (Tabasco)',
     accountRoleLabel: 'Coordinador Distrital Federal',
     avatarBg: 'bg-indigo-600',
-    assignedBy: 'Ing. Javier May Rodríguez',
+    assignedBy: 'Dirección General de Operación',
   },
 
   // =========================================================================

@@ -430,7 +430,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     }
     return currentUser.level === 'admin'
       ? 'Comité Ejecutivo Nacional'
-      : 'Ing. Javier May Rodríguez';
+      : 'Dirección General de Operación';
   }, [currentUser]);
 
   return (
