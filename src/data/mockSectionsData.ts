@@ -67,6 +67,25 @@ export const REGISTERED_STRUCTURES: Record<string, { structures: SectionStructur
         status: "completado",
         rootLeaderId: "prom-fed04-0416-1",
         notes: "Célula territorial de vigilancia y representación en casillas de la sección 0416."
+      },
+      {
+        id: "struct-0416-rr",
+        name: "Brigada Territorial de Promoción",
+        type: "promocion",
+        leaderName: "Ruben Roque",
+        leaderRole: "Promotor Territorial",
+        leaderPhone: "+52 993 123 4567",
+        curp: "ROQR850614HTBMNX01",
+        electorKey: "ROQRRU85061427H101",
+        address: "Av. Gregorio Méndez Magaña #1205",
+        colonia: "Tamulté de las Barrancas",
+        electoralSection: "0416",
+        email: "ruben.roque@organizacion-tabasco.mx",
+        metaGoal: 150,
+        currentCount: 35,
+        status: "en_progreso",
+        rootLeaderId: "prom-ruben-roque",
+        notes: "Brigada principal de promoción territorial encabezada por Ruben Roque."
       }
     ],
     notes: "Zona Tamulté Centro - Distrito Federal 04"

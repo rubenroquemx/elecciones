@@ -143,9 +143,16 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-bold text-slate-900 truncate text-xs">
-                        {acc.name}
-                      </h4>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <h4 className="font-bold text-slate-900 truncate text-xs">
+                          {acc.name}
+                        </h4>
+                        {acc.username === 'ruben.roque' && (
+                          <span className="text-[9px] font-black px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
+                            ⭐ Tu Cuenta
+                          </span>
+                        )}
+                      </div>
                       {isSelected && <Check className="w-4 h-4 text-sky-600 shrink-0" />}
                     </div>
                     <div className="flex items-center gap-1.5 mt-0.5">

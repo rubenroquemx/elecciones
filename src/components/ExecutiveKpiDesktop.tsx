@@ -311,7 +311,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
 
   // Totales de Lista Nominal filtrada según selección
   const activeNominalMetrics = useMemo(() => {
-    if (currentUser.level === 'seccional') {
+    if (currentUser.level === 'seccional' || currentUser.level === 'promotor') {
       const secMatch = stateCatalogSections.find(s => 
         currentUser.territoryName.includes(s.section) ||
         visibleLeaders[0]?.territoryName.includes(s.section) ||

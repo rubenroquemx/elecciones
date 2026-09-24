@@ -37,13 +37,26 @@ import {
 export function App() {
   // Master raw and computed territorial dataset
   const [leadersData, setLeadersData] = useState<TerritorialLeader[]>(() => {
+    try {
+      const saved = localStorage.getItem('territorial_leaders_data');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const savedIds = new Set(parsed.map((l: TerritorialLeader) => l.id));
+          const missingBase = INITIAL_TERRITORY_DATA.filter(l => !savedIds.has(l.id));
+          return calculateHierarchyAggregates([...parsed, ...missingBase]);
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading saved leaders', e);
+    }
     return calculateHierarchyAggregates(INITIAL_TERRITORY_DATA);
   });
 
-  // Load latest data from PostgreSQL API on mount
+  // Load latest data from PostgreSQL API on mount (only if matching our project structures)
   useEffect(() => {
     fetchLeadersApi().then((data) => {
-      if (data && data.length > 0) {
+      if (data && data.length > 0 && data.some(l => l.id === 'coord-dist-fed-04' || l.id === 'prom-ruben-roque')) {
         setLeadersData(calculateHierarchyAggregates(data));
       }
     });
@@ -167,7 +180,7 @@ export function App() {
         }
       });
     }
-    if (currentUser.level === 'seccional') {
+    if (currentUser.level === 'seccional' || currentUser.level === 'promotor') {
       const match = currentUser.territoryName.match(/\d{3,4}/);
       if (match) {
         const targetSec = match[0].padStart(4, '0');
@@ -342,6 +355,11 @@ export function App() {
       } else {
         updated = [...prev, savedLeader];
       }
+      try {
+        localStorage.setItem('territorial_leaders_data', JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Error saving leaders to localStorage', e);
+      }
       saveLeaderApi(savedLeader, exists).catch(e => console.warn('Sync API error:', e));
       return calculateHierarchyAggregates(updated);
     });
@@ -356,6 +374,11 @@ export function App() {
         const updated = prev
           .filter(l => l.id !== id)
           .map(l => (l.parentId === id ? { ...l, parentId: newParentId } : l));
+        try {
+          localStorage.setItem('territorial_leaders_data', JSON.stringify(updated));
+        } catch (e) {
+          console.warn('Error saving leaders to localStorage', e);
+        }
         return calculateHierarchyAggregates(updated);
       });
       if (selectedLeaderId === id) {
