@@ -81,20 +81,28 @@ export function App() {
     });
   }, []);
 
-  // Ensure root URL without /state slugs
+  // Ensure root URL without /state slugs and clean legacy cache
   useEffect(() => {
     if (window.location.pathname !== '/' && window.location.pathname !== '') {
       window.history.replaceState(null, '', '/');
     }
+    try {
+      const reg = localStorage.getItem('territorial_elector_registry');
+      if (reg && (reg.includes('Elena Ramos') || reg.includes('Fernando May') || reg.includes('Carlos Eduardo'))) {
+        localStorage.removeItem('territorial_elector_registry');
+      }
+    } catch (e) {
+      console.warn('Error purging legacy elector registry', e);
+    }
   }, []);
 
-  // Authenticated user (defaulting to Carlos Eduardo Mendoza Ruiz - Coordinador Distrital Federal 04)
+  // Authenticated user (defaulting to Ruben Roque - Promotor Territorial)
   const [currentUser, setCurrentUser] = useState<UserAccount>(() => {
     try {
       const saved = localStorage.getItem('territorial_auth_user');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && parsed.id !== 'usr-coord-loc-09' && parsed.username !== 'alejandra.morales.loc09') {
+        if (parsed && (parsed.id === 'usr-admin' || parsed.id === 'usr-prom-ruben-roque')) {
           return parsed;
         } else {
           localStorage.removeItem('territorial_auth_user');
@@ -103,7 +111,7 @@ export function App() {
     } catch (e) {
       console.error('Error loading saved auth user', e);
     }
-    return MOCK_ACCOUNTS[0];
+    return MOCK_ACCOUNTS.find(a => a.id === 'usr-prom-ruben-roque') || MOCK_ACCOUNTS[0];
   });
 
   const handleSelectUser = useCallback((user: UserAccount) => {
@@ -121,8 +129,8 @@ export function App() {
     } catch (e) {
       console.error('Error removing auth user', e);
     }
-    // Switch to default coordinator
-    setCurrentUser(MOCK_ACCOUNTS[0]);
+    // Switch to default promotor
+    setCurrentUser(MOCK_ACCOUNTS.find(a => a.id === 'usr-prom-ruben-roque') || MOCK_ACCOUNTS[0]);
   }, []);
 
   // Registered Electoral Sections with multi-structures
@@ -131,7 +139,16 @@ export function App() {
       const saved = localStorage.getItem('territorial_user_sections');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
+        const hasLegacy = Array.isArray(parsed) && parsed.some((s: any) => 
+          (s.structures || []).some((st: any) => 
+            st.leaderName?.includes('Elena Ramos') || 
+            st.leaderName?.includes('Fernando May') ||
+            st.leaderName?.includes('Carlos Eduardo')
+          )
+        );
+        if (hasLegacy) {
+          localStorage.removeItem('territorial_user_sections');
+        } else if (Array.isArray(parsed) && parsed.length > 0) {
           const map = new Map(parsed.map((s: ElectoralSection) => [s.sectionNumber, s]));
           return INITIAL_SECTIONS.map(s => {
             const userSec = map.get(s.sectionNumber);

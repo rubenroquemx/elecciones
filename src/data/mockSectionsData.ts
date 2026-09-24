@@ -31,44 +31,6 @@ export const REGISTERED_STRUCTURES: Record<string, { structures: SectionStructur
   "0416": {
     structures: [
       {
-        id: "struct-0416-1",
-        name: "Comité de Promoción y Organización",
-        type: "promocion",
-        leaderName: "Profra. Elena Ramos Cruz",
-        leaderRole: "Coordinadora de Sección",
-        leaderPhone: "+52 993 234 8901",
-        curp: "RACE880923MTBRNL02",
-        electorKey: "RMCR88092327M30002",
-        address: "Calle Hidalgo #104",
-        colonia: "Tamulté de las Barrancas",
-        electoralSection: "0416",
-        email: "elena.ramos@organizacion-tabasco.mx",
-        metaGoal: 500,
-        currentCount: 3,
-        status: "en_progreso",
-        rootLeaderId: "sec-fed04-0416",
-        notes: "Comité seccional adscrito al COT Tamulté (Ing. Roberto Salgado Domínguez) y Coordinación Federal 04 (Lic. Carlos Eduardo Mendoza Ruiz). Célula con 3 promovidos validados."
-      },
-      {
-        id: "struct-0416-2",
-        name: "Célula de Representación Territorial",
-        type: "defensa_casilla",
-        leaderName: "Jorge Luis Torres Hernández",
-        leaderRole: "Promotor Territorial / Representante",
-        leaderPhone: "+52 993 345 6712",
-        curp: "TOHJ950614HTBRRS03",
-        electorKey: "TRHN95061427H40003",
-        address: "Calle Nicolás Bravo #45",
-        colonia: "Tamulté de las Barrancas",
-        electoralSection: "0416",
-        email: "jorge.torres@organizacion-tabasco.mx",
-        metaGoal: 8,
-        currentCount: 8,
-        status: "completado",
-        rootLeaderId: "prom-fed04-0416-1",
-        notes: "Célula territorial de vigilancia y representación en casillas de la sección 0416."
-      },
-      {
         id: "struct-0416-rr",
         name: "Brigada Territorial de Promoción",
         type: "promocion",
@@ -82,99 +44,13 @@ export const REGISTERED_STRUCTURES: Record<string, { structures: SectionStructur
         electoralSection: "0416",
         email: "ruben.roque@organizacion-tabasco.mx",
         metaGoal: 150,
-        currentCount: 35,
+        currentCount: 0,
         status: "en_progreso",
         rootLeaderId: "prom-ruben-roque",
         notes: "Brigada principal de promoción territorial encabezada por Ruben Roque."
       }
     ],
-    notes: "Zona Tamulté Centro - Distrito Federal 04"
-  },
-  "0486": {
-    structures: [
-      {
-        id: "struct-0486-1",
-        name: "Comité de Promoción y Organización",
-        type: "promocion",
-        leaderName: "Ing. Fernando May Hernández",
-        leaderRole: "Coordinador de Sección",
-        leaderPhone: "+52 993 567 8934",
-        curp: "MAHF820318HTBYRN05",
-        electorKey: "MYHN82031827H60005",
-        address: "Calle Central #412",
-        colonia: "Gaviotas Sur (Sector Armenia)",
-        electoralSection: "0486",
-        email: "fernando.may@organizacion-tabasco.mx",
-        metaGoal: 500,
-        currentCount: 3,
-        status: "en_progreso",
-        rootLeaderId: "sec-fed04-0486",
-        notes: "Comité seccional adscrito al COT Gaviotas y La Manga (Lic. Gabriela Narváez Osorio) y Coordinación Federal 04 (Lic. Carlos Eduardo Mendoza Ruiz). Célula con 3 promovidos validados."
-      },
-      {
-        id: "struct-0486-2",
-        name: "Célula de Representación Territorial",
-        type: "defensa_casilla",
-        leaderName: "Verónica Aguilar Padrón",
-        leaderRole: "Promotora Territorial / Representante",
-        leaderPhone: "+52 993 678 9045",
-        curp: "AUPV930829MTBGLR06",
-        electorKey: "AGPD93082927M70006",
-        address: "Andador Río Mezcalapa #118",
-        colonia: "Gaviotas Sur",
-        electoralSection: "0486",
-        email: "veronica.aguilar@organizacion-tabasco.mx",
-        metaGoal: 9,
-        currentCount: 9,
-        status: "completado",
-        rootLeaderId: "prom-fed04-0486-1",
-        notes: "Célula territorial de vigilancia y representación en casillas de la sección 0486."
-      }
-    ],
-    notes: "Zona Gaviotas Sur - Distrito Federal 04"
-  },
-  "0385": {
-    structures: [
-      {
-        id: "struct-0385-1",
-        name: "Comité de Promoción y Organización",
-        type: "promocion",
-        leaderName: "Lic. Carlos Mario García Martínez",
-        leaderRole: "Coordinador de Sección",
-        leaderPhone: "+52 993 890 1267",
-        curp: "GAMC800125HTBRSR08",
-        electorKey: "GRMR80012527H90008",
-        address: "Calle Francisco I. Madero #512",
-        colonia: "Centro Histórico",
-        electoralSection: "0385",
-        email: "carlos.garcia@organizacion-tabasco.mx",
-        metaGoal: 300,
-        currentCount: 3,
-        status: "en_progreso",
-        rootLeaderId: "sec-fed04-0385",
-        notes: "Comité seccional adscrito al COT Centro Histórico (Lic. Martha Elena Vidal Gómez) y Coordinación Federal 04 (Lic. Carlos Eduardo Mendoza Ruiz). Célula con 3 promovidos validados."
-      },
-      {
-        id: "struct-0385-2",
-        name: "Célula de Representación Territorial",
-        type: "defensa_casilla",
-        leaderName: "María Cristina González Cruz",
-        leaderRole: "Promotora Territorial / Representante",
-        leaderPhone: "+52 993 901 2378",
-        curp: "GOCM921017MTBNRN09",
-        electorKey: "GZCR92101727M00009",
-        address: "Calle 27 de Febrero #230",
-        colonia: "Centro Histórico",
-        electoralSection: "0385",
-        email: "cristina.gonzalez@organizacion-tabasco.mx",
-        metaGoal: 2,
-        currentCount: 2,
-        status: "completado",
-        rootLeaderId: "prom-fed04-0385-1",
-        notes: "Célula territorial de vigilancia y representación en casillas de la sección 0385."
-      }
-    ],
-    notes: "Zona Centro Histórico - Distrito Federal 04"
+    notes: "Sección 0416 - Tamulté de las Barrancas"
   }
 };
 

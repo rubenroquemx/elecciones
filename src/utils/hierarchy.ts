@@ -92,9 +92,11 @@ export function calculateHierarchyAggregates(nodes: TerritorialLeader[]): Territ
     const node = nodeMap.get(id);
     if (!node) return { totalTeam: 0, aggCount: 0, aggGoal: 0 };
 
-    // Asignar nivel e índice automáticamente según la distancia a la cúspide
-    node.levelIndex = depth;
-    node.level = ORDERED_LEVELS[Math.min(depth, ORDERED_LEVELS.length - 1)];
+    // Respetar el nivel declarado del nodo si ya lo tiene, o asignarlo según profundidad
+    if (!node.level) {
+      node.level = ORDERED_LEVELS[Math.min(depth, ORDERED_LEVELS.length - 1)];
+    }
+    node.levelIndex = ORDERED_LEVELS.indexOf(node.level) !== -1 ? ORDERED_LEVELS.indexOf(node.level) : depth;
 
     // Si es promovido, no tiene cuenta de sistema
     if (node.level === 'promovido') {
