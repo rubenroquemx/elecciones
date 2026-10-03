@@ -1,69 +1,67 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { UserAccount } from '../types/auth';
-import type { ElectoralSection } from '../types/sections';
 import type { TerritorialLeader } from '../types/territory';
+import type { ElectoralSection } from '../types/sections';
+import type { MainNavSection } from './Sidebar';
 import { 
-  findElectorByKey, 
   validateElectorSection, 
   persistElectorProfile, 
   normalizeSectionNumber 
 } from '../utils/electorRegistry';
 import { 
   ArrowLeft, 
-  Camera, 
-  CheckCircle2, 
-  AlertTriangle, 
-  UserCheck, 
-  Save,
-  X
+  Save, 
+  Trash2, 
+  AlertTriangle 
 } from 'lucide-react';
-import { INECameraScannerModal } from './INECameraScannerModal';
-import type { ExtractedINEData } from '../utils/ineScanner';
 
-interface PromoterCitizenCapturePageProps {
-  currentUser: UserAccount;
-  availableSections: ElectoralSection[];
+interface PromoterCitizenEditPageProps {
+  citizenId: string;
   allLeaders: TerritorialLeader[];
-  onSaveCitizen: (newLeader: TerritorialLeader) => void;
-  onNavigate: (nav: any) => void;
-  defaultSectionNumber?: string;
-  initialINEData?: ExtractedINEData | null;
+  availableSections: ElectoralSection[];
+  onSaveCitizen: (updatedLeader: TerritorialLeader) => void;
+  onDeleteCitizen?: (citizenId: string) => void;
+  onNavigate: (nav: MainNavSection) => void;
 }
 
-export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProps> = ({
-  currentUser,
-  availableSections,
+export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = ({
+  citizenId,
   allLeaders,
+  availableSections,
   onSaveCitizen,
+  onDeleteCitizen,
   onNavigate,
-  defaultSectionNumber,
-  initialINEData,
 }) => {
-  const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [ocrNotice, setOcrNotice] = useState<string | null>(null);
+  const citizen = allLeaders.find(l => l.id === citizenId);
+
+  const [name, setName] = useState(citizen?.name || '');
+  const [electorKey, setElectorKey] = useState(citizen?.electorKey || '');
+  const [curp, setCurp] = useState(citizen?.curp || '');
+  const [phone, setPhone] = useState(
+    citizen?.phone ? citizen.phone.replace(/\D/g, '').slice(-10) : ''
+  );
+  const [selectedSection, setSelectedSection] = useState(
+    citizen?.electoralSection ? normalizeSectionNumber(citizen.electoralSection) : '0416'
+  );
+  const [address, setAddress] = useState(citizen?.address || '');
+  const [colonia, setColonia] = useState(citizen?.colonia || '');
+  const [notes, setNotes] = useState(citizen?.notes || '');
   const [formError, setFormError] = useState<string | null>(null);
 
-  const initialSection = useMemo(() => {
-    if (defaultSectionNumber) return normalizeSectionNumber(defaultSectionNumber);
-    if (currentUser?.assignedSections && currentUser.assignedSections.length > 0) {
-      return normalizeSectionNumber(currentUser.assignedSections[0]);
+  useEffect(() => {
+    if (citizen) {
+      setName(citizen.name || '');
+      setElectorKey(citizen.electorKey || '');
+      setCurp(citizen.curp || '');
+      setPhone(citizen.phone ? citizen.phone.replace(/\D/g, '').slice(-10) : '');
+      setSelectedSection(citizen.electoralSection ? normalizeSectionNumber(citizen.electoralSection) : '0416');
+      setAddress(citizen.address || '');
+      setColonia(citizen.colonia || '');
+      setNotes(citizen.notes || '');
     }
-    const match = currentUser?.territoryName?.match(/\d{3,4}/);
-    if (match) return normalizeSectionNumber(match[0]);
-    return '0416';
-  }, [defaultSectionNumber, currentUser]);
-
-  const [electorKey, setElectorKey] = useState('');
-  const [curp, setCurp] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [selectedSection, setSelectedSection] = useState(initialSection);
-  const [address, setAddress] = useState('');
-  const [colonia, setColonia] = useState('');
-  const [notes, setNotes] = useState('');
+  }, [citizen]);
 
   const sectionOptions = useMemo(() => {
-    const norm = normalizeSectionNumber(selectedSection || initialSection);
+    const norm = normalizeSectionNumber(selectedSection);
     const exists = availableSections.some(s => s.sectionNumber === norm);
     if (!exists) {
       return [
@@ -72,64 +70,38 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       ];
     }
     return availableSections;
-  }, [availableSections, selectedSection, initialSection]);
-
-  const handleDataExtracted = (data: ExtractedINEData) => {
-    if (data.claveElector) setElectorKey(data.claveElector.toUpperCase());
-    if (data.curp) setCurp(data.curp.toUpperCase());
-    if (data.name) setName(data.name);
-    if (data.address) setAddress(data.address);
-    if (data.colonia) setColonia(data.colonia);
-    if (data.electoralSection) {
-      setSelectedSection(normalizeSectionNumber(data.electoralSection));
-    }
-    setFormError(null);
-    setOcrNotice(`Datos INE detectados en dispositivo (${data.confidenceScore}% confianza)`);
-  };
-
-  useEffect(() => {
-    if (initialINEData) {
-      handleDataExtracted(initialINEData);
-    }
-  }, [initialINEData]);
-
-  const existingElector = useMemo(() => {
-    if (electorKey.trim().length >= 6) {
-      return findElectorByKey(electorKey.trim().toUpperCase(), allLeaders, availableSections);
-    }
-    return null;
-  }, [electorKey, allLeaders, availableSections]);
-
-  useEffect(() => {
-    if (existingElector) {
-      setName(prev => prev || existingElector.name);
-      setCurp(prev => prev || (existingElector.curp || ''));
-      setPhone(prev => prev || (existingElector.phone || ''));
-      setAddress(prev => prev || (existingElector.address || ''));
-      setColonia(prev => prev || (existingElector.colonia || ''));
-      if (existingElector.electoralSection) {
-        setSelectedSection(normalizeSectionNumber(existingElector.electoralSection));
-      }
-    }
-  }, [existingElector]);
+  }, [availableSections, selectedSection]);
 
   const validation = useMemo(() => {
     if (!electorKey.trim() || electorKey.trim().length < 6) {
       return { allowed: true, errorMsg: undefined };
     }
+    // Filter out current citizen when checking uniqueness
+    const otherLeaders = allLeaders.filter(l => l.id !== citizenId);
     return validateElectorSection(
       electorKey.trim().toUpperCase(),
       selectedSection,
-      allLeaders,
+      otherLeaders,
       availableSections
     );
-  }, [electorKey, selectedSection, allLeaders, availableSections]);
+  }, [electorKey, selectedSection, allLeaders, availableSections, citizenId]);
 
-  const handlePhoneChange = (val: string) => {
-    const digits = val.replace(/\D/g, '').slice(0, 10);
-    setPhone(digits);
-    setFormError(null);
-  };
+  if (!citizen) {
+    return (
+      <div className="flex-1 overflow-y-auto bg-white p-6 sm:p-8">
+        <div className="max-w-3xl mx-auto space-y-4 text-center py-16">
+          <p className="text-slate-500 font-semibold text-sm">No se encontró el registro a editar.</p>
+          <button
+            type="button"
+            onClick={() => onNavigate('escritorio')}
+            className="px-5 py-2 bg-slate-900 text-white rounded-none text-xs font-bold transition-colors cursor-pointer"
+          >
+            ← Volver al Escritorio
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -137,46 +109,36 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 
     const trimmedName = name.trim();
     const trimmedKey = electorKey.trim().toUpperCase();
-    const normalizedSec = normalizeSectionNumber(selectedSection || initialSection);
+    const normalizedSec = normalizeSectionNumber(selectedSection);
 
     if (!trimmedName) {
-      setFormError('El nombre completo del ciudadano es obligatorio.');
+      setFormError('El nombre completo es obligatorio.');
       return;
     }
     if (!trimmedKey || trimmedKey.length < 6) {
-      setFormError('La Clave de Elector es obligatoria (mínimo 6 caracteres).');
+      setFormError('La Clave de Elector debe tener al menos 6 caracteres.');
       return;
     }
     if (!normalizedSec) {
-      setFormError('Debe indicar la Sección Electoral.');
+      setFormError('La Sección Electoral es obligatoria.');
       return;
     }
     if (!validation.allowed) {
-      setFormError(validation.errorMsg || 'No se puede registrar este ciudadano según las directrices.');
+      setFormError(validation.errorMsg || 'No se puede registrar en esta sección según las directrices.');
       return;
     }
 
-    const newId = `field-promovido-${Date.now()}`;
-    const newLeader: TerritorialLeader = {
-      id: newId,
+    const updatedLeader: TerritorialLeader = {
+      ...citizen,
       name: trimmedName,
-      role: 'Ciudadano Promovido',
-      level: 'promovido',
-      levelIndex: 5,
-      parentId: currentUser?.leaderId || null,
-      territoryName: `Sección ${normalizedSec} - ${colonia.trim() || 'Territorio'}`,
-      address: address.trim(),
-      colonia: colonia.trim(),
-      electoralSection: normalizedSec,
       electorKey: trimmedKey,
       curp: curp.trim().toUpperCase() || undefined,
       phone: phone.trim() ? `+52 ${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}` : undefined,
-      hasAccount: false,
-      metaGoal: 1,
-      currentCount: 1,
-      status: 'completado',
-      validationStatus: 'validado',
-      notes: notes.trim() || `Registro de campo en Sección ${normalizedSec}.`,
+      electoralSection: normalizedSec,
+      territoryName: `Sección ${normalizedSec} - ${colonia.trim() || 'Territorio'}`,
+      address: address.trim(),
+      colonia: colonia.trim(),
+      notes: notes.trim(),
     };
 
     persistElectorProfile({
@@ -186,10 +148,10 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       address: address.trim(),
       colonia: colonia.trim(),
       electoralSection: normalizedSec,
-      phone: newLeader.phone,
+      phone: updatedLeader.phone,
       structures: [
         {
-          id: newId,
+          id: citizen.id,
           structureName: `Célula Seccional ${normalizedSec}`,
           type: 'promovido',
           sectionNumber: normalizedSec,
@@ -198,13 +160,20 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       ],
     });
 
-    onSaveCitizen(newLeader);
+    onSaveCitizen(updatedLeader);
     onNavigate('escritorio');
+  };
+
+  const handleDelete = () => {
+    if (window.confirm(`¿Estás seguro de eliminar a ${citizen.name} de tus promovidos registrados?`)) {
+      onDeleteCitizen?.(citizen.id);
+      onNavigate('escritorio');
+    }
   };
 
   return (
     <div className="flex-1 overflow-y-auto bg-white p-0">
-      {/* Barra Superior con botón para volver y esquinas rectas */}
+      {/* Barra de Encabezado Superior con esquinas rectas */}
       <div className="bg-slate-900 text-white px-5 sm:px-8 py-4 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -217,44 +186,29 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           </button>
           <div className="h-5 w-[1px] bg-slate-700" />
           <div>
-            <h1 className="text-base font-bold text-white flex items-center gap-2">
-              <span>Capturar Promovido</span>
+            <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+              <span>Editar Ciudadano Promovido</span>
               <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-none font-bold">
-                Sección {selectedSection}
+                {citizen.name}
               </span>
             </h1>
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setIsScannerOpen(true)}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all shadow-xs flex items-center gap-2 cursor-pointer"
-        >
-          <Camera className="w-4 h-4" />
-          <span className="hidden sm:inline">Escanear INE con Cámara</span>
-          <span className="sm:hidden">Escanear INE</span>
-        </button>
+        {onDeleteCitizen && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="px-3.5 py-1.5 bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/60 rounded-none text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Eliminar Promovido</span>
+          </button>
+        )}
       </div>
 
-      {/* Formulario en Página Limpia (Sin Márgenes Redondeados) */}
+      {/* Formulario en Página Limpia (Sin Bordes Redondeados) */}
       <div className="max-w-4xl mx-auto p-5 sm:p-8 space-y-6">
-        {ocrNotice && (
-          <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-none text-xs text-emerald-900 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{ocrNotice}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOcrNotice(null)}
-              className="text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
         {formError && (
           <div className="p-3 bg-rose-50 border border-rose-300 rounded-none text-xs text-rose-900 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
@@ -265,16 +219,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
         {!validation.allowed && (
           <div className="p-3 bg-rose-50 border border-rose-300 rounded-none text-xs text-rose-900 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span><strong>Bloqueo de Directriz:</strong> {validation.errorMsg}</span>
-          </div>
-        )}
-
-        {existingElector && validation.allowed && (
-          <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-none text-xs text-indigo-900 flex items-center gap-2">
-            <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
-            <span>
-              <strong>Elector ya identificado:</strong> {existingElector.name}. Datos precargados en Sección {existingElector.electoralSection}.
-            </span>
+            <span><strong>Bloqueo de Validación:</strong> {validation.errorMsg}</span>
           </div>
         )}
 
@@ -336,7 +281,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                 setName(e.target.value);
                 setFormError(null);
               }}
-              placeholder="Nombre(s) y Apellidos tal como figuran en el INE"
+              placeholder="Nombre(s) y Apellidos"
               className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
             />
           </div>
@@ -345,7 +290,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                Teléfono Celular (WhatsApp)*
+                Teléfono Móvil (WhatsApp)*
               </label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">+52</span>
@@ -353,19 +298,23 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                   type="tel"
                   required
                   value={phone}
-                  onChange={e => handlePhoneChange(e.target.value)}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                    setPhone(digits);
+                    setFormError(null);
+                  }}
                   placeholder="993 123 4567"
                   className="w-full pl-11 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
                 />
               </div>
               <span className="text-[10px] text-slate-500 mt-1 block">
-                10 dígitos para comunicación directa
+                10 dígitos
               </span>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                Sección Electoral*
+                Sección Electoral Asignada*
               </label>
               <select
                 value={selectedSection}
@@ -395,7 +344,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                 value={address}
                 onChange={e => setAddress(e.target.value)}
                 placeholder="Calle, No. Exterior e Interior"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
 
@@ -408,7 +357,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                 value={colonia}
                 onChange={e => setColonia(e.target.value)}
                 placeholder="Colonia, Fraccionamiento o Barrio"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
           </div>
@@ -416,14 +365,14 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           {/* Fila 5: Observaciones */}
           <div>
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-              Observaciones / Compromiso de Apoyo
+              Observaciones de Campo
             </label>
             <textarea
               rows={3}
               value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="Notas de visita, apoyo comprometido, etc."
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900 resize-none"
+              placeholder="Notas y compromisos adquiridos"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900 resize-none"
             />
           </div>
 
@@ -442,18 +391,11 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
               className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-none shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Save className="w-4 h-4" />
-              <span>Guardar Ciudadano Promovido</span>
+              <span>Guardar Cambios</span>
             </button>
           </div>
         </form>
       </div>
-
-      {/* Modal de Escáner INE con Cámara */}
-      <INECameraScannerModal
-        isOpen={isScannerOpen}
-        onClose={() => setIsScannerOpen(false)}
-        onDataExtracted={handleDataExtracted}
-      />
     </div>
   );
 };

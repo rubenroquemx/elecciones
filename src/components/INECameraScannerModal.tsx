@@ -403,12 +403,12 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                 </div>
               </div>
 
-              {/* Botones de Acción */}
-              <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+              {/* Botones de Acción fijados (Sticky) al fondo para acceso inmediato en celulares */}
+              <div className="sticky bottom-0 -mx-5 -mb-5 p-4 bg-white/95 backdrop-blur-xs border-t border-slate-200 z-20 shadow-lg flex flex-col sm:flex-row items-center gap-2.5">
                 <button
                   type="button"
                   onClick={handleApplyData}
-                  className="w-full sm:flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full sm:flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-500 active:scale-98 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/20 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   <Check className="w-4 h-4" />
                   <span>Aplicar Datos al Registro</span>
@@ -417,7 +417,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                 <button
                   type="button"
                   onClick={handleRetake}
-                  className="w-full sm:w-auto py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="w-full sm:w-auto py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Reintentar</span>

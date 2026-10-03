@@ -67,6 +67,78 @@ function cleanDigits(str: string): string {
     .replace(/[Bb]/g, '8');
 }
 
+export const INE_NON_NAME_PATTERN = /INSTITUTO|NACIONAL|ELECTORAL|CREDENCIAL|VOTAR|REGISTRO|FEDERAL|ELECTORES|ESTADOS|UNIDOS|MEXICANOS|DOMICILIO|CLAVE|FOLIO|CURP|SECCION|LOCALIDAD|MUNICIPIO|DISTRITO|FECHA|NACIMIENTO|SEXO|EDAD|VIGENCIA|EMISION|DESDE|HASTA|ANO|AÑO|FIRMA|HOMBRE|MUJER|ESTADO/i;
+
+export function isValidPersonName(candidate: string): boolean {
+  if (!candidate || candidate.trim().length < 4) return false;
+  if (INE_NON_NAME_PATTERN.test(candidate)) return false;
+
+  const words = candidate.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 2) return false;
+
+  // Reject candidates where words are single letters (e.g. 'METE E E LE E DE')
+  const singleLetterWords = words.filter(w => w.length === 1);
+  if (singleLetterWords.length > 1 || singleLetterWords.length / words.length > 0.3) {
+    return false;
+  }
+
+  // Count valid word tokens (at least 2 letters each)
+  const validWords = words.filter(w => w.length >= 2 && /^[A-ZÁÉÍÓÚÑ]+$/i.test(w));
+  if (validWords.length < 2) return false;
+
+  return true;
+}
+
+export function sanitizeCURP(raw: string): string {
+  if (!raw) return raw;
+  const sanitized = raw.replace(/[^A-Z0-9]/gi, '').toUpperCase();
+  if (sanitized.length !== 18) return raw;
+
+  const chars = sanitized.split('');
+
+  // Pos 0-3: 4 letras del nombre
+  for (let i = 0; i < 4; i++) {
+    if (chars[i] === '0') chars[i] = 'O';
+    else if (chars[i] === '1') chars[i] = 'I';
+    else if (chars[i] === '2') chars[i] = 'Z';
+    else if (chars[i] === '5') chars[i] = 'S';
+    else if (chars[i] === '8') chars[i] = 'B';
+  }
+
+  // Pos 4-9: 6 dígitos de fecha (YYMMDD)
+  for (let i = 4; i <= 9; i++) {
+    if (chars[i] === 'O' || chars[i] === 'D') chars[i] = '0';
+    else if (chars[i] === 'I' || chars[i] === 'L') chars[i] = '1';
+    else if (chars[i] === 'Z') chars[i] = '2';
+    else if (chars[i] === 'S') chars[i] = '5';
+    else if (chars[i] === 'B') chars[i] = '8';
+  }
+
+  // Pos 10: Sexo (H / M)
+  if (chars[10] !== 'H' && chars[10] !== 'M') {
+    if (chars[10] === '1' || chars[10] === 'I') chars[10] = 'H';
+    else if (chars[10] === '0' || chars[10] === 'O') chars[10] = 'M';
+  }
+
+  // Pos 11-15: 5 letras (2 de entidad federativa + 3 consonantes internas)
+  for (let i = 11; i <= 15; i++) {
+    if (chars[i] === '0') chars[i] = 'O';
+    else if (chars[i] === '1') chars[i] = 'I';
+    else if (chars[i] === '2') chars[i] = 'Z';
+    else if (chars[i] === '5') chars[i] = 'S';
+    else if (chars[i] === '8') chars[i] = 'B';
+  }
+
+  // Pos 17: Último dígito (0-9)
+  if (chars[17] === 'O' || chars[17] === 'D') chars[17] = '0';
+  else if (chars[17] === 'I' || chars[17] === 'L') chars[17] = '1';
+  else if (chars[17] === 'Z') chars[17] = '2';
+  else if (chars[17] === 'S') chars[17] = '5';
+  else if (chars[17] === 'B') chars[17] = '8';
+
+  return chars.join('');
+}
+
 /**
  * Parses raw OCR text using official Mexican INE formats (Modelos C, D, E, F, G, H)
  */
@@ -153,22 +225,24 @@ export function parseINETemplate(rawText: string): ExtractedINEData {
   if (!result.curp) {
     const curpMatch = clean.match(/\b([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)\b/);
     if (curpMatch) {
-      result.curp = curpMatch[1];
+      result.curp = sanitizeCURP(curpMatch[1]);
       confidenceScore += 25;
     } else {
-      const relaxedCurp = clean.match(/\b([A-Z]{4})[\s-]*([0-9OIZSBLD]{6})[\s-]*([HM])[\s-]*([A-Z]{5}[A-Z0-9][0-9OIZSBLD])\b/);
+      const relaxedCurp = clean.match(/\b([A-Z0-9]{4})[\s-]*([0-9OIZSBLD]{6})[\s-]*([HM0-9])[\s-]*([A-Z0-9]{5}[A-Z0-9][0-9OIZSBLD])\b/);
       if (relaxedCurp) {
-        const d = cleanDigits(relaxedCurp[2]);
-        const last = cleanDigits(relaxedCurp[4].slice(-1));
-        result.curp = `${relaxedCurp[1]}${d}${relaxedCurp[3]}${relaxedCurp[4].slice(0, 5)}${last}`;
-        confidenceScore += 20;
+        const candidate = `${relaxedCurp[1]}${relaxedCurp[2]}${relaxedCurp[3]}${relaxedCurp[4]}`;
+        const sanitized = sanitizeCURP(candidate);
+        if (/^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$/.test(sanitized)) {
+          result.curp = sanitized;
+          confidenceScore += 25;
+        }
       } else {
-        const labeledCurp = clean.match(/CURP[\s.:#]*([A-Z0-9\s]{17,21})/i);
+        const labeledCurp = clean.match(/CURP[\s.:#]*([A-Z0-9\s]{17,22})/i);
         if (labeledCurp) {
-          const sanitized = labeledCurp[1].replace(/[^A-Z0-9]/g, '');
-          if (sanitized.length === 18) {
-            result.curp = sanitized;
-            confidenceScore += 20;
+          const rawCandidate = labeledCurp[1].replace(/[^A-Z0-9]/g, '');
+          if (rawCandidate.length === 18) {
+            result.curp = sanitizeCURP(rawCandidate);
+            confidenceScore += 25;
           }
         }
       }
@@ -182,7 +256,6 @@ export function parseINETemplate(rawText: string): ExtractedINEData {
       result.electoralSection = seccionMatch[1].padStart(4, '0');
       confidenceScore += 20;
     } else {
-      // Búsqueda de 4 dígitos entre 0001 y 9999 cerca de la palabra ESTADO o MUNICIPIO
       const contextMatch = clean.match(/(?:ESTADO|MUNICIPIO|LOCALIDAD)[\s\S]{1,40}\b0*(\d{3,4})\b/i);
       if (contextMatch) {
         result.electoralSection = contextMatch[1].padStart(4, '0');
@@ -211,19 +284,20 @@ export function parseINETemplate(rawText: string): ExtractedINEData {
       const mat = matIdx !== -1 && lines[matIdx + 1] ? lines[matIdx + 1].replace(/[^A-ZÁÉÍÓÚÑ\s]/g, '').trim() : '';
       const nom = nomIdx !== -1 && lines[nomIdx + 1] ? lines[nomIdx + 1].replace(/[^A-ZÁÉÍÓÚÑ\s]/g, '').trim() : '';
       const assembled = [nom, pat, mat].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
-      if (assembled.length > 3) {
+      if (isValidPersonName(assembled)) {
         result.name = assembled;
         confidenceScore += 25;
       }
     } else if (nomIdx !== -1 && lines[nomIdx + 1]) {
       // Formato INE moderno: "NOMBRE" seguido de 2 o 3 líneas (Paterno, Materno, Nombres)
       const candidateLines = lines.slice(nomIdx + 1, nomIdx + 5)
-        .filter(l => !/DOMICILIO|EDAD|SEXO|NACIONALIDAD|CLAVE|FOLIO|CURP|INSTITUTO|CREDENCIAL/i.test(l))
+        .filter(l => !INE_NON_NAME_PATTERN.test(l))
         .map(l => l.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, '').trim())
         .filter(l => l.length >= 2);
 
-      if (candidateLines.length > 0) {
-        result.name = candidateLines.join(' ').replace(/\s+/g, ' ').trim();
+      const candidate = candidateLines.join(' ').replace(/\s+/g, ' ').trim();
+      if (isValidPersonName(candidate)) {
+        result.name = candidate;
         confidenceScore += 25;
       }
     } else {
@@ -232,11 +306,12 @@ export function parseINETemplate(rawText: string): ExtractedINEData {
       const domIdx = lines.findIndex(l => /DOMICILIO/i.test(l));
       if (credIdx !== -1 && domIdx !== -1 && domIdx > credIdx + 1) {
         const middleLines = lines.slice(credIdx + 1, domIdx)
-          .filter(l => !/MEXICO|INSTITUTO|NACIONAL|EDAD|SEXO/i.test(l))
+          .filter(l => !INE_NON_NAME_PATTERN.test(l))
           .map(l => l.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, '').trim())
           .filter(l => l.length >= 3);
-        if (middleLines.length > 0) {
-          result.name = middleLines.join(' ').replace(/\s+/g, ' ').trim();
+        const candidate = middleLines.join(' ').replace(/\s+/g, ' ').trim();
+        if (isValidPersonName(candidate)) {
+          result.name = candidate;
           confidenceScore += 15;
         }
       }

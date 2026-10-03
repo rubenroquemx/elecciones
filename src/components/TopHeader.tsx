@@ -135,6 +135,20 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     <span>Capturar Promovido</span>
                   </>
                 )}
+
+                {activeNav === 'ver-promovido' && (
+                  <>
+                    <Users className="w-5 h-5 text-sky-600" />
+                    <span>Expediente del Promovido</span>
+                  </>
+                )}
+
+                {activeNav === 'editar-promovido' && (
+                  <>
+                    <Edit3 className="w-5 h-5 text-indigo-600" />
+                    <span>Editar Promovido</span>
+                  </>
+                )}
               </h1>
             </div>
           </div>

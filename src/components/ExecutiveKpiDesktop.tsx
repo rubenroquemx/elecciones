@@ -26,6 +26,9 @@ import {
   ArrowRight,
   UserPlus,
   Plus,
+  Phone,
+  Eye,
+  Edit3,
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
 import type { ExtractedINEData } from '../utils/ineScanner';
@@ -41,6 +44,8 @@ interface ExecutiveKpiDesktopProps {
   onOpenQuickCapture?: (initialData?: ExtractedINEData) => void;
   onOpenCreateUser?: () => void;
   onViewSectionDetail?: (sectionNumber: string) => void;
+  onViewCitizen?: (citizenId: string) => void;
+  onEditCitizen?: (citizenId: string) => void;
   activeStateId?: number;
   onStateChange?: (stateId: number) => void;
 }
@@ -56,6 +61,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   onOpenQuickCapture,
   onOpenCreateUser,
   onViewSectionDetail,
+  onViewCitizen,
+  onEditCitizen,
   activeStateId,
 }) => {
   // Filtros de navegación geográfica y estado activo
@@ -876,20 +883,51 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                         </div>
                       </div>
 
-                      {promovido.phone && (
-                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      <div className="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-center">
+                        {promovido.phone && (
+                          <a
+                            href={`tel:${promovido.phone.replace(/\D/g, '')}`}
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 shadow-none"
+                            title="Llamar directamente al promovido"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                            <span>Llamar</span>
+                          </a>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => onViewCitizen?.(promovido.id)}
+                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                          title="Ver expediente en página nueva"
+                        >
+                          <Eye className="w-3.5 h-3.5 text-slate-600" />
+                          <span>Ver</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onEditCitizen?.(promovido.id)}
+                          className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                          title="Editar en página nueva"
+                        >
+                          <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Editar</span>
+                        </button>
+
+                        {promovido.phone && (
                           <a
                             href={`https://wa.me/52${promovido.phone.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(promovido.name)},%20te%20saluda%20Ruben%20Roque%20de%20Estrategia%20Territorial`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5"
+                            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5"
                             title="Enviar WhatsApp al promovido"
                           >
                             <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
                             <span>WhatsApp</span>
                           </a>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   ))
                 )}

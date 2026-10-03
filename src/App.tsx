@@ -30,6 +30,8 @@ import { TerritorialPromotersAdminView } from './components/TerritorialPromoters
 import { TerritorialPromoterCreatePage } from './components/TerritorialPromoterCreatePage';
 import { TerritorialPromoterEditPage } from './components/TerritorialPromoterEditPage';
 import { PromoterCitizenCapturePage } from './components/PromoterCitizenCapturePage';
+import { PromoterCitizenDetailPage } from './components/PromoterCitizenDetailPage';
+import { PromoterCitizenEditPage } from './components/PromoterCitizenEditPage';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -297,11 +299,12 @@ export function App() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // RBAC Navigation restrictions:
-  // Promotor has no access to maps, estructura, secciones -> lock to 'escritorio'
+  // Promotor has no access to maps, estructura, secciones -> lock to allowed promotor pages
   // Coordinador Territorial only sees lista de promotores -> lock mode to 'lista'
   useEffect(() => {
     if (!currentUser) return;
-    if (currentUser.level === 'promotor' && activeNav !== 'escritorio') {
+    const allowedPromotorPages: MainNavSection[] = ['escritorio', 'capturar-promovido', 'ver-promovido', 'editar-promovido'];
+    if (currentUser.level === 'promotor' && !allowedPromotorPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
     if (currentUser.level === 'territorial' && structureMode === 'organigrama') {
@@ -326,10 +329,17 @@ export function App() {
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
   const [quickCaptureInitialData, setQuickCaptureInitialData] = useState<ExtractedINEData | null>(null);
 
+  // Selected citizen for view / edit in promoter pages
+  const [selectedPromovidoId, setSelectedPromovidoId] = useState<string | null>(null);
+
   const handleOpenQuickCapture = useCallback((data?: ExtractedINEData) => {
     setQuickCaptureInitialData(data || null);
+    if (currentUser?.level === 'promotor') {
+      setActiveNav('capturar-promovido');
+      return;
+    }
     setIsQuickCaptureOpen(true);
-  }, []);
+  }, [currentUser]);
 
   // Selected promoter for editing in territorial coordinator views
   const [selectedEditPromoterId, setSelectedEditPromoterId] = useState<string | null>(null);
@@ -764,6 +774,14 @@ export function App() {
                   onOpenAddModal={handleOpenAddModal}
                   onOpenQuickCapture={handleOpenQuickCapture}
                   onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
+                  onViewCitizen={(id) => {
+                    setSelectedPromovidoId(id);
+                    setActiveNav('ver-promovido');
+                  }}
+                  onEditCitizen={(id) => {
+                    setSelectedPromovidoId(id);
+                    setActiveNav('editar-promovido');
+                  }}
                   onViewSectionDetail={(secNum) => {
                     const padded = secNum.padStart(4, '0');
                     const inScope = scopedSections.some(s => s.sectionNumber === secNum || s.sectionNumber === padded);
@@ -861,8 +879,41 @@ export function App() {
                   availableSections={captureAvailableSections}
                   allLeaders={visibleLeaders}
                   defaultSectionNumber={currentUser.assignedSections?.[0] || currentUser.territoryName?.match(/\d{3,4}/)?.[0] || '0416'}
+                  initialINEData={quickCaptureInitialData}
                   onSaveCitizen={(newLeader) => {
                     handleSaveLeader(newLeader);
+                    setQuickCaptureInitialData(null);
+                  }}
+                  onNavigate={setActiveNav}
+                />
+              )}
+
+              {/* 8. VER EXPEDIENTE DE CIUDADANO PROMOVIDO (PÁGINA LIMPIA, ESQUINAS RECTAS) */}
+              {activeNav === 'ver-promovido' && currentUser && (
+                <PromoterCitizenDetailPage
+                  citizenId={selectedPromovidoId || ''}
+                  allLeaders={visibleLeaders}
+                  onNavigate={setActiveNav}
+                  onEdit={(id) => {
+                    setSelectedPromovidoId(id);
+                    setActiveNav('editar-promovido');
+                  }}
+                />
+              )}
+
+              {/* 9. EDITAR CIUDADANO PROMOVIDO (PÁGINA LIMPIA, ESQUINAS RECTAS) */}
+              {activeNav === 'editar-promovido' && currentUser && (
+                <PromoterCitizenEditPage
+                  citizenId={selectedPromovidoId || ''}
+                  allLeaders={visibleLeaders}
+                  availableSections={captureAvailableSections}
+                  onSaveCitizen={(updatedLeader) => {
+                    handleSaveLeader(updatedLeader);
+                    setActiveNav('escritorio');
+                  }}
+                  onDeleteCitizen={(id) => {
+                    handleDeleteLeader(id);
+                    setActiveNav('escritorio');
                   }}
                   onNavigate={setActiveNav}
                 />

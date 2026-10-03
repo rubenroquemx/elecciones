@@ -20,7 +20,9 @@ export type MainNavSection =
   | 'promotores' 
   | 'crear-promotor' 
   | 'editar-promotor'
-  | 'capturar-promovido';
+  | 'capturar-promovido'
+  | 'ver-promovido'
+  | 'editar-promovido';
 export type StructureMode = 'organigrama' | 'lista';
 
 interface SidebarProps {
