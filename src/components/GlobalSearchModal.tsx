@@ -188,9 +188,9 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-slate-900/60 backdrop-blur-sm animate-emil-fade">
       <div 
-        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[80vh]"
+        className="w-full max-w-2xl bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[80vh] animate-emil-modal"
         onClick={e => e.stopPropagation()}
       >
         {/* Search Input Bar */}
@@ -215,7 +215,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                 setQuery('');
                 inputRef.current?.focus();
               }}
-              className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50 transition-colors"
+              className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50"
             >
               <X className="w-4 h-4" />
             </button>
@@ -248,7 +248,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                   key={item.id}
                   onClick={() => handleSelectItem(item)}
                   onMouseEnter={() => setSelectedIndex(index)}
-                  className={`px-4 py-3 rounded-xl cursor-pointer flex items-center justify-between gap-3 transition-colors ${
+                  className={`px-4 py-3 rounded-xl cursor-pointer flex items-center justify-between gap-3 ${
                     isSelected 
                       ? 'bg-indigo-50/80 border border-indigo-200/60 shadow-xs' 
                       : 'hover:bg-slate-50 border border-transparent'
@@ -291,7 +291,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                         {item.extra}
                       </span>
                     )}
-                    <ArrowRight className={`w-4 h-4 transition-transform ${
+                    <ArrowRight className={`w-4 h-4 ${
                       isSelected ? 'text-indigo-600 translate-x-1' : 'text-slate-300'
                     }`} />
                   </div>

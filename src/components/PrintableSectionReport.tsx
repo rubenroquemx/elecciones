@@ -30,9 +30,9 @@ export const PrintableSectionReport: React.FC<PrintableSectionReportProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm p-4 sm:p-6 flex justify-center items-start print:p-0 print:bg-white print:static print:overflow-visible">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm p-4 sm:p-6 flex justify-center items-start print:p-0 print:bg-white print:static print:overflow-visible animate-emil-fade">
       {/* Container - on screen: floating sheet; on print: full page */}
-      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 print:border-none print:shadow-none print:rounded-none print:w-full print:max-w-none">
+      <div className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-200 print:border-none print:shadow-none print:rounded-none print:w-full print:max-w-none animate-emil-modal">
         
         {/* On-screen control bar (Hidden when printing) */}
         <div className="p-4 bg-slate-900 text-white flex items-center justify-between print:hidden">

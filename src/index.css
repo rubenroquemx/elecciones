@@ -1,6 +1,14 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
 
+:root {
+  /* Emil Kowalski custom easings */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
+}
+
 html, body, #root {
   width: 100%;
   height: 100%;
@@ -10,6 +18,93 @@ html, body, #root {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
   background-color: #f8fafc;
   color: #0f172a;
+}
+
+/* Emil Kowalski button press micro-interaction */
+button,
+[role="button"],
+.clickable {
+  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out), opacity 160ms var(--ease-out);
+}
+
+button:active:not(:disabled),
+[role="button"]:active:not(:disabled),
+.clickable:active {
+  transform: scale(0.97);
+}
+
+/* Emil Modal & Popover Animations - never scale from 0 */
+@keyframes emilModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes emilFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes emilDrawerIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes emilPopoverIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-emil-modal {
+  animation: emilModalIn 200ms var(--ease-out) forwards;
+}
+
+.animate-emil-fade {
+  animation: emilFadeIn 160ms var(--ease-out) forwards;
+}
+
+.animate-emil-drawer {
+  animation: emilDrawerIn 280ms var(--ease-drawer) forwards;
+}
+
+.animate-emil-popover {
+  transform-origin: var(--transform-origin, top right);
+  animation: emilPopoverIn 160ms var(--ease-out) forwards;
+}
+
+/* prefers-reduced-motion compliance */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Interactive Card Utility */
+.card-emil-interactive {
+  transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out), border-color 200ms var(--ease-out);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-emil-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  }
+}
+.card-emil-interactive:active {
+  transform: scale(0.99);
 }
 
 /* Glassmorphism Design Utilities */
@@ -27,14 +122,16 @@ html, body, #root {
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.25);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 200ms var(--ease-out), background-color 200ms var(--ease-out), border-color 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
 }
 
-.glass-card:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.2);
-  transform: translateY(-1px);
-  box-shadow: 0 12px 32px 0 rgba(99, 102, 241, 0.15);
+@media (hover: hover) and (pointer: fine) {
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 32px 0 rgba(99, 102, 241, 0.15);
+  }
 }
 
 .glass-dock {
@@ -56,7 +153,7 @@ html, body, #root {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #f8fafc;
-  transition: all 0.2s ease;
+  transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
 }
 
 .glass-input:focus {
@@ -72,13 +169,15 @@ html, body, #root {
   -webkit-backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #f1f5f9;
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out);
 }
 
-.glass-button:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #ffffff;
+@media (hover: hover) and (pointer: fine) {
+  .glass-button:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: #ffffff;
+  }
 }
 
 .glass-button-primary {
@@ -88,14 +187,16 @@ html, body, #root {
   border: 1px solid rgba(255, 255, 255, 0.3);
   color: #ffffff;
   box-shadow: 0 4px 20px 0 rgba(99, 102, 241, 0.4);
-  transition: all 0.2s ease;
+  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
 }
 
-.glass-button-primary:hover {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%);
-  border-color: rgba(255, 255, 255, 0.45);
-  box-shadow: 0 6px 25px 0 rgba(99, 102, 241, 0.6);
-  transform: translateY(-1px);
+@media (hover: hover) and (pointer: fine) {
+  .glass-button-primary:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.95) 0%, rgba(139, 92, 246, 0.95) 100%);
+    border-color: rgba(255, 255, 255, 0.45);
+    box-shadow: 0 6px 25px 0 rgba(99, 102, 241, 0.6);
+    transform: translateY(-1px);
+  }
 }
 
 /* Ambient Aurora Glow Animation */

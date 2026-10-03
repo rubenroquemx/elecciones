@@ -301,8 +301,8 @@ export const SectionMapModal: React.FC<SectionMapModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isMaximized ? 'p-0' : 'p-3 sm:p-5'} bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200`}>
-      <div className={`bg-white border border-slate-200 ${isMaximized ? 'w-screen h-screen rounded-none' : 'rounded-2xl w-full max-w-5xl h-[92vh] max-h-[820px]'} shadow-2xl flex flex-col overflow-hidden transition-all duration-200`}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isMaximized ? 'p-0' : 'p-3 sm:p-5'} bg-slate-950/70 backdrop-blur-sm animate-emil-fade`}>
+      <div className={`bg-white border border-slate-200 ${isMaximized ? 'w-screen h-screen rounded-none' : 'rounded-2xl w-full max-w-5xl h-[92vh] max-h-[820px]'} shadow-2xl flex flex-col overflow-hidden animate-emil-modal`}>
         
         {/* Header Superior */}
         <div className="p-4 bg-slate-900 text-white flex items-center justify-between shrink-0">

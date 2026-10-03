@@ -56,7 +56,7 @@ export const TerritorialNodeCard: React.FC<TerritorialNodeProps> = memo(({ data 
   return (
     <div
       onClick={() => onSelectNode && onSelectNode(leader)}
-      className={`relative w-[300px] rounded-xl border transition-all duration-200 cursor-pointer shadow-md group select-none ${
+      className={`relative w-[300px] rounded-xl border transition-[transform,box-shadow,border-color,background-color] duration-160 [transition-timing-function:var(--ease-out)] active:scale-[0.98] cursor-pointer shadow-md group select-none ${
         isSelected 
           ? 'bg-white border-sky-500 ring-2 ring-sky-400/50 shadow-xl shadow-sky-100' 
           : 'bg-white hover:bg-slate-50/80 border-slate-200 hover:border-slate-300 shadow-slate-200/60'

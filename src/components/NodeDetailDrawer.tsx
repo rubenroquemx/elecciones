@@ -50,15 +50,21 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
   const cleanPhone = leader.phone?.replace(/[^0-9]/g, '') || '';
 
   return (
-    <aside className="fixed inset-y-0 right-0 w-full sm:w-[460px] bg-white border-l border-slate-200 shadow-2xl z-30 flex flex-col transition-all duration-300">
-      {/* Header with Chain of Command Breadcrumbs */}
-      <div className="p-4 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-sky-600" />
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-            Expediente Territorial
-          </h3>
-        </div>
+    <>
+      {/* Backdrop overlay */}
+      <div 
+        className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30 animate-emil-fade"
+        onClick={onClose}
+      />
+      <aside className="fixed inset-y-0 right-0 w-full sm:w-[460px] bg-white border-l border-slate-200 shadow-2xl z-30 flex flex-col animate-emil-drawer">
+        {/* Header with Chain of Command Breadcrumbs */}
+        <div className="p-4 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-sky-600" />
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Expediente Territorial
+            </h3>
+          </div>
         <div className="flex items-center gap-1">
           <button
             type="button"
@@ -319,5 +325,6 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
         </button>
       </div>
     </aside>
+    </>
   );
 };

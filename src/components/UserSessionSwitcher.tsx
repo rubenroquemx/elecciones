@@ -79,7 +79,7 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs animate-emil-popover">
           {/* Header Info */}
           <div className="p-3.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white">
             <div className="flex items-center justify-between">

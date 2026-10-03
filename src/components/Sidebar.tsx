@@ -68,13 +68,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile backdrop */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/50 z-40 lg:hidden backdrop-blur-xs"
+          className="fixed inset-0 bg-slate-900/60 z-40 lg:hidden backdrop-blur-xs animate-emil-fade"
           onClick={onCloseMobile}
         />
       )}
 
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 sm:w-72 bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 transition-transform duration-300 ease-in-out shrink-0 ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 sm:w-72 bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 transition-transform duration-280 [transition-timing-function:var(--ease-drawer)] shrink-0 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -149,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
               {/* Sub-vistas de Estructura: Organigrama y Lista */}
               {activeNav === 'estructura' && (
-                <div className="ml-4 pl-3 border-l-2 border-indigo-500/40 space-y-1 pt-1 animate-in fade-in duration-200">
+                <div className="ml-4 pl-3 border-l-2 border-indigo-500/40 space-y-1 pt-1 animate-emil-fade">
                   <button
                     type="button"
                     onClick={() => {

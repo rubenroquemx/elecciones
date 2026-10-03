@@ -534,8 +534,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
             <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pr-6 lg:pr-8">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Lista Nominal</span>
-                <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 group-hover:bg-indigo-500/35 group-hover:border-indigo-400/60 transition-all duration-300 animate-subtle-float">
-                  <Vote className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+                <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 group-hover:bg-indigo-500/35 group-hover:border-indigo-400/60 transition-[background-color,border-color] duration-160 [transition-timing-function:var(--ease-out)] animate-subtle-float">
+                  <Vote className="w-4 h-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:scale-110 group-hover:rotate-6" />
                 </div>
               </div>
               <div className="mt-1">
@@ -564,8 +564,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
             <div className="group flex flex-col justify-between pt-4 md:pt-0 md:px-6 lg:px-8">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">Cobertura Seccional</span>
-                <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 group-hover:bg-emerald-500/35 group-hover:border-emerald-400/60 transition-all duration-300 animate-subtle-float">
-                  <Layers className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+                <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 group-hover:bg-emerald-500/35 group-hover:border-emerald-400/60 transition-[background-color,border-color] duration-160 [transition-timing-function:var(--ease-out)] animate-subtle-float">
+                  <Layers className="w-4 h-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:scale-110 group-hover:rotate-6" />
                 </div>
               </div>
               <div className="mt-1">
@@ -580,7 +580,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 <div className="text-[11px] text-slate-400 mt-0.5">{sectionCoveragePct}% secciones cubiertas</div>
                 <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mt-2.5">
                   <div
-                    className="bg-emerald-400 h-full rounded-full transition-all duration-500"
+                    className="bg-emerald-400 h-full rounded-full transition-[width] duration-300 [transition-timing-function:var(--ease-out)]"
                     style={{ width: `${sectionCoveragePct}%` }}
                   />
                 </div>
@@ -594,8 +594,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
             <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pl-6 lg:pl-8">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-sky-200">Fuerza Humana</span>
-                <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/30 group-hover:bg-sky-500/35 group-hover:border-sky-400/60 transition-all duration-300 animate-subtle-float">
-                  <Users className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
+                <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/30 group-hover:bg-sky-500/35 group-hover:border-sky-400/60 transition-[background-color,border-color] duration-160 [transition-timing-function:var(--ease-out)] animate-subtle-float">
+                  <Users className="w-4 h-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:scale-110 group-hover:rotate-6" />
                 </div>
               </div>
               <div className="mt-1">

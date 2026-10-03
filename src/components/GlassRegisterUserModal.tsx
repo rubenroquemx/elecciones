@@ -144,8 +144,8 @@ export const GlassRegisterUserModal: React.FC<GlassRegisterUserModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200 select-none">
-      <div className="glass-panel w-full max-w-xl rounded-3xl border border-white/20 p-6 sm:p-8 shadow-2xl relative overflow-hidden text-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-emil-fade select-none">
+      <div className="glass-panel w-full max-w-xl rounded-3xl border border-white/20 p-6 sm:p-8 shadow-2xl relative overflow-hidden text-slate-100 animate-emil-modal">
         {/* Glow accent */}
         <div className="absolute -top-16 -right-16 w-60 h-60 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none" />
 
