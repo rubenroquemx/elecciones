@@ -884,17 +884,6 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-center">
-                        {promovido.phone && (
-                          <a
-                            href={`tel:${promovido.phone.replace(/\D/g, '')}`}
-                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 shadow-none"
-                            title="Llamar directamente al promovido"
-                          >
-                            <Phone className="w-3.5 h-3.5" />
-                            <span>Llamar</span>
-                          </a>
-                        )}
-
                         <button
                           type="button"
                           onClick={() => onViewCitizen?.(promovido.id)}
@@ -914,6 +903,17 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                           <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
                           <span>Editar</span>
                         </button>
+
+                        {promovido.phone && (
+                          <a
+                            href={`tel:${promovido.phone.replace(/\D/g, '')}`}
+                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 shadow-none"
+                            title="Llamar directamente al promovido"
+                          >
+                            <Phone className="w-3.5 h-3.5" />
+                            <span>Llamar</span>
+                          </a>
+                        )}
 
                         {promovido.phone && (
                           <a
