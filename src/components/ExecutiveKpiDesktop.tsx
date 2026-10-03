@@ -39,6 +39,7 @@ interface ExecutiveKpiDesktopProps {
   onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections') => void;
   onOpenAddModal: () => void;
   onOpenQuickCapture?: (initialData?: ExtractedINEData) => void;
+  onOpenCreateUser?: () => void;
   onViewSectionDetail?: (sectionNumber: string) => void;
   activeStateId?: number;
   onStateChange?: (stateId: number) => void;
@@ -53,6 +54,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   onNavigateView,
   onOpenAddModal,
   onOpenQuickCapture,
+  onOpenCreateUser,
   onViewSectionDetail,
   activeStateId,
 }) => {
@@ -906,17 +908,30 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 </div>
               </div>
 
-              {onOpenQuickCapture && (
-                <button
-                  type="button"
-                  onClick={() => onOpenQuickCapture()}
-                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-                >
-                  <Smartphone className="w-4 h-4 text-emerald-100" />
-                  <span>Captura Rápida de Campo</span>
-                  <span className="bg-emerald-700/60 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">1-Click WA</span>
-                </button>
-              )}
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                {onOpenCreateUser && !isPromotor && (
+                  <button
+                    type="button"
+                    onClick={onOpenCreateUser}
+                    className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <UserPlus className="w-4 h-4 text-indigo-400" />
+                    <span>Alta Manual de Usuario</span>
+                  </button>
+                )}
+
+                {onOpenQuickCapture && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenQuickCapture()}
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Smartphone className="w-4 h-4 text-emerald-100" />
+                    <span>Captura Rápida de Campo</span>
+                    <span className="bg-emerald-700/60 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">1-Click WA</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

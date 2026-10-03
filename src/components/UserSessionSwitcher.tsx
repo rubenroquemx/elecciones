@@ -18,6 +18,8 @@ interface UserSessionSwitcherProps {
   onSelectUser: (user: UserAccount) => void;
   visibleCount: number;
   onLogout?: () => void;
+  accounts?: UserAccount[];
+  onOpenCreateUser?: () => void;
 }
 
 export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
@@ -25,6 +27,8 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
   onSelectUser,
   visibleCount,
   onLogout,
+  accounts = MOCK_ACCOUNTS,
+  onOpenCreateUser,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -113,12 +117,37 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
             </div>
           </div>
 
-          {/* Accounts List */}
-          <div className="p-2 divide-y divide-slate-100 max-h-80 overflow-y-auto">
-            <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-              Selecciona una cuenta para probar:
+          {/* Manual Create User Button (Only for roles with creation permissions) */}
+          {currentUser.level !== 'promotor' && onOpenCreateUser && (
+            <div className="p-2 border-b border-slate-100 bg-slate-50/60">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenCreateUser();
+                }}
+                className="w-full text-left p-2.5 rounded-xl bg-gradient-to-r from-indigo-50 to-sky-50 hover:from-indigo-100 hover:to-sky-100 text-indigo-950 border border-indigo-200/80 transition-all flex items-center justify-between font-bold text-xs cursor-pointer shadow-2xs group"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
+                    <UserPlus className="w-3.5 h-3.5" />
+                  </div>
+                  <span>Dar de Alta Usuario Manualmente</span>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-indigo-200/80 text-indigo-800 px-1.5 py-0.5 rounded">
+                  + Nuevo
+                </span>
+              </button>
             </div>
-            {MOCK_ACCOUNTS.map((acc) => {
+          )}
+
+          {/* Accounts List */}
+          <div className="p-2 divide-y divide-slate-100 max-h-72 overflow-y-auto">
+            <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span>Cuentas Autorizadas ({accounts.length}):</span>
+              <span className="text-[9px] text-slate-400">Sistema Cerrado</span>
+            </div>
+            {accounts.map((acc) => {
               const isSelected = acc.id === currentUser.id;
               const childLvl = getAllowedChildLevel(acc.level);
               const childCfg = childLvl ? LEVEL_CONFIG[childLvl] : null;

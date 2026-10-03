@@ -7,7 +7,8 @@ import {
   UserPlus,
   Download,
   Upload,
-  Smartphone
+  Smartphone,
+  Shield
 } from 'lucide-react';
 
 import type { UserAccount } from '../types/auth';
@@ -26,6 +27,7 @@ interface SidebarProps {
   sectionsCount: number;
   onOpenAddModal: () => void;
   onOpenQuickCapture?: () => void;
+  onOpenCreateUser?: () => void;
   onExportData: () => void;
   onImportData: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onLogout?: () => void;
@@ -45,6 +47,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   sectionsCount,
   onOpenAddModal,
   onOpenQuickCapture,
+  onOpenCreateUser,
   onExportData,
   onImportData,
   isMobileOpen = false,
@@ -251,10 +254,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onOpenAddModal();
                   onCloseMobile?.();
                 }}
-                className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/30 transition-all active:scale-98"
+                className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/30 transition-all active:scale-98 cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>{getAddButtonLabel()}</span>
+              </button>
+            )}
+
+            {/* Alta Manual de Usuario: Solo visible para Admin, Campaña y Territorial */}
+            {!isPromotor && onOpenCreateUser && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenCreateUser();
+                  onCloseMobile?.();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800/90 hover:bg-slate-700/90 text-indigo-300 hover:text-white rounded-xl text-xs font-bold border border-indigo-500/30 transition-all active:scale-98 cursor-pointer"
+                title="Generar credenciales manuales para un nuevo usuario del sistema cerrado"
+              >
+                <Shield className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Alta Manual de Usuario</span>
               </button>
             )}
 

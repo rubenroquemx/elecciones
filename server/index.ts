@@ -23,11 +23,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Config pública del servidor
+// Config pública del servidor (Sistema Cerrado)
 app.get('/api/config', (req, res) => {
   res.json({
-    googleClientId: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '791878516583-f9hht0avcqd4cvv3o2rvhovsqe7bdvat.apps.googleusercontent.com',
-    superadminEmail: process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'usrubenroque@gmail.com'
+    authMode: 'closed_system',
+    superadminEmail: process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'admin@estrategia-territorial.mx'
   });
 });
 
@@ -292,8 +292,8 @@ app.use((req, res) => {
     if (fs.existsSync(indexPath)) {
       let html = fs.readFileSync(indexPath, 'utf-8');
       const envData = {
-        VITE_GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || '791878516583-f9hht0avcqd4cvv3o2rvhovsqe7bdvat.apps.googleusercontent.com',
-        VITE_SUPERADMIN_EMAIL: (process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'usrubenroque@gmail.com').toLowerCase(),
+        VITE_AUTH_MODE: 'closed_system',
+        VITE_SUPERADMIN_EMAIL: (process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'admin@estrategia-territorial.mx').toLowerCase(),
       };
       const envTag = `<script>window.__ENV__ = ${JSON.stringify(envData)};</script>`;
       html = html.replace('</head>', `${envTag}</head>`);

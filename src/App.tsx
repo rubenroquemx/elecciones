@@ -24,6 +24,8 @@ import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { SectionDetailPage } from './components/SectionDetailPage';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { QuickFieldCaptureModal } from './components/QuickFieldCaptureModal';
+import { ClosedSystemLoginScreen } from './components/ClosedSystemLoginScreen';
+import { CreateManualUserModal } from './components/CreateManualUserModal';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -97,13 +99,31 @@ export function App() {
     }
   }, []);
 
-  // Authenticated user (defaulting to Ruben Roque - Promotor Territorial)
-  const [currentUser, setCurrentUser] = useState<UserAccount>(() => {
+  // User accounts: base 4 mock accounts + manually created accounts from localStorage
+  const [accounts, setAccounts] = useState<UserAccount[]>(() => {
+    try {
+      const saved = localStorage.getItem('territorial_custom_accounts');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const savedIds = new Set(parsed.map((a: UserAccount) => a.id));
+          const missingMock = MOCK_ACCOUNTS.filter(a => !savedIds.has(a.id));
+          return [...missingMock, ...parsed];
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading saved custom accounts', e);
+    }
+    return MOCK_ACCOUNTS;
+  });
+
+  // Authenticated user in closed system (defaults to Ruben Roque or saved session)
+  const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     try {
       const saved = localStorage.getItem('territorial_auth_user');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && MOCK_ACCOUNTS.some(a => a.id === parsed.id)) {
+        if (parsed) {
           return parsed;
         } else {
           localStorage.removeItem('territorial_auth_user');
@@ -130,9 +150,11 @@ export function App() {
     } catch (e) {
       console.error('Error removing auth user', e);
     }
-    // Switch to default promotor
-    setCurrentUser(MOCK_ACCOUNTS.find(a => a.id === 'usr-prom-ruben-roque') || MOCK_ACCOUNTS[0]);
+    setCurrentUser(null);
   }, []);
+
+  // Modal de Alta Manual de Usuario
+  const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
 
   // Registered Electoral Sections with multi-structures
   const [sectionsData, setSectionsData] = useState<ElectoralSection[]>(() => {
@@ -181,6 +203,7 @@ export function App() {
   // 3. Coordinador Territorial: ve en el mapa únicamente la o las secciones que tiene asignadas
   // 4. Promotor Territorial: no tiene acceso a maps ni secciones
   const scopedSections = useMemo(() => {
+    if (!currentUser) return [];
     if (currentUser.isSuperAdmin || currentUser.level === 'admin') {
       return sectionsData;
     }
@@ -195,8 +218,9 @@ export function App() {
       });
     }
     if (currentUser.level === 'territorial' || currentUser.level === 'seccional') {
-      // Solo las secciones asignadas
-      const assigned = ['0416', '0417'];
+      const assigned = currentUser.assignedSections && currentUser.assignedSections.length > 0
+        ? currentUser.assignedSections
+        : ['0416', '0417'];
       return sectionsData.filter(s => assigned.includes(s.sectionNumber));
     }
     if (currentUser.level === 'promotor') {
@@ -241,13 +265,14 @@ export function App() {
   // Promotor has no access to maps, estructura, secciones -> lock to 'escritorio'
   // Coordinador Territorial only sees lista de promotores -> lock mode to 'lista'
   useEffect(() => {
+    if (!currentUser) return;
     if (currentUser.level === 'promotor' && activeNav !== 'escritorio') {
       setActiveNav('escritorio');
     }
     if (currentUser.level === 'territorial' && structureMode === 'organigrama') {
       setStructureMode('lista');
     }
-  }, [currentUser.level, activeNav, structureMode]);
+  }, [currentUser, activeNav, structureMode]);
 
   // Filters state
   const [filters, setFilters] = useState<FilterOptions>({
@@ -307,8 +332,9 @@ export function App() {
   // 2. Strict hierarchical visibility (RBAC):
   // User can ONLY see themselves and what is below them in their descending subtree!
   const visibleLeaders = useMemo(() => {
+    if (!currentUser) return [];
     return getVisibleSubtree(currentUser.leaderId, allComputedLeaders);
-  }, [currentUser.leaderId, allComputedLeaders]);
+  }, [currentUser, allComputedLeaders]);
 
   // Deselect selected leader ONLY if it was set and is no longer in the visible subtree
   useEffect(() => {
@@ -487,6 +513,7 @@ export function App() {
 
   // Export to CSV scoped to visible subtree
   const handleExportData = useCallback(() => {
+    if (!currentUser) return;
     const csvContent = exportToCSV(visibleLeaders);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -496,7 +523,7 @@ export function App() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-  }, [visibleLeaders, currentUser.username]);
+  }, [visibleLeaders, currentUser]);
 
   // Import JSON structure
   const handleImportData = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -522,6 +549,32 @@ export function App() {
     e.target.value = '';
   }, []);
 
+  // Handler para dar de alta un usuario manualmente en el sistema cerrado
+  const handleCreateManualUser = useCallback((newUser: UserAccount, newLeader: TerritorialLeader) => {
+    setAccounts(prev => {
+      const updated = [...prev, newUser];
+      try {
+        const customOnly = updated.filter(a => !MOCK_ACCOUNTS.some(m => m.id === a.id));
+        localStorage.setItem('territorial_custom_accounts', JSON.stringify(customOnly));
+      } catch (e) {
+        console.error('Error saving custom accounts', e);
+      }
+      return updated;
+    });
+
+    handleSaveLeader(newLeader);
+  }, [handleSaveLeader]);
+
+  // Si no hay sesión activa en el sistema cerrado, mostrar pantalla de acceso
+  if (!currentUser) {
+    return (
+      <ClosedSystemLoginScreen
+        accounts={accounts}
+        onLogin={handleSelectUser}
+      />
+    );
+  }
+
   return (
     <div className="flex h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
       {/* Sidebar Lateral Izquierdo Tradicional */}
@@ -535,6 +588,7 @@ export function App() {
         sectionsCount={scopedSections.length}
         onOpenAddModal={handleOpenAddModal}
         onOpenQuickCapture={() => handleOpenQuickCapture()}
+        onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
         onExportData={handleExportData}
         onImportData={handleImportData}
         isMobileOpen={isMobileMenuOpen}
@@ -564,6 +618,8 @@ export function App() {
           visibleCount={visibleLeaders.length}
           onLogout={handleLogout}
           onOpenGlobalSearch={() => setIsGlobalSearchOpen(true)}
+          accounts={accounts}
+          onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
         />
 
         {/* Barra de niveles solo activa en vista Estructura */}
@@ -612,6 +668,7 @@ export function App() {
                   }}
                   onOpenAddModal={handleOpenAddModal}
                   onOpenQuickCapture={handleOpenQuickCapture}
+                  onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
                   onViewSectionDetail={(secNum) => {
                     const padded = secNum.padStart(4, '0');
                     const inScope = scopedSections.some(s => s.sectionNumber === secNum || s.sectionNumber === padded);
@@ -712,6 +769,15 @@ export function App() {
         onSuccess={(newLeader) => {
           handleSaveLeader(newLeader);
         }}
+      />
+
+      {/* Modal de Alta Manual de Usuario (Sistema Cerrado) */}
+      <CreateManualUserModal
+        isOpen={isCreateUserModalOpen}
+        onClose={() => setIsCreateUserModalOpen(false)}
+        currentUser={currentUser}
+        availableSections={scopedSections}
+        onUserCreated={handleCreateManualUser}
       />
     </div>
   );

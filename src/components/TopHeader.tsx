@@ -34,6 +34,8 @@ interface TopHeaderProps {
   visibleCount?: number;
   onLogout?: () => void;
   onOpenGlobalSearch?: () => void;
+  accounts?: UserAccount[];
+  onOpenCreateUser?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -54,6 +56,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   visibleCount,
   onLogout,
   onOpenGlobalSearch,
+  accounts,
+  onOpenCreateUser,
 }) => {
   return (
     <header className="apple-chrome sticky top-0 px-4 sm:px-6 py-2.5 shrink-0 z-20">
@@ -243,6 +247,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 onSelectUser={onSelectUser}
                 visibleCount={visibleCount ?? 0}
                 onLogout={onLogout}
+                accounts={accounts}
+                onOpenCreateUser={onOpenCreateUser}
               />
             </div>
           )}
