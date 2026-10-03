@@ -447,11 +447,11 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   }, [currentUser]);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="flex-1 overflow-y-auto bg-[#f5f5f7] p-4 sm:p-6 lg:p-8 space-y-6">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
         {/* 1. BLOQUE EJECUTIVO INTEGRADO: IDENTIFICACIÓN, META 2027 Y MÉTRICAS OPERATIVAS */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 rounded-2xl p-5 sm:p-6 text-white shadow-xl relative overflow-hidden border border-slate-800">
+        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 rounded-[22px] p-5 sm:p-6 text-white shadow-xl relative overflow-hidden border border-white/10">
           <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute left-1/3 bottom-0 translate-y-12 w-72 h-72 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
 
@@ -459,7 +459,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
           <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-white/10">
             <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
                   {userLevelLabel}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1.5">
@@ -468,7 +468,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 </span>
               </div>
 
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white apple-title-1">
                 {currentUser.name}
               </h1>
 

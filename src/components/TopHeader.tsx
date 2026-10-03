@@ -56,7 +56,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onOpenGlobalSearch,
 }) => {
   return (
-    <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 shrink-0 z-20 shadow-2xs">
+    <header className="apple-chrome sticky top-0 px-4 sm:px-6 py-2.5 shrink-0 z-20">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         
         {/* Left: Mobile Menu Toggle + Title / Breadcrumb / Estructura Switcher */}
@@ -65,7 +65,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="p-2 -ml-2 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-slate-100 lg:hidden transition-colors"
+            className="p-2 -ml-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-black/[0.05] lg:hidden transition-colors"
             title="Abrir menú"
           >
             <Menu className="w-5 h-5" />
@@ -74,13 +74,13 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           {/* Section Breadcrumb & Title */}
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2 apple-title-3">
                 {activeNav === 'escritorio' && (
                   <>
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
                     <span>Escritorio de Operación</span>
                     {activeStateName && (
-                      <span className="ml-2 px-2 py-0.5 rounded-md text-xs font-black bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
                         {activeStateName} ({activeStateAbbr?.toUpperCase()})
                       </span>
                     )}
@@ -109,16 +109,16 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             </p>
           </div>
 
-          {/* En Estructura: Toggle entre Organigrama y Lista */}
+          {/* En Estructura: Toggle entre Organigrama y Lista (Apple Segmented Control) */}
           {activeNav === 'estructura' && (
-            <div className="hidden md:flex items-center ml-4 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="hidden md:flex items-center ml-4 apple-segmented">
               <button
                 type="button"
                 onClick={() => onStructureModeChange('organigrama')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                   structureMode === 'organigrama'
-                    ? 'bg-white text-indigo-700 shadow-xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Network className="w-3.5 h-3.5" />
@@ -128,10 +128,10 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
               <button
                 type="button"
                 onClick={() => onStructureModeChange('lista')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                   structureMode === 'lista'
-                    ? 'bg-white text-indigo-700 shadow-xs font-bold'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                    ? 'bg-white text-slate-900 shadow-xs font-semibold'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <TableProperties className="w-3.5 h-3.5" />
@@ -219,18 +219,18 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             </div>
           )}
 
-          {/* Omnibox Search Button */}
+          {/* Omnibox Search Button (Apple Spotlight capsule) */}
           {onOpenGlobalSearch && (
             <button
               type="button"
               onClick={onOpenGlobalSearch}
-              className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 hover:bg-slate-200/80 text-slate-600 hover:text-slate-900 rounded-xl text-xs border border-slate-200 transition-all shadow-2xs group cursor-pointer"
+              className="flex items-center gap-2 px-3 py-1.5 bg-black/[0.04] hover:bg-black/[0.07] text-slate-700 hover:text-slate-900 rounded-full text-xs border border-black/[0.06] transition-[background-color,border-color] duration-140 shadow-2xs group cursor-pointer"
               title="Búsqueda Universal en todo el sistema (Ctrl + K)"
             >
               <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-600" />
-              <span className="hidden sm:inline">Buscar...</span>
-              <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-white border border-slate-200 rounded text-slate-400 shadow-2xs">
-                Ctrl K
+              <span className="hidden sm:inline font-medium">Buscar...</span>
+              <kbd className="hidden md:inline-flex items-center px-1.5 py-0.5 text-[10px] font-sans font-semibold bg-white/80 border border-black/[0.08] rounded-md text-slate-500 shadow-2xs">
+                ⌘K
               </kbd>
             </button>
           )}

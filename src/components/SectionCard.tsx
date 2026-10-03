@@ -49,7 +49,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
     : 0;
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-xs card-emil-interactive overflow-hidden flex flex-col">
+    <div className="apple-card card-emil-interactive overflow-hidden flex flex-col">
       {/* Map Thumbnail & Header Area */}
       <div className="p-4 pb-2">
         <SectionMapThumbnail

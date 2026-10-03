@@ -74,18 +74,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 sm:w-72 bg-slate-900 text-slate-200 flex flex-col border-r border-slate-800 transition-transform duration-280 [transition-timing-function:var(--ease-drawer)] shrink-0 ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 sm:w-72 apple-chrome-dark text-slate-100 flex flex-col transition-transform duration-280 [transition-timing-function:var(--ease-apple-sheet)] shrink-0 ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
         {/* Header / Brand */}
-        <div className="p-5 border-b border-slate-800/80 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-500 to-sky-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
+        <div className="p-5 border-b border-white/[0.08] flex items-center gap-3">
+          <div className="w-9 h-9 rounded-[10px] bg-gradient-to-tr from-indigo-500 to-sky-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/25 shrink-0">
             <Network className="w-5 h-5" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <span className="text-sm font-bold text-white tracking-tight">
+              <span className="text-sm font-bold text-white tracking-tight apple-title-3">
                 Estructura Territorial
               </span>
             </div>
@@ -96,9 +96,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Primary Navigation Menu */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+        <div className="flex-1 overflow-y-auto p-3.5 space-y-6">
           <div className="space-y-1">
-            <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <span className="px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400 apple-caption">
               Navegación Principal
             </span>
 
@@ -109,17 +109,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onNavChange('escritorio');
                 onCloseMobile?.();
               }}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 ${
                 activeNav === 'escritorio'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-white/[0.14] text-white font-semibold shadow-xs'
+                  : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
               }`}
             >
-              <div className="flex items-center gap-3">
-                <BarChart3 className={`w-4 h-4 ${activeNav === 'escritorio' ? 'text-white' : 'text-indigo-400'}`} />
+              <div className="flex items-center gap-2.5">
+                <BarChart3 className={`w-4 h-4 ${activeNav === 'escritorio' ? 'text-indigo-400' : 'text-slate-400'}`} />
                 <span>Escritorio</span>
               </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-slate-800 text-indigo-300">
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/[0.08] text-indigo-300">
                 KPIs
               </span>
             </button>
@@ -132,17 +132,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onNavChange('estructura');
                   onCloseMobile?.();
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 ${
                   activeNav === 'estructura'
-                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                    ? 'bg-white/[0.14] text-white font-semibold shadow-xs'
+                    : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Network className={`w-4 h-4 ${activeNav === 'estructura' ? 'text-white' : 'text-sky-400'}`} />
+                <div className="flex items-center gap-2.5">
+                  <Network className={`w-4 h-4 ${activeNav === 'estructura' ? 'text-sky-400' : 'text-slate-400'}`} />
                   <span>Estructura</span>
                 </div>
-                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-slate-800 text-slate-300">
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/[0.08] text-slate-300">
                   {visibleCount}
                 </span>
               </button>

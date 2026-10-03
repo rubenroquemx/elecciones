@@ -53,15 +53,18 @@ export const NodeDetailDrawer: React.FC<NodeDetailDrawerProps> = ({
     <>
       {/* Backdrop overlay */}
       <div 
-        className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30 animate-emil-fade"
+        className="fixed inset-0 bg-black/35 backdrop-blur-sm z-30 animate-emil-fade"
         onClick={onClose}
       />
-      <aside className="fixed inset-y-0 right-0 w-full sm:w-[460px] bg-white border-l border-slate-200 shadow-2xl z-30 flex flex-col animate-emil-drawer">
+      <aside className="fixed inset-y-0 right-0 w-full sm:w-[460px] bg-white/95 backdrop-blur-2xl border-l border-black/[0.08] shadow-2xl z-30 flex flex-col animate-emil-drawer">
+        {/* Apple Sheet Grab Handle */}
+        <div className="apple-sheet-handle" />
+
         {/* Header with Chain of Command Breadcrumbs */}
-        <div className="p-4 border-b border-slate-200 bg-slate-50/80 flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-black/[0.06] bg-slate-50/70 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-sky-600" />
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-500 apple-caption">
               Expediente Territorial
             </h3>
           </div>

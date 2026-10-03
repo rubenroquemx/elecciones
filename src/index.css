@@ -2,7 +2,10 @@
 @import "@xyflow/react/dist/style.css";
 
 :root {
-  /* Emil Kowalski custom easings */
+  /* Apple Design Springs & Physical Easings */
+  --ease-apple-spring: cubic-bezier(0.25, 1, 0.35, 1);
+  --ease-apple-sheet: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-apple-press: cubic-bezier(0.2, 0, 0, 1);
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -15,16 +18,39 @@ html, body, #root {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
-  background-color: #f8fafc;
-  color: #0f172a;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "SF Compact", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background-color: #f5f5f7;
+  color: #1d1d1f;
 }
 
-/* Emil Kowalski button press micro-interaction */
+/* Apple Typography Optical Sizing & Tracking */
+h1, .apple-title-1 {
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+}
+h2, .apple-title-2 {
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+h3, .apple-title-3 {
+  letter-spacing: -0.015em;
+}
+p, body {
+  letter-spacing: -0.005em;
+}
+.apple-caption {
+  letter-spacing: 0.015em;
+}
+
+/* Apple Instant Press Response (Pointer-Down Feedback) */
 button,
 [role="button"],
 .clickable {
-  transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out), opacity 160ms var(--ease-out);
+  transition: transform 100ms var(--ease-apple-press), background-color 140ms var(--ease-apple-spring), border-color 140ms var(--ease-apple-spring), box-shadow 140ms var(--ease-apple-spring), opacity 140ms var(--ease-apple-spring);
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:active:not(:disabled),
@@ -33,7 +59,7 @@ button:active:not(:disabled),
   transform: scale(0.97);
 }
 
-/* Emil Modal & Popover Animations - never scale from 0 */
+/* Apple Modal & Popover Animations - never scale from 0 */
 @keyframes emilModalIn {
   from {
     opacity: 0;
@@ -67,23 +93,64 @@ button:active:not(:disabled),
 }
 
 .animate-emil-modal {
-  animation: emilModalIn 200ms var(--ease-out) forwards;
+  animation: emilModalIn 220ms var(--ease-apple-spring) forwards;
 }
 
 .animate-emil-fade {
-  animation: emilFadeIn 160ms var(--ease-out) forwards;
+  animation: emilFadeIn 160ms var(--ease-apple-spring) forwards;
 }
 
 .animate-emil-drawer {
-  animation: emilDrawerIn 280ms var(--ease-drawer) forwards;
+  animation: emilDrawerIn 280ms var(--ease-apple-sheet) forwards;
 }
 
 .animate-emil-popover {
   transform-origin: var(--transform-origin, top right);
-  animation: emilPopoverIn 160ms var(--ease-out) forwards;
+  animation: emilPopoverIn 160ms var(--ease-apple-spring) forwards;
 }
 
-/* prefers-reduced-motion compliance */
+/* Apple Translucent Materials & Depth (WWDC Guidelines) */
+.apple-chrome {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.apple-chrome-dark {
+  background: rgba(22, 22, 24, 0.85);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border-right: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.apple-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04), 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+  border-radius: 18px;
+}
+
+.apple-sheet-handle {
+  width: 36px;
+  height: 5px;
+  border-radius: 9999px;
+  background: rgba(60, 60, 67, 0.3);
+  margin: 8px auto 4px auto;
+}
+
+/* Apple Segmented Control */
+.apple-segmented {
+  background: rgba(118, 118, 128, 0.12);
+  border-radius: 10px;
+  padding: 3px;
+  display: inline-flex;
+  gap: 2px;
+}
+
+/* Accessibility: prefers-reduced-motion & prefers-reduced-transparency */
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
@@ -93,18 +160,36 @@ button:active:not(:disabled),
   }
 }
 
+@media (prefers-reduced-transparency: reduce) {
+  .apple-chrome,
+  .apple-card,
+  .glass-panel,
+  .glass-card,
+  .glass-header,
+  .glass-dock {
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  .apple-chrome-dark {
+    background: #161618 !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
 /* Interactive Card Utility */
 .card-emil-interactive {
-  transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out), border-color 200ms var(--ease-out);
+  transition: transform 180ms var(--ease-apple-spring), box-shadow 180ms var(--ease-apple-spring), border-color 180ms var(--ease-apple-spring);
 }
 @media (hover: hover) and (pointer: fine) {
   .card-emil-interactive:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.08), 0 4px 8px -4px rgba(0, 0, 0, 0.04);
   }
 }
 .card-emil-interactive:active {
-  transform: scale(0.99);
+  transform: scale(0.985);
 }
 
 /* Glassmorphism Design Utilities */
