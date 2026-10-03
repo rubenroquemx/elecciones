@@ -52,13 +52,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeStateName = 'Tabasco',
   activeStateAbbr = 'tab',
 }) => {
+  const isPromotor = currentUser.level === 'promotor';
+  const isTerritorial = currentUser.level === 'territorial';
+  const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital';
+  const isAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;
+
   const getAddButtonLabel = () => {
     switch (currentUser.level) {
-      case 'promotor': return 'Registrar Promovido';
-      case 'seccional': return 'Crear Promotor';
-      case 'territorial': return 'Crear Coord. Sección';
-      case 'distrital': return 'Crear Comité Territorial';
-      case 'estatal': return 'Crear Comité Distrital';
+      case 'promotor': return 'Capturar Promovido';
+      case 'territorial': return 'Crear Promotor Territorial';
+      case 'campana': return 'Crear Coord. Territorial';
       default: return 'Registrar en Estructura';
     }
   };
@@ -90,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
             </div>
             <p className="text-[11px] text-slate-400 font-medium truncate">
-              {activeStateName} ({activeStateAbbr.toUpperCase()}) • 6 Niveles
+              {activeStateName} ({activeStateAbbr.toUpperCase()}) • 4 Niveles
             </p>
           </div>
         </div>
@@ -102,7 +105,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Navegación Principal
             </span>
 
-            {/* 1. ESCRITORIO (Tablero KPIs) */}
+            {/* 1. ESCRITORIO (Tablero KPIs / Avance) */}
             <button
               type="button"
               onClick={() => {
@@ -117,95 +120,102 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <div className="flex items-center gap-2.5">
                 <BarChart3 className={`w-4 h-4 ${activeNav === 'escritorio' ? 'text-indigo-400' : 'text-slate-400'}`} />
-                <span>Escritorio</span>
+                <span>{isPromotor ? 'Mi Escritorio' : 'Escritorio'}</span>
               </div>
               <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/[0.08] text-indigo-300">
-                KPIs
+                {isPromotor ? 'Avance' : 'KPIs'}
               </span>
             </button>
 
-            {/* 2. ESTRUCTURA (Directorio con Organigrama / Lista) */}
-            <div className="space-y-1 pt-1">
+            {/* 2. ESTRUCTURA (Oculto para Promotor; Coordinador Territorial ve Lista de promotores; Campaña/Admin ven todo) */}
+            {!isPromotor && (
+              <div className="space-y-1 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavChange('estructura');
+                    if (isTerritorial) {
+                      onStructureModeChange('lista');
+                    }
+                    onCloseMobile?.();
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 ${
+                    activeNav === 'estructura'
+                      ? 'bg-white/[0.14] text-white font-semibold shadow-xs'
+                      : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Network className={`w-4 h-4 ${activeNav === 'estructura' ? 'text-sky-400' : 'text-slate-400'}`} />
+                    <span>{isTerritorial ? 'Promotores y Referidos' : 'Estructura'}</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/[0.08] text-slate-300">
+                    {visibleCount}
+                  </span>
+                </button>
+
+                {/* Sub-vistas de Estructura: Solo para Coordinador de Campaña y Admin */}
+                {activeNav === 'estructura' && !isTerritorial && (
+                  <div className="ml-4 pl-3 border-l-2 border-indigo-500/40 space-y-1 pt-1 animate-emil-fade">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onStructureModeChange('organigrama');
+                        onCloseMobile?.();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        structureMode === 'organigrama'
+                          ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <Network className="w-3.5 h-3.5" />
+                      <span>Organigrama</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onStructureModeChange('lista');
+                        onCloseMobile?.();
+                      }}
+                      className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        structureMode === 'lista'
+                          ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold'
+                          : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                      }`}
+                    >
+                      <TableProperties className="w-3.5 h-3.5" />
+                      <span>Lista (Directorio)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 3. SECCIONES & MAPAS (Oculto para Promotor) */}
+            {!isPromotor && (
               <button
                 type="button"
                 onClick={() => {
-                  onNavChange('estructura');
+                  onNavChange('secciones');
                   onCloseMobile?.();
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 ${
-                  activeNav === 'estructura'
-                    ? 'bg-white/[0.14] text-white font-semibold shadow-xs'
-                    : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                  activeNav === 'secciones'
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
+                    : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <Network className={`w-4 h-4 ${activeNav === 'estructura' ? 'text-sky-400' : 'text-slate-400'}`} />
-                  <span>Estructura</span>
+                <div className="flex items-center gap-3">
+                  <MapPin className={`w-4 h-4 ${activeNav === 'secciones' ? 'text-white' : 'text-rose-400'}`} />
+                  <span>{isTerritorial ? 'Secciones Asignadas' : 'Secciones & Mapas'}</span>
                 </div>
-                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/[0.08] text-slate-300">
-                  {visibleCount}
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-slate-800 text-rose-300">
+                  {sectionsCount}
                 </span>
               </button>
-
-              {/* Sub-vistas de Estructura: Organigrama y Lista */}
-              {activeNav === 'estructura' && (
-                <div className="ml-4 pl-3 border-l-2 border-indigo-500/40 space-y-1 pt-1 animate-emil-fade">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onStructureModeChange('organigrama');
-                      onCloseMobile?.();
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      structureMode === 'organigrama'
-                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <Network className="w-3.5 h-3.5" />
-                    <span>Organigrama</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onStructureModeChange('lista');
-                      onCloseMobile?.();
-                    }}
-                    className={`w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                      structureMode === 'lista'
-                        ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-bold'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                    }`}
-                  >
-                    <TableProperties className="w-3.5 h-3.5" />
-                    <span>Lista (Directorio)</span>
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* 3. SECCIONES & MAPAS */}
-            <button
-              type="button"
-              onClick={() => {
-                onNavChange('secciones');
-                onCloseMobile?.();
-              }}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                activeNav === 'secciones'
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <MapPin className={`w-4 h-4 ${activeNav === 'secciones' ? 'text-white' : 'text-rose-400'}`} />
-                <span>Secciones & Mapas</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-slate-800 text-rose-300">
-                {sectionsCount}
-              </span>
-            </button>
+            )}
           </div>
 
           {/* Quick Actions & Data Controls */}
@@ -214,6 +224,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Acciones Rápidas
             </span>
 
+            {/* Botón de Captura Rápida: siempre visible para promotor (su tarea principal) y coordinadores */}
             {onOpenQuickCapture && (
               <button
                 type="button"
@@ -226,51 +237,57 @@ export const Sidebar: React.FC<SidebarProps> = ({
               >
                 <div className="flex items-center gap-2">
                   <Smartphone className="w-4 h-4 text-emerald-200" />
-                  <span>Captura Rápida</span>
+                  <span>{isPromotor ? 'Capturar Nuevo Promovido' : 'Captura Rápida'}</span>
                 </div>
                 <span className="bg-emerald-400/20 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">Móvil</span>
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => {
-                onOpenAddModal();
-                onCloseMobile?.();
-              }}
-              className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/30 transition-all active:scale-98"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>{getAddButtonLabel()}</span>
-            </button>
-
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            {/* Crear en estructura: No mostrado a Promotor porque su tarea principal es capturar promovidos */}
+            {!isPromotor && (
               <button
                 type="button"
-                onClick={onExportData}
-                className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold border border-slate-700/60 transition-colors"
-                title="Descargar estructura visible en CSV"
+                onClick={() => {
+                  onOpenAddModal();
+                  onCloseMobile?.();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/30 transition-all active:scale-98"
               >
-                <Download className="w-3.5 h-3.5 text-slate-400" />
-                <span>Exportar</span>
+                <UserPlus className="w-4 h-4" />
+                <span>{getAddButtonLabel()}</span>
               </button>
+            )}
 
-              <label
-                className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold border border-slate-700/60 transition-colors cursor-pointer"
-                title="Cargar estructura desde JSON"
-              >
-                <Upload className="w-3.5 h-3.5 text-slate-400" />
-                <span>Importar</span>
-                <input
-                  type="file"
-                  accept=".json"
-                  onChange={onImportData}
-                  className="hidden"
-                />
-              </label>
+            {/* Exportar e Importar: Solo para Coordinador de Campaña y Admin (Promotor y Territorial no exportan) */}
+            {(isAdmin || isCampana) && (
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={onExportData}
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold border border-slate-700/60 transition-colors"
+                  title="Descargar estructura visible en CSV"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Exportar</span>
+                </button>
+
+                <label
+                  className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold border border-slate-700/60 transition-colors cursor-pointer"
+                  title="Cargar estructura desde JSON"
+                >
+                  <Upload className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Importar</span>
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={onImportData}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            )}
             </div>
           </div>
-        </div>
 
         {/* User Session Footer Badge (Indicador estático de sesión) */}
         <div className="p-3.5 border-t border-slate-800/80 bg-slate-950/60">

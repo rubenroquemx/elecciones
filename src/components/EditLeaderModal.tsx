@@ -48,8 +48,8 @@ export const EditLeaderModal: React.FC<EditLeaderModalProps> = ({
 }) => {
   const isSuperAdmin = currentUser.level === 'admin';
   const defaultInitialLevel: TerritorialLevel = isSuperAdmin 
-    ? 'territorial' 
-    : (getAllowedChildLevel(currentUser.level) || 'territorial');
+    ? 'campana' 
+    : (getAllowedChildLevel(currentUser.level) || 'promotor');
 
   // Form State
   const [formData, setFormData] = useState<{
@@ -368,8 +368,8 @@ export const EditLeaderModal: React.FC<EditLeaderModalProps> = ({
             </div>
             <h3 className="font-bold text-slate-900 text-base">
               {editingLeader
-                ? 'Modificar Comité de Organización Territorial'
-                : 'Registrar Comité de Organización Territorial'}
+                ? `Modificar ${editingLeader.role || 'Líder Territorial'}`
+                : `Registrar ${targetRole}`}
             </h3>
           </div>
           <button

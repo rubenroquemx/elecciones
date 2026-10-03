@@ -110,7 +110,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </div>
 
           {/* En Estructura: Toggle entre Organigrama y Lista (Apple Segmented Control) */}
-          {activeNav === 'estructura' && (
+          {activeNav === 'estructura' && currentUser?.level !== 'territorial' && currentUser?.level !== 'promotor' && (
             <div className="hidden md:flex items-center ml-4 apple-segmented">
               <button
                 type="button"

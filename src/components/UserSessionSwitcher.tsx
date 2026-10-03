@@ -103,7 +103,7 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
                     currentUser.level === 'promotor'
                       ? 'No crea cuentas; registra Ciudadanos Promovidos.'
                       : currentUser.level === 'admin'
-                        ? 'Crea Comités Distritales.'
+                        ? 'Crea Coordinadores de Campaña.'
                         : targetConfig 
                           ? `Solo puede crear cuentas de ${targetConfig.label}.`
                           : 'Sin permisos de creación.'

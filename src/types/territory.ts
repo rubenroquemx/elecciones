@@ -1,10 +1,11 @@
 export type TerritorialLevel = 
-  | 'estatal'        // Coordinación Estatal
-  | 'distrital'      // Comité de Organización Distrital (local o federal)
-  | 'territorial'    // Comité de Organización Territorial (Zona / Ruta)
-  | 'seccional'      // Coordinador de Sección
+  | 'campana'        // Coordinador de Campaña
+  | 'territorial'    // Coordinador Territorial
   | 'promotor'       // Promotor Territorial
-  | 'promovido';     // Promovido (Ciudadano promovido)
+  | 'promovido'      // Ciudadano Promovido
+  | 'estatal'        // alias compat
+  | 'distrital'      // alias compat
+  | 'seccional';     // alias compat
 
 
 export interface LeaderNote {

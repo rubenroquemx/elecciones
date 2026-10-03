@@ -102,7 +102,7 @@ export function App() {
       const saved = localStorage.getItem('territorial_auth_user');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && (parsed.id === 'usr-admin' || parsed.id === 'usr-prom-ruben-roque')) {
+        if (parsed && MOCK_ACCOUNTS.some(a => a.id === parsed.id)) {
           return parsed;
         } else {
           localStorage.removeItem('territorial_auth_user');
@@ -175,34 +175,32 @@ export function App() {
   });
 
   // Strict information access scoping for sections (RBAC):
-  // When Carlos Eduardo (distrital) is active, only sections in his assigned district are accessible!
+  // 1. Super Administrador: acceso total a todas las secciones del estado
+  // 2. Coordinador de Campaña: ve en el mapa únicamente el distrito, municipio o estado asignado
+  // 3. Coordinador Territorial: ve en el mapa únicamente la o las secciones que tiene asignadas
+  // 4. Promotor Territorial: no tiene acceso a maps ni secciones
   const scopedSections = useMemo(() => {
-    if (currentUser.isSuperAdmin || currentUser.level === 'admin' || currentUser.level === 'estatal') {
+    if (currentUser.isSuperAdmin || currentUser.level === 'admin') {
       return sectionsData;
     }
-    if (currentUser.level === 'distrital') {
-      const isFederal = currentUser.accountRoleLabel?.toLowerCase().includes('federal') ||
-                        currentUser.territoryName?.toLowerCase().includes('federal');
-      const text = `${currentUser.territoryName} ${currentUser.accountRoleLabel}`;
-      const match = text.match(/\b(?:distrito|dto)?\s*(?:local|federal)?\s*0*(\d+)\b/i);
-      const distNum = match ? parseInt(match[1], 10) : (isFederal ? 4 : 9);
+    if (currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital') {
+      const match = currentUser.territoryName.match(/\b(?:distrito|dto)?\s*(?:local|federal)?\s*0*(\d+)\b/i);
+      const distNum = match ? parseInt(match[1], 10) : 6;
 
       return sectionsData.filter(sec => {
         const cat = CATALOG_BY_SECTION.get(sec.sectionNumber);
         if (!cat) return true;
-        if (isFederal) {
-          return cat.federalDistrict === distNum;
-        } else {
-          return cat.localDistrict === distNum;
-        }
+        return cat.localDistrict === distNum;
       });
     }
-    if (currentUser.level === 'seccional' || currentUser.level === 'promotor') {
-      const match = currentUser.territoryName.match(/\d{3,4}/);
-      if (match) {
-        const targetSec = match[0].padStart(4, '0');
-        return sectionsData.filter(s => s.sectionNumber === targetSec);
-      }
+    if (currentUser.level === 'territorial' || currentUser.level === 'seccional') {
+      // Solo las secciones asignadas
+      const assigned = ['0416', '0417'];
+      return sectionsData.filter(s => assigned.includes(s.sectionNumber));
+    }
+    if (currentUser.level === 'promotor') {
+      // Promotor no tiene acceso a mapas ni catálogo de secciones
+      return [];
     }
     return sectionsData;
   }, [currentUser, sectionsData]);
@@ -237,6 +235,18 @@ export function App() {
   }, []);
   const [structureMode, setStructureMode] = useState<StructureMode>('organigrama');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // RBAC Navigation restrictions:
+  // Promotor has no access to maps, estructura, secciones -> lock to 'escritorio'
+  // Coordinador Territorial only sees lista de promotores -> lock mode to 'lista'
+  useEffect(() => {
+    if (currentUser.level === 'promotor' && activeNav !== 'escritorio') {
+      setActiveNav('escritorio');
+    }
+    if (currentUser.level === 'territorial' && structureMode === 'organigrama') {
+      setStructureMode('lista');
+    }
+  }, [currentUser.level, activeNav, structureMode]);
 
   // Filters state
   const [filters, setFilters] = useState<FilterOptions>({

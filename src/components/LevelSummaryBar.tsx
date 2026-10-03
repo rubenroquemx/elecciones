@@ -17,9 +17,8 @@ export const LevelSummaryBar: React.FC<LevelSummaryBarProps> = ({
   onSelectLevel,
 }) => {
   const levelsOrder: TerritorialLevel[] = [
-    'distrital',
+    'campana',
     'territorial',
-    'seccional',
     'promotor',
     'promovido',
   ];

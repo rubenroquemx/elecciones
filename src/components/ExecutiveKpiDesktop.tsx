@@ -24,6 +24,7 @@ import {
   Smartphone,
   Flame,
   ArrowRight,
+  UserPlus,
 } from 'lucide-react';
 
 interface ExecutiveKpiDesktopProps {
@@ -94,44 +95,90 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     return [];
   }, [selectedStateId]);
 
-  // Detect district if currentUser is distrital
+  // Flags por nivel del sistema en 4 niveles
+  const isSuperAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;
+  const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital';
+  const isTerritorial = currentUser.level === 'territorial' || currentUser.level === 'seccional';
+  const isPromotor = currentUser.level === 'promotor';
+
+  const [promotorSearch, setPromotorSearch] = useState<string>('');
+
+  const promovidosList = useMemo(() => {
+    return visibleLeaders.filter(l => l.level === 'promovido');
+  }, [visibleLeaders]);
+
+  const filteredPromovidos = useMemo(() => {
+    const q = promotorSearch.trim().toLowerCase();
+    if (!q) return promovidosList;
+    return promovidosList.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.electorKey && p.electorKey.toLowerCase().includes(q)) ||
+      (p.curp && p.curp.toLowerCase().includes(q)) ||
+      (p.phone && p.phone.includes(q)) ||
+      (p.colonia && p.colonia.toLowerCase().includes(q))
+    );
+  }, [promovidosList, promotorSearch]);
+
+  const assignedPromotores = useMemo(() => {
+    return visibleLeaders.filter(l => l.level === 'promotor');
+  }, [visibleLeaders]);
+
+  // Detect district if currentUser is distrital / campana
   const isFederal = currentUser.accountRoleLabel?.toLowerCase().includes('federal') ||
                     currentUser.territoryName?.toLowerCase().includes('federal');
 
   const userDistrictNumber = useMemo(() => {
-    if (currentUser.isSuperAdmin || currentUser.level === 'admin' || currentUser.level === 'estatal') return undefined;
+    if (isSuperAdmin || isTerritorial || isPromotor) return undefined;
     const text = `${currentUser.territoryName} ${currentUser.accountRoleLabel}`;
     const match = text.match(/\b(?:distrito|dto)?\s*(?:local|federal)?\s*0*(\d+)\b/i);
     if (match) {
       const parsed = parseInt(match[1], 10);
       if (parsed > 0) return parsed;
     }
-    return isFederal ? 4 : 9;
-  }, [currentUser, isFederal]);
+    return 6;
+  }, [currentUser, isSuperAdmin, isTerritorial, isPromotor]);
 
-  const userDistrictLabel = userDistrictNumber
-    ? (isFederal ? `Distrito Federal 0${userDistrictNumber}` : `Distrito Local 0${userDistrictNumber}`)
-    : undefined;
+  const userDistrictLabel = useMemo(() => {
+    if (isTerritorial) {
+      return `Zona Territorial Tamulté (Secciones 0416 y 0417)`;
+    }
+    if (userDistrictNumber) {
+      return isFederal ? `Distrito Federal 0${userDistrictNumber}` : `Distrito Local 0${userDistrictNumber}`;
+    }
+    return undefined;
+  }, [isTerritorial, userDistrictNumber, isFederal]);
 
   const userDistrictSections = useMemo(() => {
+    if (isTerritorial) {
+      return stateCatalogSections.filter((s) => ['0416', '0417'].includes(s.section));
+    }
     if (!userDistrictNumber) return [];
     return stateCatalogSections.filter((s) => {
       if (isFederal) return s.federalDistrict === userDistrictNumber;
       return s.localDistrict === userDistrictNumber;
     });
-  }, [stateCatalogSections, userDistrictNumber, isFederal]);
+  }, [stateCatalogSections, userDistrictNumber, isFederal, isTerritorial]);
 
   const userDistrictSectionNumbers = useMemo(() => {
+    if (isTerritorial) {
+      return ['0416', '0417'];
+    }
     return userDistrictSections.map((s) => s.section);
-  }, [userDistrictSections]);
+  }, [isTerritorial, userDistrictSections]);
 
-  // Base list of sections scoped to district or state
+  // Base list of sections scoped to district, assigned sections, or state
   const baseCatalogSections = useMemo(() => {
+    if (isPromotor) {
+      return [];
+    }
+    if (isTerritorial) {
+      return stateCatalogSections.filter((s) => ['0416', '0417'].includes(s.section));
+    }
     if (userDistrictNumber && userDistrictSections.length > 0) {
       return userDistrictSections;
     }
     return stateCatalogSections;
-  }, [userDistrictNumber, userDistrictSections, stateCatalogSections]);
+  }, [isPromotor, isTerritorial, userDistrictNumber, userDistrictSections, stateCatalogSections]);
 
   // Lista de municipios únicos del catálogo scoped
   const municipalitiesList = useMemo(() => {
@@ -311,12 +358,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
 
   // Totales de Lista Nominal filtrada según selección
   const activeNominalMetrics = useMemo(() => {
-    if (currentUser.level === 'seccional' || currentUser.level === 'promotor') {
-      const secMatch = stateCatalogSections.find(s => 
-        currentUser.territoryName.includes(s.section) ||
-        visibleLeaders[0]?.territoryName.includes(s.section) ||
-        visibleLeaders[0]?.code?.includes(s.section)
-      );
+    if (isPromotor) {
+      const secMatch = stateCatalogSections.find(s => s.section === '0416');
       if (secMatch) {
         return {
           total: secMatch.nominalTotal,
@@ -324,6 +367,21 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
           women: secMatch.nominalWomen,
           nonBinary: secMatch.nominalNonBinary,
           sectionCount: 1,
+        };
+      }
+      return { total: 2450, men: 1180, women: 1270, nonBinary: 0, sectionCount: 1 };
+    }
+
+    if (isTerritorial) {
+      const assigned = ['0416', '0417'];
+      const matches = stateCatalogSections.filter(s => assigned.includes(s.section));
+      if (matches.length > 0) {
+        return {
+          total: matches.reduce((acc, s) => acc + s.nominalTotal, 0),
+          men: matches.reduce((acc, s) => acc + s.nominalMen, 0),
+          women: matches.reduce((acc, s) => acc + s.nominalWomen, 0),
+          nonBinary: matches.reduce((acc, s) => acc + s.nominalNonBinary, 0),
+          sectionCount: matches.length,
         };
       }
     }
@@ -349,7 +407,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
       nonBinary: currentStateInfo?.nominalNonBinary || 0,
       sectionCount: currentStateInfo?.totalSections || 0,
     };
-  }, [currentUser, stateCatalogSections, visibleLeaders, filteredCatalogSections, currentStateInfo]);
+  }, [isPromotor, isTerritorial, stateCatalogSections, filteredCatalogSections, currentStateInfo]);
 
   // Cálculos de avance sobre Lista Nominal
   const nominalCoveragePct = activeNominalMetrics.total > 0
@@ -363,12 +421,22 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     ? Math.round((activeNominalMetrics.men / activeNominalMetrics.total) * 100)
     : 48;
 
-  // Meta electoral 2027 scoped a la demarcación del usuario
-  const victoryNominalTotal = (userDistrictNumber && activeNominalMetrics.total > 0)
+  // Meta electoral scoped a la demarcación del usuario
+  const victoryNominalTotal = isPromotor
+    ? 150
+    : isTerritorial
+    ? (activeNominalMetrics.total > 0 ? activeNominalMetrics.total : 4500)
+    : (userDistrictNumber && activeNominalMetrics.total > 0)
     ? activeNominalMetrics.total
     : currentStateInfo.nominalTotal;
-  const victoryExpectedTurnout = Math.round(victoryNominalTotal * 0.50);
-  const victoryGoalVotes = Math.round(victoryExpectedTurnout * 0.51);
+
+  const victoryExpectedTurnout = isPromotor
+    ? 150
+    : Math.round(victoryNominalTotal * 0.50);
+
+  const victoryGoalVotes = isPromotor
+    ? 150
+    : Math.round(victoryExpectedTurnout * 0.51);
 
   // Porcentaje y color dinámico de la meta de victoria (de rojo a verde según avance)
   const victoryProgressPct = victoryGoalVotes > 0
@@ -420,15 +488,11 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   const sectionCoveragePct = Math.min(100, Math.round((coveredSectionsCount / Math.max(1, targetSectionsUniverse)) * 100));
 
   const userLevelLabel = currentUser.level === 'admin'
-    ? 'Superadministrador (Acceso Maestro)'
-    : currentUser.level === 'estatal'
-    ? 'Coordinación Estatal'
-    : currentUser.level === 'distrital'
-    ? 'Comité de Organización Distrital'
-    : currentUser.level === 'territorial'
-    ? 'Comité Territorial (Zona / Ruta)'
-    : currentUser.level === 'seccional'
-    ? 'Coordinador de Sección'
+    ? 'Super Administrador (Acceso Total)'
+    : currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital'
+    ? 'Coordinador de Campaña'
+    : currentUser.level === 'territorial' || currentUser.level === 'seccional'
+    ? 'Coordinador Territorial'
     : 'Promotor Territorial';
 
   // Instancia o superior que asignó al usuario actual
@@ -483,10 +547,12 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-200 block">
-                    Avance de Meta Victoria 2027
+                    {isPromotor ? 'Meta de Captación de Promovidos' : 'Avance de Meta Victoria 2027'}
                   </span>
                   <span className="text-[10px] text-slate-400">
-                    51% de Votación Esperada ({victoryExpectedTurnout.toLocaleString()})
+                    {isPromotor
+                      ? 'Meta asignada en Sección 0416 (150 ciudadanos)'
+                      : `51% de Votación Esperada (${victoryExpectedTurnout.toLocaleString()})`}
                   </span>
                 </div>
                 <div className={`p-1.5 rounded-lg border transition-all duration-300 animate-subtle-float ${victoryProgressColor.glow}`}>
@@ -501,7 +567,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                       {stats.totalAchieved.toLocaleString()}
                     </span>
                     <span className="text-xs text-indigo-200 font-mono">
-                      / {victoryGoalVotes.toLocaleString()} votos
+                      / {victoryGoalVotes.toLocaleString()} {isPromotor ? 'promovidos' : 'votos'}
                     </span>
                   </div>
                   <span className={`text-sm font-black font-mono transition-colors duration-500 ${victoryProgressColor.text}`}>
@@ -520,7 +586,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 <div className="mt-1.5 text-[11px] text-slate-300 flex items-center justify-between">
                   <span>Registros logrados</span>
                   <span className="text-slate-400 font-mono text-[10px]">
-                    Faltan {(Math.max(0, victoryGoalVotes - stats.totalAchieved)).toLocaleString()} para ganar
+                    Faltan {(Math.max(0, victoryGoalVotes - stats.totalAchieved)).toLocaleString()} {isPromotor ? 'promovidos' : 'para ganar'}
                   </span>
                 </div>
               </div>
@@ -530,215 +596,471 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
           {/* Fila Inferior: Métricas Operativas Clave Integradas Directamente sin Cajas Aisladas */}
           <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 pt-5 divide-y md:divide-y-0 md:divide-x divide-white/10">
 
-            {/* 1. Lista Nominal */}
-            <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pr-6 lg:pr-8">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Lista Nominal</span>
-                <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 group-hover:bg-indigo-500/35 group-hover:border-indigo-400/60 transition-[background-color,border-color] duration-160 [transition-timing-function:var(--ease-out)] animate-subtle-float">
-                  <Vote className="w-4 h-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:scale-110 group-hover:rotate-6" />
-                </div>
-              </div>
-              <div className="mt-1">
-                <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
-                  {activeNominalMetrics.total.toLocaleString()}
-                </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">electores registrados</div>
-                <div className="mt-2.5 space-y-1">
-                  <div className="flex justify-between text-[10px] text-slate-300">
-                    <span>Mujeres {womenPct}%</span>
-                    <span>Hombres {menPct}%</span>
-                  </div>
-                  <div className="w-full bg-white/10 h-1.5 rounded-full flex overflow-hidden">
-                    <div className="bg-pink-400 h-full" style={{ width: `${womenPct}%` }} title={`Mujeres: ${activeNominalMetrics.women.toLocaleString()}`} />
-                    <div className="bg-sky-400 h-full" style={{ width: `${menPct}%` }} title={`Hombres: ${activeNominalMetrics.men.toLocaleString()}`} />
+            {/* 1. Lista Nominal / Promovidos Registrados */}
+            {isPromotor ? (
+              <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pr-6 lg:pr-8">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">Promovidos Registrados</span>
+                  <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                    <Vote className="w-4 h-4" />
                   </div>
                 </div>
-                <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between">
-                  <span>Captación: <strong className="text-indigo-300 font-mono">{nominalCoveragePct}%</strong></span>
-                  <span>No Binarios: {activeNominalMetrics.nonBinary}</span>
+                <div className="mt-1">
+                  <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+                    {promovidosList.length}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">ciudadanos simpatizantes</div>
+                  <div className="mt-2 text-[10px] text-emerald-300 font-medium">
+                    Meta personal: {visibleLeaders[0]?.metaGoal || 150} registros ({victoryProgressPct}%)
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pr-6 lg:pr-8">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Lista Nominal</span>
+                  <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 group-hover:bg-indigo-500/35 group-hover:border-indigo-400/60 transition-[background-color,border-color] duration-160 [transition-timing-function:var(--ease-out)] animate-subtle-float">
+                    <Vote className="w-4 h-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:scale-110 group-hover:rotate-6" />
+                  </div>
+                </div>
+                <div className="mt-1">
+                  <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+                    {activeNominalMetrics.total.toLocaleString()}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">electores registrados</div>
+                  <div className="mt-2.5 space-y-1">
+                    <div className="flex justify-between text-[10px] text-slate-300">
+                      <span>Mujeres {womenPct}%</span>
+                      <span>Hombres {menPct}%</span>
+                    </div>
+                    <div className="w-full bg-white/10 h-1.5 rounded-full flex overflow-hidden">
+                      <div className="bg-pink-400 h-full" style={{ width: `${womenPct}%` }} title={`Mujeres: ${activeNominalMetrics.women.toLocaleString()}`} />
+                      <div className="bg-sky-400 h-full" style={{ width: `${menPct}%` }} title={`Hombres: ${activeNominalMetrics.men.toLocaleString()}`} />
+                    </div>
+                  </div>
+                  <div className="mt-2 text-[10px] text-slate-400 flex items-center justify-between">
+                    <span>Captación: <strong className="text-indigo-300 font-mono">{nominalCoveragePct}%</strong></span>
+                    <span>No Binarios: {activeNominalMetrics.nonBinary}</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            {/* 2. Cobertura Seccional */}
-            <div className="group flex flex-col justify-between pt-4 md:pt-0 md:px-6 lg:px-8">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">Cobertura Seccional</span>
-                <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 group-hover:bg-emerald-500/35 group-hover:border-emerald-400/60 transition-[background-color,border-color] duration-160 [transition-timing-function:var(--ease-out)] animate-subtle-float">
-                  <Layers className="w-4 h-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:scale-110 group-hover:rotate-6" />
+            {/* 2. Cobertura Seccional / Sección Asignada */}
+            {isPromotor ? (
+              <div className="group flex flex-col justify-between pt-4 md:pt-0 md:px-6 lg:px-8">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-sky-200">Sección Asignada</span>
+                  <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/30">
+                    <MapPin className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="mt-1">
+                  <div className="text-2xl sm:text-3xl font-black text-sky-400 font-mono tracking-tight">
+                    Sección 0416
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">Tamulté de las Barrancas</div>
+                  <div className="mt-2 text-[10px] text-slate-400">
+                    Padrón nominal: <strong className="text-slate-200 font-mono">{activeNominalMetrics.total.toLocaleString()}</strong> electores
+                  </div>
                 </div>
               </div>
-              <div className="mt-1">
-                <div className="flex items-baseline gap-1.5">
-                  <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
-                    {coveredSectionsCount}
-                  </span>
-                  <span className="text-xs text-slate-400 font-mono">
-                    / {targetSectionsUniverse}
-                  </span>
+            ) : (
+              <div className="group flex flex-col justify-between pt-4 md:pt-0 md:px-6 lg:px-8">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">Cobertura Seccional</span>
+                  <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 group-hover:bg-emerald-500/35 group-hover:border-emerald-400/60 transition-[background-color,border-color] duration-160 [transition-timing-function:var(--ease-out)] animate-subtle-float">
+                    <Layers className="w-4 h-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:scale-110 group-hover:rotate-6" />
+                  </div>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">{sectionCoveragePct}% secciones cubiertas</div>
-                <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mt-2.5">
-                  <div
-                    className="bg-emerald-400 h-full rounded-full transition-[width] duration-300 [transition-timing-function:var(--ease-out)]"
-                    style={{ width: `${sectionCoveragePct}%` }}
-                  />
-                </div>
-                <div className="mt-2 text-[10px] text-slate-400">
-                  {Math.max(0, targetSectionsUniverse - coveredSectionsCount)} secciones vacantes
+                <div className="mt-1">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
+                      {coveredSectionsCount}
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">
+                      / {targetSectionsUniverse}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">{sectionCoveragePct}% secciones cubiertas</div>
+                  <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden mt-2.5">
+                    <div
+                      className="bg-emerald-400 h-full rounded-full transition-[width] duration-300 [transition-timing-function:var(--ease-out)]"
+                      style={{ width: `${sectionCoveragePct}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 text-[10px] text-slate-400">
+                    {Math.max(0, targetSectionsUniverse - coveredSectionsCount)} secciones vacantes
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
-            {/* 3. Fuerza Humana */}
-            <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pl-6 lg:pl-8">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-sky-200">Fuerza Humana</span>
-                <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/30 group-hover:bg-sky-500/35 group-hover:border-sky-400/60 transition-[background-color,border-color] duration-160 [transition-timing-function:var(--ease-out)] animate-subtle-float">
-                  <Users className="w-4 h-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:scale-110 group-hover:rotate-6" />
-                </div>
-              </div>
-              <div className="mt-1">
-                <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
-                  {stats.totalPeople.toLocaleString()}
-                </div>
-                <div className="text-[11px] text-slate-400 mt-0.5">en estructura territorial</div>
-                <div className="mt-2.5 grid grid-cols-3 gap-1.5 text-center text-[10px]">
-                  <div className="bg-white/5 hover:bg-white/10 transition-colors rounded-lg py-1">
-                    <span className="text-slate-400 block text-[9px]">Comités</span>
-                    <strong className="text-white font-mono text-xs">{(stats.levelCounts.distrital || 0) + (stats.levelCounts.territorial || 0)}</strong>
+            {/* 3. Fuerza Humana / Estatus de Validación */}
+            {isPromotor ? (
+              <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pl-6 lg:pl-8">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Estatus de Validación</span>
+                  <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                    <Award className="w-4 h-4" />
                   </div>
-                  <div className="bg-white/5 hover:bg-white/10 transition-colors rounded-lg py-1">
-                    <span className="text-slate-400 block text-[9px]">Secc.</span>
-                    <strong className="text-white font-mono text-xs">{stats.levelCounts.seccional || 0}</strong>
+                </div>
+                <div className="mt-1">
+                  <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
+                    100%
                   </div>
-                  <div className="bg-white/5 hover:bg-white/10 transition-colors rounded-lg py-1">
-                    <span className="text-slate-400 block text-[9px]">Prom.</span>
-                    <strong className="text-white font-mono text-xs">{stats.levelCounts.promotor || 0}</strong>
+                  <div className="text-[11px] text-slate-400 mt-0.5">3 de 3 con clave de elector INE</div>
+                  <div className="mt-2 text-[10px] text-indigo-300">
+                    Brigadas territoriales activas
                   </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pl-6 lg:pl-8">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-sky-200">Fuerza Humana</span>
+                  <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/30 group-hover:bg-sky-500/35 group-hover:border-sky-400/60 transition-[background-color,border-color] duration-160 [transition-timing-function:var(--ease-out)] animate-subtle-float">
+                    <Users className="w-4 h-4 transition-transform duration-200 [transition-timing-function:var(--ease-out)] group-hover:scale-110 group-hover:rotate-6" />
+                  </div>
+                </div>
+                <div className="mt-1">
+                  <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+                    {stats.totalPeople.toLocaleString()}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">en estructura territorial</div>
+                  <div className="mt-2.5 grid grid-cols-3 gap-1.5 text-center text-[10px]">
+                    <div className="bg-white/5 hover:bg-white/10 transition-colors rounded-lg py-1">
+                      <span className="text-slate-400 block text-[9px]">Comités</span>
+                      <strong className="text-white font-mono text-xs">{(stats.levelCounts.distrital || 0) + (stats.levelCounts.territorial || 0)}</strong>
+                    </div>
+                    <div className="bg-white/5 hover:bg-white/10 transition-colors rounded-lg py-1">
+                      <span className="text-slate-400 block text-[9px]">Secc.</span>
+                      <strong className="text-white font-mono text-xs">{stats.levelCounts.seccional || 0}</strong>
+                    </div>
+                    <div className="bg-white/5 hover:bg-white/10 transition-colors rounded-lg py-1">
+                      <span className="text-slate-400 block text-[9px]">Prom.</span>
+                      <strong className="text-white font-mono text-xs">{stats.levelCounts.promotor || 0}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
           </div>
         </div>
 
-        {/* CENTRO DE ACCIÓN INMEDIATA Y PRIORIDADES CRÍTICAS 2027 */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 bg-rose-50 text-rose-600 rounded-xl border border-rose-200">
-                <Flame className="w-5 h-5 animate-pulse" />
+        {/* VISTA ESPECÍFICA DEL PROMOTOR TERRITORIAL: CAPTURA Y GESTIÓN DE PROMOVIDOS */}
+        {isPromotor && (
+          <div className="space-y-6">
+            {/* Header de Captura */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
+                  <UserPlus className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
+                    Directorio de Ciudadanos Promovidos
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                      Sección {currentUser.territoryName.match(/\d{3,4}/)?.[0] || '0416'}
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Tu tarea principal es la captación de ciudadanos en tu sección asignada.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
-                  Centro de Acción Territorial e Inmediata
-                  <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full border border-rose-200">
-                    Prioridades 2027
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Focos prioritarios de cobertura territorial y herramientas de movilización rápida en campo
-                </p>
-              </div>
+
+              {onOpenQuickCapture && (
+                <button
+                  type="button"
+                  onClick={onOpenQuickCapture}
+                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+                >
+                  <Smartphone className="w-4 h-4 text-emerald-100" />
+                  <span>Capturar Nuevo Promovido</span>
+                  <span className="bg-emerald-700/60 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">1-Click WA</span>
+                </button>
+              )}
             </div>
 
-            {onOpenQuickCapture && (
-              <button
-                type="button"
-                onClick={onOpenQuickCapture}
-                className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-              >
-                <Smartphone className="w-4 h-4 text-emerald-100" />
-                <span>Captura Rápida de Campo</span>
-                <span className="bg-emerald-700/60 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">1-Click WA</span>
-              </button>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {topPriorityVacantSections.length === 0 ? (
-              <div className="sm:col-span-2 lg:col-span-4 p-6 text-center bg-emerald-50/50 rounded-xl border border-emerald-200/60">
-                <p className="text-xs font-bold text-emerald-800">
-                  🎉 ¡Excelente cobertura! No hay secciones vacantes registradas en esta demarcación.
-                </p>
+            {/* Listado / Directorio de Promovidos */}
+            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
+              <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Buscar por nombre, clave de elector, curp..."
+                    value={promotorSearch}
+                    onChange={(e) => setPromotorSearch(e.target.value)}
+                    className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-3 py-1.5 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="text-xs text-slate-500 font-medium">
+                  Total Registrados: <strong className="text-slate-900 font-bold">{promovidosList.length}</strong> de <strong className="text-emerald-700">{visibleLeaders[0]?.metaGoal || 150}</strong>
+                </div>
               </div>
-            ) : (
-              topPriorityVacantSections.map((sec, idx) => {
-                const metaMinima = Math.round(sec.nominalList * 0.50 * 0.51);
-                return (
-                  <div
-                    key={sec.id || sec.sectionNumber}
-                    className="bg-slate-50 hover:bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-4 transition-all duration-200 shadow-2xs hover:shadow-xs flex flex-col justify-between group"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-1 mb-2">
-                        <span className="font-mono text-sm font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                          Sección {sec.sectionNumber}
-                        </span>
-                        <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
-                          <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
-                          🔴 Vacante #{idx + 1}
-                        </span>
+
+              <div className="divide-y divide-slate-100">
+                {filteredPromovidos.length === 0 ? (
+                  <div className="p-12 text-center text-slate-400">
+                    <p className="text-sm font-semibold">No se encontraron promovidos registrados.</p>
+                    <p className="text-xs text-slate-400 mt-1">Haz clic en "Capturar Nuevo Promovido" para agregar el primero.</p>
+                  </div>
+                ) : (
+                  filteredPromovidos.map((promovido) => (
+                    <div key={promovido.id} className="p-4 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 font-black text-sm flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
+                          {promovido.name.charAt(0)}
+                        </div>
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm font-bold text-slate-900">
+                              {promovido.name}
+                            </h4>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
+                              Clave: {promovido.electorKey || 'N/A'}
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              ✓ Validado
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-4 gap-y-1">
+                            {promovido.address && (
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                                {promovido.address}{promovido.colonia ? `, ${promovido.colonia}` : ''}
+                              </span>
+                            )}
+                            {promovido.curp && (
+                              <span className="font-mono text-[11px] text-slate-400">
+                                CURP: {promovido.curp}
+                              </span>
+                            )}
+                          </div>
+                          {promovido.notes && (
+                            <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 mt-1">
+                              {promovido.notes}
+                            </p>
+                          )}
+                        </div>
                       </div>
 
-                      <div className="text-xs font-semibold text-slate-700 truncate" title={sec.municipio}>
-                        {sec.municipio}
-                      </div>
-                      <div className="text-[11px] text-slate-500">
-                        {sec.distritoLocal || 'Distrito Local'}
+                      {promovido.phone && (
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          <a
+                            href={`https://wa.me/52${promovido.phone.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(promovido.name)},%20te%20saluda%20Ruben%20Roque%20de%20Estrategia%20Territorial`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
+                            title="Enviar WhatsApp al promovido"
+                          >
+                            <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>WhatsApp</span>
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CENTRO DE ACCIÓN INMEDIATA Y PRIORIDADES CRÍTICAS 2027 (No visible para Promotor) */}
+        {!isPromotor && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-rose-50 text-rose-600 rounded-xl border border-rose-200">
+                  <Flame className="w-5 h-5 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    Centro de Acción Territorial e Inmediata
+                    <span className="text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full border border-rose-200">
+                      Prioridades 2027
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Focos prioritarios de cobertura territorial y herramientas de movilización rápida en campo
+                  </p>
+                </div>
+              </div>
+
+              {onOpenQuickCapture && (
+                <button
+                  type="button"
+                  onClick={onOpenQuickCapture}
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+                >
+                  <Smartphone className="w-4 h-4 text-emerald-100" />
+                  <span>Captura Rápida de Campo</span>
+                  <span className="bg-emerald-700/60 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">1-Click WA</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {topPriorityVacantSections.length === 0 ? (
+                <div className="sm:col-span-2 lg:col-span-4 p-6 text-center bg-emerald-50/50 rounded-xl border border-emerald-200/60">
+                  <p className="text-xs font-bold text-emerald-800">
+                    🎉 ¡Excelente cobertura! No hay secciones vacantes registradas en esta demarcación.
+                  </p>
+                </div>
+              ) : (
+                topPriorityVacantSections.map((sec, idx) => {
+                  const metaMinima = Math.round(sec.nominalList * 0.50 * 0.51);
+                  return (
+                    <div
+                      key={sec.id || sec.sectionNumber}
+                      className="bg-slate-50 hover:bg-white border border-slate-200 hover:border-indigo-300 rounded-xl p-4 transition-all duration-200 shadow-2xs hover:shadow-xs flex flex-col justify-between group"
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-2">
+                          <span className="font-mono text-sm font-black text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                            Sección {sec.sectionNumber}
+                          </span>
+                          <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200 flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                            🔴 Vacante #{idx + 1}
+                          </span>
+                        </div>
+
+                        <div className="text-xs font-semibold text-slate-700 truncate" title={sec.municipio}>
+                          {sec.municipio}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {sec.distritoLocal || 'Distrito Local'}
+                        </div>
+
+                        <div className="mt-3 pt-2.5 border-t border-slate-200/60 grid grid-cols-2 gap-2 text-[11px]">
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-medium">Lista Nominal</span>
+                            <span className="font-mono font-bold text-slate-800">
+                              {sec.nominalList.toLocaleString()}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-slate-400 block font-medium">Meta 2027 (51%)</span>
+                            <span className="font-mono font-bold text-emerald-700">
+                              {metaMinima.toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="mt-3 pt-2.5 border-t border-slate-200/60 grid grid-cols-2 gap-2 text-[11px]">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block font-medium">Lista Nominal</span>
-                          <span className="font-mono font-bold text-slate-800">
-                            {sec.nominalList.toLocaleString()}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block font-medium">Meta 2027 (51%)</span>
-                          <span className="font-mono font-bold text-emerald-700">
-                            {metaMinima.toLocaleString()}
-                          </span>
-                        </div>
+                      <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => onViewSectionDetail?.(sec.sectionNumber)}
+                          className="flex-1 py-1.5 px-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white rounded-lg text-xs font-bold transition-colors text-center flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                          <span>Ver Ficha y Cartografía</span>
+                          <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                        </button>
                       </div>
                     </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
 
-                    <div className="mt-4 pt-3 border-t border-slate-200/60 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => onViewSectionDetail?.(sec.sectionNumber)}
-                        className="flex-1 py-1.5 px-2 bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white rounded-lg text-xs font-bold transition-colors text-center flex items-center justify-center gap-1 cursor-pointer"
-                      >
-                        <span>Ver Ficha y Cartografía</span>
-                        <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                      </button>
+        {/* MAPA VECTORIAL OFICIAL INE: No visible para Promotor */}
+        {!isPromotor && (
+          <StateVectorMap
+            state={currentStateInfo}
+            districtType={isFederal ? 'federal' : 'local'}
+            districtNumber={userDistrictNumber}
+            districtLabel={userDistrictLabel}
+            highlightSectionNumbers={userDistrictSectionNumbers}
+            sectionProgressMap={sectionProgressMap}
+            onSelectSection={(secNum) => {
+              if (onViewSectionDetail) {
+                onViewSectionDetail(secNum);
+              }
+            }}
+          />
+        )}
+
+        {/* PANEL DEL COORDINADOR TERRITORIAL: PROMOTORES Y REFERIDOS */}
+        {isTerritorial && (
+          <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-sky-50 text-sky-600 rounded-xl border border-sky-200">
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                    Directorio de Promotores Territoriales y Referidos
+                    <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full border border-sky-200">
+                      Zona Tamulté (0416 - 0417)
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Crea y supervisa las cuentas de Promotores Territoriales asignados a tus secciones.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenAddModal}
+                className="px-4 py-2 bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+              >
+                <UserPlus className="w-4 h-4 text-sky-100" />
+                <span>Crear Cuenta de Promotor Territorial</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {assignedPromotores.map(prom => {
+                const promKids = visibleLeaders.filter(l => l.parentId === prom.id);
+                return (
+                  <div key={prom.id} className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold ${prom.avatarBg || 'bg-emerald-600'}`}>
+                          {prom.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">{prom.name}</h4>
+                          <span className="text-[10px] text-slate-500">{prom.role} • {prom.territoryName}</span>
+                        </div>
+                      </div>
+                      <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        {promKids.length} / {prom.metaGoal} promovidos
+                      </span>
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-200/60">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">
+                        Ciudadanos Referidos por {prom.name.split(' ')[0]}:
+                      </span>
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                        {promKids.map(k => (
+                          <div key={k.id} className="text-xs p-2 bg-white border border-slate-200/80 rounded-lg flex items-center justify-between">
+                            <span className="font-semibold text-slate-800 truncate">{k.name}</span>
+                            <span className="text-[10px] font-mono text-slate-400 shrink-0">{k.electorKey || 'INE'}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
+            </div>
           </div>
-        </div>
-
-        {/* MAPA VECTORIAL OFICIAL INE */}
-        <StateVectorMap
-          state={currentStateInfo}
-          districtType={isFederal ? 'federal' : 'local'}
-          districtNumber={userDistrictNumber}
-          districtLabel={userDistrictLabel}
-          highlightSectionNumbers={userDistrictSectionNumbers}
-          sectionProgressMap={sectionProgressMap}
-          onSelectSection={(secNum) => {
-            if (onViewSectionDetail) {
-              onViewSectionDetail(secNum);
-            }
-          }}
-        />
+        )}
 
         {/* 3. FILTROS Y BÚSQUEDA DEL CATÁLOGO ELECTORAL */}
-        {(currentUser.level === 'admin' || currentUser.level === 'estatal' || currentUser.level === 'distrital') && (
+        {!isPromotor && (isSuperAdmin || isCampana) && (
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
               {/* Filtro Municipio */}
@@ -826,7 +1148,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
         )}
 
         {/* 4. LAYOUT PRINCIPAL: SECCIONES ELECTORALES (3 COLUMNAS) + SIDEBAR DE OPERACIÓN */}
-        {stateCatalogSections.length > 0 && (
+        {!isPromotor && stateCatalogSections.length > 0 && (
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
             {/* Columna Principal: 3 Columnas de Tarjetas de Secciones Electorales */}
             <div className="xl:col-span-9 space-y-5">
