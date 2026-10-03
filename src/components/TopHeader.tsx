@@ -85,7 +85,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 {activeNav === 'escritorio' && (
                   <>
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
-                    <span>Escritorio de Operación</span>
+                    <span>Escritorio</span>
                     {activeStateName && currentUser?.level !== 'promotor' && (
                       <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
                         {activeStateName} ({activeStateAbbr?.toUpperCase()})
@@ -128,16 +128,15 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     <span>Edición de Promotor Territorial</span>
                   </>
                 )}
+
+                {activeNav === 'capturar-promovido' && (
+                  <>
+                    <UserPlus className="w-5 h-5 text-emerald-600" />
+                    <span>Capturar Promovido</span>
+                  </>
+                )}
               </h1>
             </div>
-            <p className="text-[11px] text-slate-400">
-              {activeNav === 'escritorio' && 'Tablero ejecutivo de metas y cobertura oficial'}
-              {activeNav === 'estructura' && 'Cadena de mando jerárquica y directorio descendente'}
-              {activeNav === 'secciones' && 'Universo de casillas, lista nominal y comités seccionales'}
-              {activeNav === 'promotores' && 'Directorio de promotores de campo, avance de captación y estado de cuentas'}
-              {activeNav === 'crear-promotor' && 'Generación de cuenta para el sistema cerrado y asignación de sección'}
-              {activeNav === 'editar-promotor' && 'Actualización de datos operativos, metas y restablecimiento de contraseña'}
-            </p>
           </div>
 
           {/* En Estructura: Toggle entre Organigrama y Lista (Apple Segmented Control) */}

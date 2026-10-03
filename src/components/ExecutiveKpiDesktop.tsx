@@ -25,7 +25,7 @@ import {
   Flame,
   ArrowRight,
   UserPlus,
-  Camera,
+  Plus,
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
 import type { ExtractedINEData } from '../utils/ineScanner';
@@ -36,7 +36,7 @@ interface ExecutiveKpiDesktopProps {
   visibleLeaders: TerritorialLeader[];
   sections?: ElectoralSection[];
   onSelectLeader: (leader: TerritorialLeader) => void;
-  onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections') => void;
+  onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections' | 'capturar-promovido') => void;
   onOpenAddModal: () => void;
   onOpenQuickCapture?: (initialData?: ExtractedINEData) => void;
   onOpenCreateUser?: () => void;
@@ -561,23 +561,23 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     : 100;
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#f5f5f7] p-4 sm:p-6 lg:p-8 space-y-6">
-      <div className="max-w-[1600px] mx-auto space-y-6">
+    <div className={`flex-1 overflow-y-auto bg-[#f5f5f7] ${isPromotor ? 'p-0 space-y-0' : 'p-4 sm:p-6 lg:p-8 space-y-6'}`}>
+      <div className={`${isPromotor ? 'w-full space-y-0' : 'max-w-[1600px] mx-auto space-y-6'}`}>
 
         {/* 1. BLOQUE DE ENCABEZADO Y MÉTRICAS OPERATIVAS */}
         {isPromotor ? (
-          /* BLOQUE COMPACTO Y ELEGANTE PARA PROMOTOR TERRITORIAL (SIN TEXTOS NI VALORES REPETIDOS) */
-          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950 rounded-2xl p-4 sm:p-5 text-white shadow-xl relative overflow-hidden border border-white/10">
-            <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+          /* BLOQUE COMPACTO Y ELEGANTE PARA PROMOTOR TERRITORIAL (ÁNGULOS RECTOS Y SIN MÁRGENES) */
+          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950 rounded-none p-5 sm:p-6 text-white shadow-none relative overflow-hidden border-b border-slate-800">
+            <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-80 h-80 bg-emerald-500/10 rounded-none blur-3xl pointer-events-none" />
 
             <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
               {/* Identificación del Promotor (Nombre, sección y asignación una sola vez) */}
               <div className="space-y-1.5 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                  <span className="px-2.5 py-0.5 rounded-none text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
                     Promotor Territorial
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-slate-300 border border-white/15">
+                  <span className="px-2.5 py-0.5 rounded-none text-[11px] font-medium bg-white/10 text-slate-300 border border-white/15">
                     Asignó: <strong className="text-white font-semibold">{assignedByLabel}</strong>
                   </span>
                 </div>
@@ -595,13 +595,13 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 </p>
               </div>
 
-              {/* Métrica de Meta y Avance Unificada (Sin duplicidades) */}
-              <div className="w-full md:w-96 shrink-0 bg-white/[0.04] border border-white/10 rounded-xl p-3.5 sm:p-4 backdrop-blur-xs">
+              {/* Métrica de Meta y Avance Unificada (Sin duplicidades, ángulos rectos) */}
+              <div className="w-full md:w-96 shrink-0 bg-white/[0.04] border border-white/10 rounded-none p-3.5 sm:p-4 backdrop-blur-xs">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
                     Captación de Promovidos
                   </span>
-                  <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-400/25 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-400/25 px-2 py-0.5 rounded-none">
                     ✓ {validInePct}% INE ({validIneCount}/{promotorAchievedCount})
                   </span>
                 </div>
@@ -621,9 +621,9 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 </div>
 
                 {/* Barra de avance dinámica */}
-                <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden mt-2 p-[1px]">
+                <div className="w-full bg-white/10 h-2 rounded-none overflow-hidden mt-2 p-[1px]">
                   <div
-                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-700 ease-out"
+                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-none transition-all duration-700 ease-out"
                     style={{ width: `${Math.max(promotorProgressPct === 0 ? 2 : promotorProgressPct, 2)}%` }}
                   />
                 </div>
@@ -809,55 +809,12 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
           </div>
         )}
 
-        {/* VISTA ESPECÍFICA DEL PROMOTOR TERRITORIAL: CAPTURA Y GESTIÓN DE PROMOVIDOS */}
+        {/* VISTA ESPECÍFICA DEL PROMOTOR TERRITORIAL: LISTA DE PROMOVIDOS + BOTÓN FLOTANTE (+) */}
         {isPromotor && (
-          <div className="space-y-6">
-            {/* Header de Captura */}
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center shrink-0">
-                  <UserPlus className="w-6 h-6" />
-                </div>
-                <div>
-                  <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
-                    Directorio de Ciudadanos Promovidos
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                      Sección {promotorSection}
-                    </span>
-                  </h2>
-                  <p className="text-xs text-slate-500">
-                    Tu tarea principal es la captación de ciudadanos en tu sección asignada.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
-                <button
-                  type="button"
-                  onClick={() => setIsIneScannerOpen(true)}
-                  className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
-                >
-                  <Camera className="w-4 h-4 text-emerald-100" />
-                  <span>Escanear INE con Cámara</span>
-                  <span className="bg-emerald-800/60 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">Offline</span>
-                </button>
-
-                {onOpenQuickCapture && (
-                  <button
-                    type="button"
-                    onClick={() => onOpenQuickCapture()}
-                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer"
-                  >
-                    <Smartphone className="w-4 h-4 text-emerald-600" />
-                    <span>Captura Manual</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Listado / Directorio de Promovidos */}
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs">
-              <div className="p-4 border-b border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-0">
+            {/* Listado / Directorio de Promovidos (Esquinas Rectas y Sin Márgenes) */}
+            <div className="bg-white border-b border-slate-200 rounded-none overflow-hidden shadow-none">
+              <div className="p-4 border-b border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="relative flex-1 max-w-md">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                   <input
@@ -865,7 +822,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                     placeholder="Buscar por nombre, clave de elector, curp..."
                     value={promotorSearch}
                     onChange={(e) => setPromotorSearch(e.target.value)}
-                    className="w-full bg-white border border-slate-300 rounded-xl pl-9 pr-3 py-1.5 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500"
+                    className="w-full bg-white border border-slate-300 rounded-none pl-9 pr-3 py-1.5 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
                   />
                 </div>
                 <div className="text-xs text-slate-500 font-medium">
@@ -877,13 +834,13 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 {filteredPromovidos.length === 0 ? (
                   <div className="p-12 text-center text-slate-400">
                     <p className="text-sm font-semibold">No se encontraron promovidos registrados.</p>
-                    <p className="text-xs text-slate-400 mt-1">Haz clic en "Capturar Nuevo Promovido" para agregar el primero.</p>
+                    <p className="text-xs text-slate-400 mt-1">Usa el botón flotante (+) para registrar a un ciudadano.</p>
                   </div>
                 ) : (
                   filteredPromovidos.map((promovido) => (
-                    <div key={promovido.id} className="p-4 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div key={promovido.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-start gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 font-black text-sm flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
+                        <div className="w-10 h-10 rounded-none bg-emerald-100 text-emerald-700 font-black text-sm flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
                           {promovido.name.charAt(0)}
                         </div>
                         <div className="min-w-0 space-y-1">
@@ -891,10 +848,10 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                             <h4 className="text-sm font-bold text-slate-900">
                               {promovido.name}
                             </h4>
-                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-none bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
                               Clave: {promovido.electorKey || 'N/A'}
                             </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-emerald-50 text-emerald-700 border border-emerald-200">
                               ✓ Validado
                             </span>
                           </div>
@@ -912,7 +869,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                             )}
                           </div>
                           {promovido.notes && (
-                            <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-lg border border-slate-100 mt-1">
+                            <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-none border border-slate-100 mt-1">
                               {promovido.notes}
                             </p>
                           )}
@@ -925,7 +882,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                             href={`https://wa.me/52${promovido.phone.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(promovido.name)},%20te%20saluda%20Ruben%20Roque%20de%20Estrategia%20Territorial`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
+                            className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5"
                             title="Enviar WhatsApp al promovido"
                           >
                             <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
@@ -938,6 +895,17 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Botón flotante (+) en la esquina inferior derecha para capturar promovido en página limpia */}
+            <button
+              type="button"
+              onClick={() => onNavigateView('capturar-promovido')}
+              className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-2xl flex items-center justify-center rounded-none border border-emerald-400/40 hover:shadow-emerald-600/30 transition-all cursor-pointer group"
+              title="Capturar Nuevo Promovido"
+              aria-label="Capturar Nuevo Promovido"
+            >
+              <Plus className="w-8 h-8 transition-transform group-hover:rotate-90 duration-200" />
+            </button>
           </div>
         )}
 

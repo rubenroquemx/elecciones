@@ -29,6 +29,7 @@ import { CreateManualUserModal } from './components/CreateManualUserModal';
 import { TerritorialPromotersAdminView } from './components/TerritorialPromotersAdminView';
 import { TerritorialPromoterCreatePage } from './components/TerritorialPromoterCreatePage';
 import { TerritorialPromoterEditPage } from './components/TerritorialPromoterEditPage';
+import { PromoterCitizenCapturePage } from './components/PromoterCitizenCapturePage';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -756,6 +757,8 @@ export function App() {
                       setStructureMode('lista');
                     } else if (view === 'sections') {
                       setActiveNav('secciones');
+                    } else if (view === 'capturar-promovido') {
+                      setActiveNav('capturar-promovido');
                     }
                   }}
                   onOpenAddModal={handleOpenAddModal}
@@ -847,6 +850,20 @@ export function App() {
                   onCancel={() => setActiveNav('promotores')}
                   onSelectPromoterToEdit={setSelectedEditPromoterId}
                   onDeletePromoter={handleDeletePromoter}
+                  onNavigate={setActiveNav}
+                />
+              )}
+
+              {/* 7. CAPTURAR CIUDADANO PROMOVIDO (PÁGINA LIMPIA, ESQUINAS RECTAS) */}
+              {activeNav === 'capturar-promovido' && currentUser && (
+                <PromoterCitizenCapturePage
+                  currentUser={currentUser}
+                  availableSections={captureAvailableSections}
+                  allLeaders={visibleLeaders}
+                  defaultSectionNumber={currentUser.assignedSections?.[0] || currentUser.territoryName?.match(/\d{3,4}/)?.[0] || '0416'}
+                  onSaveCitizen={(newLeader) => {
+                    handleSaveLeader(newLeader);
+                  }}
                   onNavigate={setActiveNav}
                 />
               )}

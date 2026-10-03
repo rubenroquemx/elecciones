@@ -7,7 +7,6 @@ import {
   UserPlus,
   Download,
   Upload,
-  Smartphone,
   Shield,
   Users
 } from 'lucide-react';
@@ -20,7 +19,8 @@ export type MainNavSection =
   | 'secciones' 
   | 'promotores' 
   | 'crear-promotor' 
-  | 'editar-promotor';
+  | 'editar-promotor'
+  | 'capturar-promovido';
 export type StructureMode = 'organigrama' | 'lista';
 
 interface SidebarProps {
@@ -294,17 +294,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  onOpenQuickCapture();
+                  if (isPromotor) {
+                    onNavChange('capturar-promovido');
+                  } else {
+                    onOpenQuickCapture();
+                  }
                   onCloseMobile?.();
                 }}
-                className="w-full flex items-center justify-between px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/30 transition-all active:scale-98 cursor-pointer"
-                title="Captura Rápida de Campo con validación de clave de elector y WhatsApp directo"
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-950/30 transition-all active:scale-98 cursor-pointer ${
+                  isPromotor ? 'rounded-none' : 'rounded-xl'
+                }`}
+                title="Capturar Ciudadano Promovido"
               >
                 <div className="flex items-center gap-2">
-                  <Smartphone className="w-4 h-4 text-emerald-200" />
-                  <span>{isPromotor ? 'Capturar Nuevo Promovido' : 'Captura Rápida'}</span>
+                  <UserPlus className="w-4 h-4 text-emerald-200" />
+                  <span>{isPromotor ? 'Capturar Promovido' : 'Captura Rápida'}</span>
                 </div>
-                <span className="bg-emerald-400/20 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">Móvil</span>
+                <span className="bg-emerald-400/20 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded-none font-mono font-bold">+</span>
               </button>
             )}
 
