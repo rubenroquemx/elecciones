@@ -215,6 +215,8 @@ export function getHierarchyStats(nodes: TerritorialLeader[]): HierarchyStats {
     vacante: 0,
   };
 
+  const parentIds = new Set(nodes.map(n => n.parentId).filter(Boolean));
+
   let totalGoal = 0;
   let totalAchieved = 0;
 
@@ -225,9 +227,18 @@ export function getHierarchyStats(nodes: TerritorialLeader[]): HierarchyStats {
     if (statusCounts[node.status] !== undefined) {
       statusCounts[node.status]++;
     }
-    // Only sum the leaf/individual direct counts to avoid double counting
-    totalGoal += node.metaGoal;
-    totalAchieved += node.currentCount;
+    // Only sum the leaf/individual direct counts to avoid double counting parent aggregates
+    const hasChildren = parentIds.has(node.id);
+    if (!hasChildren) {
+      totalAchieved += node.currentCount;
+      totalGoal += node.metaGoal;
+    }
+  }
+
+  // If the root node has a specific defined goal that encapsulates the sub-tree
+  const rootNode = nodes.find(n => !n.parentId || !nodes.some(m => m.id === n.parentId));
+  if (rootNode && rootNode.metaGoal > totalGoal) {
+    totalGoal = rootNode.metaGoal;
   }
 
   const overallPercentage = totalGoal > 0 ? Math.round((totalAchieved / totalGoal) * 100) : 0;

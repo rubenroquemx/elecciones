@@ -516,112 +516,218 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
       : 'Dirección General de Operación';
   }, [currentUser]);
 
+  // Cálculos específicos y vinculación estricta de metas para Promotor Territorial
+  const promotorNode = useMemo(() => {
+    if (!isPromotor) return null;
+    return (
+      visibleLeaders.find(l => l.id === currentUser.leaderId) ||
+      visibleLeaders.find(l => l.level === 'promotor') ||
+      visibleLeaders[0] ||
+      null
+    );
+  }, [isPromotor, visibleLeaders, currentUser.leaderId]);
+
+  const promotorSection = useMemo(() => {
+    if (!isPromotor) return '0416';
+    return (
+      promotorNode?.electoralSection ||
+      promotorNode?.assignedSections?.[0] ||
+      currentUser.territoryName.match(/\d{3,4}/)?.[0] ||
+      '0416'
+    );
+  }, [isPromotor, promotorNode, currentUser.territoryName]);
+
+  const promotorSectionCatalog = useMemo(() => {
+    if (!isPromotor) return null;
+    return (
+      stateCatalogSections.find(
+        s => s.section === promotorSection || s.section === promotorSection.padStart(4, '0')
+      ) || null
+    );
+  }, [isPromotor, stateCatalogSections, promotorSection]);
+
+  // Meta fijada por el Coordinador Territorial (en alta o edición)
+  const promotorAssignedGoal = promotorNode?.metaGoal || 150;
+
+  // Promovidos reales capturados vinculados
+  const promotorAchievedCount = promovidosList.length;
+
+  // Promovidos faltantes para la meta
+  const promotorRemaining = Math.max(0, promotorAssignedGoal - promotorAchievedCount);
+
+  // Porcentaje de avance de captación
+  const promotorProgressPct = promotorAssignedGoal > 0
+    ? Math.min(100, Math.round((promotorAchievedCount / promotorAssignedGoal) * 100))
+    : 0;
+
+  // Validación de credenciales INE
+  const validIneCount = useMemo(() => {
+    return promovidosList.filter(p => Boolean(p.electorKey && p.electorKey.trim().length > 5)).length;
+  }, [promovidosList]);
+
+  const validInePct = promovidosList.length > 0
+    ? Math.round((validIneCount / promovidosList.length) * 100)
+    : 100;
+
   return (
     <div className="flex-1 overflow-y-auto bg-[#f5f5f7] p-4 sm:p-6 lg:p-8 space-y-6">
       <div className="max-w-[1600px] mx-auto space-y-6">
 
-        {/* 1. BLOQUE EJECUTIVO INTEGRADO: IDENTIFICACIÓN, META 2027 Y MÉTRICAS OPERATIVAS */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 rounded-[22px] p-5 sm:p-6 text-white shadow-xl relative overflow-hidden border border-white/10">
-          <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute left-1/3 bottom-0 translate-y-12 w-72 h-72 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
+        {/* 1. BLOQUE DE ENCABEZADO Y MÉTRICAS OPERATIVAS */}
+        {isPromotor ? (
+          /* BLOQUE COMPACTO Y ELEGANTE PARA PROMOTOR TERRITORIAL (SIN TEXTOS NI VALORES REPETIDOS) */
+          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-emerald-950 rounded-2xl p-4 sm:p-5 text-white shadow-xl relative overflow-hidden border border-white/10">
+            <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-          {/* Fila Superior: Identificación del Coordinador + Widget Avance de Meta */}
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-white/10">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                  {userLevelLabel}
-                </span>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  <span>Asignó: <strong className="text-emerald-100 font-semibold">{assignedByLabel}</strong></span>
-                </span>
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white apple-title-1">
-                {currentUser.name}
-              </h1>
-
-              <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-indigo-400 shrink-0 animate-subtle-float" />
-                <span>Demarcación asignada: <strong className="text-white font-semibold">{currentUser.territoryName}</strong></span>
-              </p>
-            </div>
-
-            {/* Widget de Avance de Meta Victoria Integrado (Sin contenedor aislado) */}
-            <div className="group w-full lg:w-96 shrink-0 lg:pl-8 lg:border-l lg:border-white/10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-200 block">
-                    {isPromotor ? 'Meta de Captación de Promovidos' : 'Avance de Meta Victoria 2027'}
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
+              {/* Identificación del Promotor (Nombre, sección y asignación una sola vez) */}
+              <div className="space-y-1.5 min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+                    Promotor Territorial
                   </span>
-                  <span className="text-[10px] text-slate-400">
-                    {isPromotor
-                      ? 'Meta asignada en Sección 0416 (150 ciudadanos)'
-                      : `51% de Votación Esperada (${victoryExpectedTurnout.toLocaleString()})`}
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-white/10 text-slate-300 border border-white/15">
+                    Asignó: <strong className="text-white font-semibold">{assignedByLabel}</strong>
                   </span>
                 </div>
-                <div className={`p-1.5 rounded-lg border transition-all duration-300 animate-subtle-float ${victoryProgressColor.glow}`}>
-                  <Target className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
-                </div>
+
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white apple-title-1">
+                  {currentUser.name}
+                </h1>
+
+                <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span>
+                    Sección <strong className="text-white font-bold">{promotorSection}</strong>
+                    {promotorNode?.colonia ? ` • ${promotorNode.colonia}` : ''}
+                    {promotorSectionCatalog?.nominalTotal ? (
+                      <span className="text-slate-400 font-normal"> (Padrón: {promotorSectionCatalog.nominalTotal.toLocaleString()} electores)</span>
+                    ) : ''}
+                  </span>
+                </p>
               </div>
 
-              <div className="mt-1.5">
-                <div className="flex items-baseline justify-between">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-2xl sm:text-3xl font-black text-white font-mono">
-                      {stats.totalAchieved.toLocaleString()}
+              {/* Métrica de Meta y Avance Unificada (Sin duplicidades) */}
+              <div className="w-full md:w-96 shrink-0 bg-white/[0.04] border border-white/10 rounded-xl p-3.5 sm:p-4 backdrop-blur-xs">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-bold text-slate-300 uppercase tracking-wider text-[11px]">
+                    Captación de Promovidos
+                  </span>
+                  <span className="text-[10px] font-semibold text-emerald-300 bg-emerald-500/15 border border-emerald-400/25 px-2 py-0.5 rounded-full">
+                    ✓ {validInePct}% INE ({validIneCount}/{promotorAchievedCount})
+                  </span>
+                </div>
+
+                <div className="mt-2 flex items-baseline justify-between">
+                  <div className="flex items-baseline gap-1.5 font-mono">
+                    <span className="text-2xl sm:text-3xl font-black text-white">
+                      {promotorAchievedCount}
                     </span>
-                    <span className="text-xs text-indigo-200 font-mono">
-                      / {victoryGoalVotes.toLocaleString()} {isPromotor ? 'promovidos' : 'votos'}
+                    <span className="text-xs text-slate-400 font-semibold">
+                      / {promotorAssignedGoal} meta
                     </span>
                   </div>
-                  <span className={`text-sm font-black font-mono transition-colors duration-500 ${victoryProgressColor.text}`}>
-                    {victoryProgressPct}%
+                  <span className="text-sm font-black font-mono text-emerald-400">
+                    {promotorProgressPct}%
                   </span>
                 </div>
 
-                {/* Barra dinámica de rojo a verde según el avance */}
+                {/* Barra de avance dinámica */}
                 <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden mt-2 p-[1px]">
                   <div
-                    className={`bg-gradient-to-r ${victoryProgressColor.bar} h-full rounded-full transition-all duration-700 ease-out`}
-                    style={{ width: `${Math.max(victoryProgressPct, victoryProgressPct === 0 ? 3 : victoryProgressPct)}%` }}
+                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-700 ease-out"
+                    style={{ width: `${Math.max(promotorProgressPct === 0 ? 2 : promotorProgressPct, 2)}%` }}
                   />
                 </div>
 
-                <div className="mt-1.5 text-[11px] text-slate-300 flex items-center justify-between">
-                  <span>Registros logrados</span>
-                  <span className="text-slate-400 font-mono text-[10px]">
-                    Faltan {(Math.max(0, victoryGoalVotes - stats.totalAchieved)).toLocaleString()} {isPromotor ? 'promovidos' : 'para ganar'}
-                  </span>
+                <div className="mt-2 text-[11px] text-slate-400 flex items-center justify-between font-mono">
+                  <span>Registros confirmados</span>
+                  <span>Faltan {promotorRemaining} promovidos</span>
                 </div>
               </div>
             </div>
           </div>
+        ) : (
+          /* BLOQUE EJECUTIVO INTEGRADO PARA ADMINISTRADOR Y COORDINADORES */
+          <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 rounded-[22px] p-5 sm:p-6 text-white shadow-xl relative overflow-hidden border border-white/10">
+            <div className="absolute right-0 top-0 translate-x-12 -translate-y-12 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute left-1/3 bottom-0 translate-y-12 w-72 h-72 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none" />
 
-          {/* Fila Inferior: Métricas Operativas Clave Integradas Directamente sin Cajas Aisladas */}
-          <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 pt-5 divide-y md:divide-y-0 md:divide-x divide-white/10">
+            {/* Fila Superior: Identificación del Coordinador + Widget Avance de Meta */}
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 pb-6 border-b border-white/10">
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                    {userLevelLabel}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Asignó: <strong className="text-emerald-100 font-semibold">{assignedByLabel}</strong></span>
+                  </span>
+                </div>
 
-            {/* 1. Lista Nominal / Promovidos Registrados */}
-            {isPromotor ? (
-              <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pr-6 lg:pr-8">
+                <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white apple-title-1">
+                  {currentUser.name}
+                </h1>
+
+                <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-indigo-400 shrink-0 animate-subtle-float" />
+                  <span>Demarcación asignada: <strong className="text-white font-semibold">{currentUser.territoryName}</strong></span>
+                </p>
+              </div>
+
+              {/* Widget de Avance de Meta Victoria Integrado */}
+              <div className="group w-full lg:w-96 shrink-0 lg:pl-8 lg:border-l lg:border-white/10">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">Promovidos Registrados</span>
-                  <div className="p-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                    <Vote className="w-4 h-4" />
+                  <div>
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-indigo-200 block">
+                      Avance de Meta Victoria 2027
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      51% de Votación Esperada ({victoryExpectedTurnout.toLocaleString()})
+                    </span>
+                  </div>
+                  <div className={`p-1.5 rounded-lg border transition-all duration-300 animate-subtle-float ${victoryProgressColor.glow}`}>
+                    <Target className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6" />
                   </div>
                 </div>
-                <div className="mt-1">
-                  <div className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
-                    {promovidosList.length}
+
+                <div className="mt-1.5">
+                  <div className="flex items-baseline justify-between">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-2xl sm:text-3xl font-black text-white font-mono">
+                        {stats.totalAchieved.toLocaleString()}
+                      </span>
+                      <span className="text-xs text-indigo-200 font-mono">
+                        / {victoryGoalVotes.toLocaleString()} votos
+                      </span>
+                    </div>
+                    <span className={`text-sm font-black font-mono transition-colors duration-500 ${victoryProgressColor.text}`}>
+                      {victoryProgressPct}%
+                    </span>
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">ciudadanos simpatizantes</div>
-                  <div className="mt-2 text-[10px] text-emerald-300 font-medium">
-                    Meta personal: {visibleLeaders[0]?.metaGoal || 150} registros ({victoryProgressPct}%)
+
+                  <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden mt-2 p-[1px]">
+                    <div
+                      className={`bg-gradient-to-r ${victoryProgressColor.bar} h-full rounded-full transition-all duration-700 ease-out`}
+                      style={{ width: `${Math.max(victoryProgressPct, victoryProgressPct === 0 ? 3 : victoryProgressPct)}%` }}
+                    />
+                  </div>
+
+                  <div className="mt-1.5 text-[11px] text-slate-300 flex items-center justify-between">
+                    <span>Registros logrados</span>
+                    <span className="text-slate-400 font-mono text-[10px]">
+                      Faltan {(Math.max(0, victoryGoalVotes - stats.totalAchieved)).toLocaleString()} para ganar
+                    </span>
                   </div>
                 </div>
               </div>
-            ) : (
+            </div>
+
+            {/* Fila Inferior: Métricas Operativas Clave para Coordinadores */}
+            <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8 pt-5 divide-y md:divide-y-0 md:divide-x divide-white/10">
+
+              {/* 1. Lista Nominal */}
               <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pr-6 lg:pr-8">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Lista Nominal</span>
@@ -650,28 +756,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* 2. Cobertura Seccional / Sección Asignada */}
-            {isPromotor ? (
-              <div className="group flex flex-col justify-between pt-4 md:pt-0 md:px-6 lg:px-8">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-sky-200">Sección Asignada</span>
-                  <div className="p-1.5 rounded-lg bg-sky-500/20 text-sky-300 border border-sky-400/30">
-                    <MapPin className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="mt-1">
-                  <div className="text-2xl sm:text-3xl font-black text-sky-400 font-mono tracking-tight">
-                    Sección 0416
-                  </div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">Tamulté de las Barrancas</div>
-                  <div className="mt-2 text-[10px] text-slate-400">
-                    Padrón nominal: <strong className="text-slate-200 font-mono">{activeNominalMetrics.total.toLocaleString()}</strong> electores
-                  </div>
-                </div>
-              </div>
-            ) : (
+              {/* 2. Cobertura Seccional */}
               <div className="group flex flex-col justify-between pt-4 md:pt-0 md:px-6 lg:px-8">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-200">Cobertura Seccional</span>
@@ -700,28 +786,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* 3. Fuerza Humana / Estatus de Validación */}
-            {isPromotor ? (
-              <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pl-6 lg:pl-8">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-200">Estatus de Validación</span>
-                  <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
-                    <Award className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="mt-1">
-                  <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono tracking-tight">
-                    100%
-                  </div>
-                  <div className="text-[11px] text-slate-400 mt-0.5">3 de 3 con clave de elector INE</div>
-                  <div className="mt-2 text-[10px] text-indigo-300">
-                    Brigadas territoriales activas
-                  </div>
-                </div>
-              </div>
-            ) : (
+              {/* 3. Fuerza Humana */}
               <div className="group flex flex-col justify-between pt-4 md:pt-0 md:pl-6 lg:pl-8">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-sky-200">Fuerza Humana</span>
@@ -750,10 +816,10 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                   </div>
                 </div>
               </div>
-            )}
 
+            </div>
           </div>
-        </div>
+        )}
 
         {/* VISTA ESPECÍFICA DEL PROMOTOR TERRITORIAL: CAPTURA Y GESTIÓN DE PROMOVIDOS */}
         {isPromotor && (
@@ -768,7 +834,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                   <h2 className="text-base sm:text-lg font-bold text-slate-900 flex items-center gap-2">
                     Directorio de Ciudadanos Promovidos
                     <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                      Sección {currentUser.territoryName.match(/\d{3,4}/)?.[0] || '0416'}
+                      Sección {promotorSection}
                     </span>
                   </h2>
                   <p className="text-xs text-slate-500">
@@ -815,7 +881,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                   />
                 </div>
                 <div className="text-xs text-slate-500 font-medium">
-                  Total Registrados: <strong className="text-slate-900 font-bold">{promovidosList.length}</strong> de <strong className="text-emerald-700">{visibleLeaders[0]?.metaGoal || 150}</strong>
+                  Total Registrados: <strong className="text-slate-900 font-bold">{promotorAchievedCount}</strong> de <strong className="text-emerald-700">{promotorAssignedGoal}</strong> ({promotorProgressPct}%)
                 </div>
               </div>
 
