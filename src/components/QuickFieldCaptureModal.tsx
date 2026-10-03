@@ -45,18 +45,35 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [ocrDetectionNotice, setOcrDetectionNotice] = useState<string | null>(null);
   const [electorKey, setElectorKey] = useState('');
+  const [curp, setCurp] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedSection, setSelectedSection] = useState(defaultSectionNumber || '0416');
+  const [selectedSection, setSelectedSection] = useState(defaultSectionNumber ? normalizeSectionNumber(defaultSectionNumber) : '0416');
   const [address, setAddress] = useState('');
   const [colonia, setColonia] = useState('');
   const [roleType, setRoleType] = useState<'promovido' | 'promotor' | 'representante'>('promovido');
   const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
   const [registeredContact, setRegisteredContact] = useState<{ name: string; phone: string; section: string } | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const sectionOptions = useMemo(() => {
+    const normCurrent = normalizeSectionNumber(selectedSection || defaultSectionNumber || '0416');
+    const hasCurrent = availableSections.some(s => s.sectionNumber === normCurrent);
+    if (!hasCurrent) {
+      return [
+        { id: `sec-${normCurrent}`, sectionNumber: normCurrent, municipio: 'Centro' },
+        ...availableSections,
+      ];
+    }
+    return availableSections;
+  }, [availableSections, selectedSection, defaultSectionNumber]);
 
   const handleDataExtracted = (data: ExtractedINEData) => {
     if (data.claveElector) {
       setElectorKey(data.claveElector.toUpperCase());
+    }
+    if (data.curp) {
+      setCurp(data.curp.toUpperCase());
     }
     if (data.name) {
       setName(data.name);
@@ -69,10 +86,9 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
     }
     if (data.electoralSection) {
       const norm = normalizeSectionNumber(data.electoralSection);
-      if (availableSections.some(s => s.sectionNumber === norm || s.sectionNumber === data.electoralSection)) {
-        setSelectedSection(norm);
-      }
+      setSelectedSection(norm);
     }
+    setFormError(null);
     setOcrDetectionNotice(`Datos del INE detectados localmente (${data.confidenceScore}% de confianza)`);
   };
 
@@ -88,12 +104,14 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
           setSelectedSection(availableSections[0].sectionNumber);
         }
         setElectorKey('');
+        setCurp('');
         setName('');
         setPhone('');
         setAddress('');
         setColonia('');
         setRoleType('promovido');
         setOcrDetectionNotice(null);
+        setFormError(null);
       }
       setIsSubmittedSuccess(false);
       setRegisteredContact(null);
@@ -112,6 +130,7 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
   useEffect(() => {
     if (existingElector) {
       setName(prev => prev || existingElector.name);
+      setCurp(prev => prev || (existingElector.curp || ''));
       setPhone(prev => prev || (existingElector.phone || ''));
       setAddress(prev => prev || (existingElector.address || ''));
       setColonia(prev => prev || (existingElector.colonia || ''));
@@ -152,7 +171,26 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !electorKey.trim() || !selectedSection || !validation.allowed) {
+    setFormError(null);
+
+    const trimmedName = name.trim();
+    const trimmedKey = electorKey.trim().toUpperCase();
+    const normalizedSec = normalizeSectionNumber(selectedSection || defaultSectionNumber || '0416');
+
+    if (!trimmedName) {
+      setFormError('El nombre completo del ciudadano es obligatorio.');
+      return;
+    }
+    if (!trimmedKey || trimmedKey.length < 6) {
+      setFormError('La Clave de Elector es obligatoria (mínimo 6 caracteres alfanuméricos).');
+      return;
+    }
+    if (!normalizedSec) {
+      setFormError('Debe indicar la Sección Electoral.');
+      return;
+    }
+    if (!validation.allowed) {
+      setFormError(validation.errorMsg || 'No se puede registrar este ciudadano según las directrices territoriales.');
       return;
     }
 
@@ -161,39 +199,41 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
 
     const newLeader: TerritorialLeader = {
       id: newId,
-      name: name.trim(),
+      name: trimmedName,
       role: roleType === 'promovido' ? 'Ciudadano Promovido' : roleType === 'promotor' ? 'Promotor Territorial' : 'Representante de Casilla',
       level: roleType === 'promovido' ? 'promovido' : 'promotor',
       levelIndex,
       parentId: currentUserLeaderId || null,
-      territoryName: `Sección ${selectedSection} - ${colonia.trim() || 'Territorio'}`,
+      territoryName: `Sección ${normalizedSec} - ${colonia.trim() || 'Territorio'}`,
       address: address.trim(),
       colonia: colonia.trim(),
-      electoralSection: normalizeSectionNumber(selectedSection),
-      electorKey: electorKey.trim().toUpperCase(),
+      electoralSection: normalizedSec,
+      electorKey: trimmedKey,
+      curp: curp.trim().toUpperCase() || undefined,
       phone: phone.trim() ? `+52 ${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}` : undefined,
       hasAccount: false,
       metaGoal: roleType === 'promovido' ? 1 : 25,
       currentCount: roleType === 'promovido' ? 1 : 0,
       status: 'completado',
       validationStatus: 'validado',
-      notes: `Registro ágil de campo (Captura Móvil) en Sección ${selectedSection}.`,
+      notes: `Registro ágil de campo (Captura Móvil) en Sección ${normalizedSec}.`,
     };
 
     // Persist in elector registry
     persistElectorProfile({
-      electorKey: electorKey.trim().toUpperCase(),
-      name: name.trim(),
+      electorKey: trimmedKey,
+      name: trimmedName,
+      curp: curp.trim().toUpperCase() || undefined,
       address: address.trim(),
       colonia: colonia.trim(),
-      electoralSection: normalizeSectionNumber(selectedSection),
+      electoralSection: normalizedSec,
       phone: newLeader.phone,
       structures: [
         {
           id: newId,
-          structureName: `Célula Seccional ${selectedSection}`,
+          structureName: `Célula Seccional ${normalizedSec}`,
           type: roleType,
-          sectionNumber: selectedSection,
+          sectionNumber: normalizedSec,
           source: 'leader',
         },
       ],
@@ -201,9 +241,9 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
 
     onSuccess(newLeader);
     setRegisteredContact({
-      name: name.trim(),
+      name: trimmedName,
       phone: cleanPhoneDigits,
-      section: selectedSection,
+      section: normalizedSec,
     });
     setIsSubmittedSuccess(true);
   };
@@ -350,6 +390,15 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
               </div>
             )}
             
+            {formError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Error en registro:</strong> {formError}
+                </div>
+              </div>
+            )}
+
             {/* Directriz Global Elector Banner */}
             {!validation.allowed && (
               <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800 animate-in fade-in">
@@ -369,23 +418,48 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
               </div>
             )}
 
-            {/* 1. Clave de Elector */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">
-                Clave de Elector INE (18 caracteres)*
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={18}
-                value={electorKey}
-                onChange={e => setElectorKey(e.target.value.toUpperCase())}
-                placeholder="ABCD123456EFGH7890"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500 tracking-wider"
-              />
-              <span className="text-[10px] text-slate-400 mt-0.5 block">
-                {electorKey.length}/18 caracteres • Llave primaria universal del ciudadano
-              </span>
+            {/* 1. Clave de Elector y CURP */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Clave de Elector INE (18 car.)*
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={18}
+                  value={electorKey}
+                  onChange={e => {
+                    setElectorKey(e.target.value.toUpperCase());
+                    setFormError(null);
+                  }}
+                  placeholder="ABCD123456EFGH7890"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500 tracking-wider"
+                />
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  {electorKey.length}/18 caracteres • Llave INE
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  CURP (18 caracteres)
+                </label>
+                <input
+                  type="text"
+                  maxLength={18}
+                  value={curp}
+                  onChange={e => {
+                    setCurp(e.target.value.toUpperCase());
+                    setFormError(null);
+                  }}
+                  placeholder="ABCD123456HDFRRN01"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500 tracking-wider"
+                />
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  {curp.length}/18 caracteres • Opcional
+                </span>
+              </div>
             </div>
 
             {/* 2. Nombre Completo */}
@@ -397,7 +471,10 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
                 type="text"
                 required
                 value={name}
-                onChange={e => setName(e.target.value)}
+                onChange={e => {
+                  setName(e.target.value);
+                  setFormError(null);
+                }}
                 placeholder="Nombre(s) y Apellidos"
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
@@ -415,7 +492,10 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
                     type="tel"
                     required
                     value={phone}
-                    onChange={e => handlePhoneChange(e.target.value)}
+                    onChange={e => {
+                      handlePhoneChange(e.target.value);
+                      setFormError(null);
+                    }}
                     placeholder="993 123 4567"
                     className="w-full pl-11 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
@@ -431,12 +511,15 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
                 </label>
                 <select
                   value={selectedSection}
-                  onChange={e => setSelectedSection(e.target.value)}
+                  onChange={e => {
+                    setSelectedSection(e.target.value);
+                    setFormError(null);
+                  }}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
-                  {availableSections.map(s => (
+                  {sectionOptions.map(s => (
                     <option key={s.id} value={s.sectionNumber}>
-                      Sección {s.sectionNumber} ({s.municipio})
+                      Sección {s.sectionNumber} ({s.municipio || 'Centro'})
                     </option>
                   ))}
                 </select>

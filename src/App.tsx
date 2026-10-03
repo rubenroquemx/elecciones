@@ -233,6 +233,37 @@ export function App() {
     return sectionsData;
   }, [currentUser, sectionsData]);
 
+  // Secciones disponibles para modales de captura (asegura sección asignada para promotores)
+  const captureAvailableSections: ElectoralSection[] = useMemo(() => {
+    if (scopedSections.length > 0) return scopedSections;
+    if (currentUser?.level === 'promotor') {
+      const assigned = currentUser.assignedSections && currentUser.assignedSections.length > 0
+        ? currentUser.assignedSections
+        : [currentUser.territoryName?.match(/\d{3,4}/)?.[0] || '0416'];
+      const matched = sectionsData.filter(s => assigned.includes(s.sectionNumber));
+      if (matched.length > 0) return matched;
+      return assigned.map(secNum => {
+        const fromBase = INITIAL_SECTIONS.find(s => s.sectionNumber === secNum);
+        if (fromBase) return fromBase;
+        return {
+          id: `sec-${secNum}`,
+          sectionNumber: secNum,
+          municipio: 'Centro',
+          municipioId: 'MUN-004',
+          distritoLocal: 'Distrito 06',
+          tipo: 'Urbana' as const,
+          nominalList: 2450,
+          targetGoal: 150,
+          structures: [],
+          center: [-92.93, 17.98] as [number, number],
+          bbox: [-92.95, 17.96, -92.91, 18.00] as [number, number, number, number],
+          polygon: [],
+        };
+      });
+    }
+    return sectionsData;
+  }, [scopedSections, currentUser, sectionsData]);
+
   // Collapsed branches state
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
     const set = new Set<string>();
@@ -866,9 +897,10 @@ export function App() {
           setQuickCaptureInitialData(null);
         }}
         initialINEData={quickCaptureInitialData}
-        availableSections={scopedSections}
+        availableSections={captureAvailableSections}
         allLeaders={visibleLeaders}
-        currentUserLeaderId={visibleLeaders[0]?.id || null}
+        currentUserLeaderId={currentUser?.leaderId || visibleLeaders[0]?.id || null}
+        defaultSectionNumber={currentUser?.assignedSections?.[0] || currentUser?.territoryName?.match(/\d{3,4}/)?.[0] || '0416'}
         onSuccess={(newLeader) => {
           handleSaveLeader(newLeader);
         }}

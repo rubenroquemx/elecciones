@@ -32,6 +32,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   const [progressStatus, setProgressStatus] = useState('');
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [detectedData, setDetectedData] = useState<ExtractedINEData | null>(null);
+  const [editableData, setEditableData] = useState<ExtractedINEData | null>(null);
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -85,6 +86,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setDetectedData(null);
+      setEditableData(null);
       setPreviewImageUrl(null);
       setIsProcessing(false);
       setProgressPct(0);
@@ -151,6 +153,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
       });
 
       setDetectedData(result);
+      setEditableData({ ...result });
     } catch (err: any) {
       console.error('OCR processing error:', err);
       setProgressStatus('Ocurrió un error al procesar la imagen.');
@@ -160,14 +163,16 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   };
 
   const handleApplyData = () => {
-    if (detectedData) {
-      onDataExtracted(detectedData);
+    const dataToApply = editableData || detectedData;
+    if (dataToApply) {
+      onDataExtracted(dataToApply);
       onClose();
     }
   };
 
   const handleRetake = () => {
     setDetectedData(null);
+    setEditableData(null);
     setPreviewImageUrl(null);
     setIsProcessing(false);
     setProgressPct(0);
@@ -269,89 +274,133 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                 </span>
               </div>
 
-              {/* Extracted Fields Grid */}
+              <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 flex items-center gap-2">
+                <span>✏️ <strong>Revisión interactiva:</strong> Puedes ajustar o corregir cualquier dato antes de aplicarlo.</span>
+              </div>
+
+              {/* Extracted Fields Grid (Editable) */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                 {/* Clave de Elector */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Clave de Elector
-                  </span>
-                  <div className="font-mono font-bold text-slate-900 text-sm tracking-wide">
-                    {detectedData.claveElector ? (
-                      <span className="text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
-                        {detectedData.claveElector}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 italic font-sans font-normal text-xs">No detectada</span>
-                    )}
-                  </div>
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Clave de Elector (INE)
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={18}
+                    value={editableData?.claveElector || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setEditableData(prev => prev ? { ...prev, claveElector: val } : prev);
+                    }}
+                    placeholder="ABCD123456EFGH7890"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-indigo-700 tracking-wider focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
                 </div>
 
                 {/* CURP */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                     CURP
-                  </span>
-                  <div className="font-mono font-bold text-slate-900 text-sm tracking-wide">
-                    {detectedData.curp ? (
-                      <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                        {detectedData.curp}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 italic font-sans font-normal text-xs">No detectada</span>
-                    )}
-                  </div>
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={18}
+                    value={editableData?.curp || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.toUpperCase();
+                      setEditableData(prev => prev ? { ...prev, curp: val } : prev);
+                    }}
+                    placeholder="ABCD123456HDFRRN01"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-emerald-700 tracking-wider focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
                 </div>
 
                 {/* Nombre Detectado */}
-                <div className="sm:col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                <div className="sm:col-span-2 p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                     Nombre del Ciudadano
-                  </span>
-                  <div className="font-bold text-slate-900 text-sm">
-                    {detectedData.name || (
-                      <span className="text-slate-400 italic font-normal text-xs">No identificado claramente</span>
-                    )}
-                  </div>
+                  </label>
+                  <input
+                    type="text"
+                    value={editableData?.name || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditableData(prev => prev ? { ...prev, name: val } : prev);
+                    }}
+                    placeholder="Nombre completo"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
                 </div>
 
                 {/* Sección Electoral */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                     Sección Electoral
-                  </span>
-                  <div className="font-mono font-bold text-slate-900 text-sm">
-                    {detectedData.electoralSection ? (
-                      <span className="px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
-                        Sección {detectedData.electoralSection}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400 italic font-sans font-normal text-xs">No detectada</span>
-                    )}
-                  </div>
+                  </label>
+                  <input
+                    type="text"
+                    maxLength={4}
+                    value={editableData?.electoralSection || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setEditableData(prev => prev ? { ...prev, electoralSection: val } : prev);
+                    }}
+                    placeholder="0416"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono font-bold text-rose-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
                 </div>
 
                 {/* Vigencia */}
-                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                     Vigencia
-                  </span>
-                  <div className="font-mono font-bold text-slate-800 text-sm">
-                    {detectedData.vigencia || 'Vigente'}
-                  </div>
+                  </label>
+                  <input
+                    type="text"
+                    value={editableData?.vigencia || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditableData(prev => prev ? { ...prev, vigencia: val } : prev);
+                    }}
+                    placeholder="2024-2034"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
                 </div>
 
                 {/* Domicilio */}
-                {detectedData.address && (
-                  <div className="sm:col-span-2 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                      Domicilio Detectado
-                    </span>
-                    <div className="text-slate-800 text-xs font-medium">
-                      {detectedData.address} {detectedData.colonia ? `• Col. ${detectedData.colonia}` : ''}
-                    </div>
-                  </div>
-                )}
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Calle y Número
+                  </label>
+                  <input
+                    type="text"
+                    value={editableData?.address || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditableData(prev => prev ? { ...prev, address: val } : prev);
+                    }}
+                    placeholder="Calle, No. Ext."
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+
+                {/* Colonia */}
+                <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Colonia o Localidad
+                  </label>
+                  <input
+                    type="text"
+                    value={editableData?.colonia || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setEditableData(prev => prev ? { ...prev, colonia: val } : prev);
+                    }}
+                    placeholder="Colonia"
+                    className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
               </div>
 
               {/* Botones de Acción */}
