@@ -32,6 +32,8 @@ import { TerritorialPromoterEditPage } from './components/TerritorialPromoterEdi
 import { PromoterCitizenCapturePage } from './components/PromoterCitizenCapturePage';
 import { PromoterCitizenDetailPage } from './components/PromoterCitizenDetailPage';
 import { PromoterCitizenEditPage } from './components/PromoterCitizenEditPage';
+import { PromoterNotificationsModal } from './components/PromoterNotificationsModal';
+import { Users, Bell } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -331,6 +333,7 @@ export function App() {
 
   // Selected citizen for view / edit in promoter pages
   const [selectedPromovidoId, setSelectedPromovidoId] = useState<string | null>(null);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
   const handleOpenQuickCapture = useCallback((data?: ExtractedINEData) => {
     setQuickCaptureInitialData(data || null);
@@ -701,7 +704,9 @@ export function App() {
       />
 
       {/* Área Principal Derecha */}
-      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+      <div className={`flex-1 flex flex-col min-w-0 h-full ${
+        currentUser?.level === 'promotor' ? 'overflow-y-auto md:overflow-hidden' : 'overflow-hidden'
+      }`}>
         {/* Top Header con Breadcrumbs, Switcher de Estructura, Búsqueda y Switcher de Usuario en esquina superior derecha */}
         <TopHeader
           activeNav={activeNav}
@@ -736,7 +741,9 @@ export function App() {
         )}
 
         {/* Contenido Dinámico */}
-        <main className="flex-1 relative overflow-hidden flex">
+        <main className={`flex-1 relative flex ${
+          currentUser?.level === 'promotor' ? 'overflow-visible md:overflow-hidden pb-16 md:pb-0' : 'overflow-hidden'
+        }`}>
           {/* Vista de Página Completa de Detalle de Sección */}
           {detailSectionNumber ? (
             <SectionDetailPage
@@ -982,6 +989,56 @@ export function App() {
         availableSections={scopedSections}
         onUserCreated={handleCreateManualUser}
       />
+
+      {/* Barra Inferior Fija para Promotor Territorial en Móvil */}
+      {currentUser?.level === 'promotor' && (
+        <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 px-6 py-2 flex items-center justify-around md:hidden shadow-lg">
+          <button
+            type="button"
+            onClick={() => {
+              setIsNotificationsOpen(false);
+              if (activeNav !== 'escritorio') {
+                setActiveNav('escritorio');
+              }
+            }}
+            className={`flex flex-col items-center justify-center flex-1 py-1 cursor-pointer transition-colors ${
+              activeNav === 'escritorio' && !isNotificationsOpen
+                ? 'text-emerald-600 font-bold'
+                : 'text-slate-500 hover:text-slate-800 font-medium'
+            }`}
+          >
+            <Users className="w-5 h-5 mb-0.5" />
+            <span className="text-[11px] tracking-tight">Promovidos</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsNotificationsOpen(true)}
+            className={`relative flex flex-col items-center justify-center flex-1 py-1 cursor-pointer transition-colors ${
+              isNotificationsOpen
+                ? 'text-emerald-600 font-bold'
+                : 'text-slate-500 hover:text-slate-800 font-medium'
+            }`}
+          >
+            <div className="relative">
+              <Bell className="w-5 h-5 mb-0.5" />
+              <span className="absolute -top-1 -right-2 w-4 h-4 bg-emerald-600 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                2
+              </span>
+            </div>
+            <span className="text-[11px] tracking-tight">Notificaciones</span>
+          </button>
+        </nav>
+      )}
+
+      {/* Modal de Notificaciones del Promotor */}
+      {currentUser?.level === 'promotor' && (
+        <PromoterNotificationsModal
+          isOpen={isNotificationsOpen}
+          onClose={() => setIsNotificationsOpen(false)}
+          currentUser={currentUser}
+        />
+      )}
     </div>
   );
 }

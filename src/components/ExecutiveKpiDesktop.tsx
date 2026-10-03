@@ -568,7 +568,11 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     : 100;
 
   return (
-    <div className={`flex-1 overflow-y-auto bg-[#f5f5f7] ${isPromotor ? 'p-0 space-y-0' : 'p-4 sm:p-6 lg:p-8 space-y-6'}`}>
+    <div className={`flex-1 bg-[#f5f5f7] ${
+      isPromotor 
+        ? 'p-0 space-y-0 overflow-visible md:overflow-y-auto pb-24 md:pb-0' 
+        : 'overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6'
+    }`}>
       <div className={`${isPromotor ? 'w-full space-y-0' : 'max-w-[1600px] mx-auto space-y-6'}`}>
 
         {/* 1. BLOQUE DE ENCABEZADO Y MÉTRICAS OPERATIVAS */}
@@ -938,7 +942,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
             <button
               type="button"
               onClick={() => onNavigateView('capturar-promovido')}
-              className="fixed bottom-6 right-6 z-40 w-14 h-14 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-2xl flex items-center justify-center rounded-none border border-emerald-400/40 hover:shadow-emerald-600/30 transition-all cursor-pointer group"
+              className="fixed bottom-20 right-5 sm:bottom-6 sm:right-6 z-30 w-14 h-14 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white shadow-2xl flex items-center justify-center rounded-none border border-emerald-400/40 hover:shadow-emerald-600/30 transition-all cursor-pointer group"
               title="Capturar Nuevo Promovido"
               aria-label="Capturar Nuevo Promovido"
             >

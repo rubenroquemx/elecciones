@@ -63,20 +63,24 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onOpenCreateUser,
 }) => {
   return (
-    <header className="apple-chrome sticky top-0 px-3 sm:px-6 py-2.5 shrink-0 z-20">
+    <header className={`apple-chrome px-3 sm:px-6 py-2.5 shrink-0 z-20 ${
+      currentUser?.level === 'promotor' ? 'relative md:sticky md:top-0' : 'sticky top-0'
+    }`}>
       <div className="flex items-center justify-between gap-3 w-full min-h-[40px]">
         
         {/* Left: Mobile Menu Toggle + Title / Breadcrumb / Estructura Switcher */}
         <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-          {/* Mobile hamburger button */}
-          <button
-            type="button"
-            onClick={onToggleMobileMenu}
-            className="p-1.5 -ml-1 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-black/[0.05] lg:hidden transition-colors shrink-0"
-            title="Abrir menú"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
+          {/* Mobile hamburger button - Oculto para Promotor */}
+          {currentUser?.level !== 'promotor' && (
+            <button
+              type="button"
+              onClick={onToggleMobileMenu}
+              className="p-1.5 -ml-1 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-black/[0.05] lg:hidden transition-colors shrink-0"
+              title="Abrir menú"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          )}
 
           {/* Section Breadcrumb & Title */}
           <div className="min-w-0">
