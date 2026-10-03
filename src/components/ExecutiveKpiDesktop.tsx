@@ -25,7 +25,10 @@ import {
   Flame,
   ArrowRight,
   UserPlus,
+  Camera,
 } from 'lucide-react';
+import { INECameraScannerModal } from './INECameraScannerModal';
+import type { ExtractedINEData } from '../utils/ineScanner';
 
 interface ExecutiveKpiDesktopProps {
   currentUser: UserAccount;
@@ -35,7 +38,7 @@ interface ExecutiveKpiDesktopProps {
   onSelectLeader: (leader: TerritorialLeader) => void;
   onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections') => void;
   onOpenAddModal: () => void;
-  onOpenQuickCapture?: () => void;
+  onOpenQuickCapture?: (initialData?: ExtractedINEData) => void;
   onViewSectionDetail?: (sectionNumber: string) => void;
   activeStateId?: number;
   onStateChange?: (stateId: number) => void;
@@ -102,6 +105,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   const isPromotor = currentUser.level === 'promotor';
 
   const [promotorSearch, setPromotorSearch] = useState<string>('');
+  const [isIneScannerOpen, setIsIneScannerOpen] = useState(false);
 
   const promovidosList = useMemo(() => {
     return visibleLeaders.filter(l => l.level === 'promovido');
@@ -771,17 +775,28 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 </div>
               </div>
 
-              {onOpenQuickCapture && (
+              <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
                 <button
                   type="button"
-                  onClick={onOpenQuickCapture}
-                  className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+                  onClick={() => setIsIneScannerOpen(true)}
+                  className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/20 hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer"
                 >
-                  <Smartphone className="w-4 h-4 text-emerald-100" />
-                  <span>Capturar Nuevo Promovido</span>
-                  <span className="bg-emerald-700/60 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">1-Click WA</span>
+                  <Camera className="w-4 h-4 text-emerald-100" />
+                  <span>Escanear INE con Cámara</span>
+                  <span className="bg-emerald-800/60 text-emerald-100 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">Offline</span>
                 </button>
-              )}
+
+                {onOpenQuickCapture && (
+                  <button
+                    type="button"
+                    onClick={() => onOpenQuickCapture()}
+                    className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer"
+                  >
+                    <Smartphone className="w-4 h-4 text-emerald-600" />
+                    <span>Captura Manual</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Listado / Directorio de Promovidos */}
@@ -894,7 +909,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
               {onOpenQuickCapture && (
                 <button
                   type="button"
-                  onClick={onOpenQuickCapture}
+                  onClick={() => onOpenQuickCapture()}
                   className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
                 >
                   <Smartphone className="w-4 h-4 text-emerald-100" />
@@ -1325,6 +1340,16 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
           assignedLeader={inspectMapSection.assignedLeader}
         />
       )}
+
+      {/* Modal de Escáner INE con Cámara para Promotor */}
+      <INECameraScannerModal
+        isOpen={isIneScannerOpen}
+        onClose={() => setIsIneScannerOpen(false)}
+        onDataExtracted={(data) => {
+          setIsIneScannerOpen(false);
+          onOpenQuickCapture?.(data);
+        }}
+      />
     </div>
   );
 };

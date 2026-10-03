@@ -24,6 +24,7 @@ import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { SectionDetailPage } from './components/SectionDetailPage';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { QuickFieldCaptureModal } from './components/QuickFieldCaptureModal';
+import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
   fetchLeadersApi,
@@ -263,6 +264,12 @@ export function App() {
 
   // Quick field capture modal state
   const [isQuickCaptureOpen, setIsQuickCaptureOpen] = useState(false);
+  const [quickCaptureInitialData, setQuickCaptureInitialData] = useState<ExtractedINEData | null>(null);
+
+  const handleOpenQuickCapture = useCallback((data?: ExtractedINEData) => {
+    setQuickCaptureInitialData(data || null);
+    setIsQuickCaptureOpen(true);
+  }, []);
 
   // Global Omnibox Search state & Ctrl+K shortcut
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
@@ -527,7 +534,7 @@ export function App() {
         visibleCount={visibleLeaders.length}
         sectionsCount={scopedSections.length}
         onOpenAddModal={handleOpenAddModal}
-        onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
+        onOpenQuickCapture={() => handleOpenQuickCapture()}
         onExportData={handleExportData}
         onImportData={handleImportData}
         isMobileOpen={isMobileMenuOpen}
@@ -604,7 +611,7 @@ export function App() {
                     }
                   }}
                   onOpenAddModal={handleOpenAddModal}
-                  onOpenQuickCapture={() => setIsQuickCaptureOpen(true)}
+                  onOpenQuickCapture={handleOpenQuickCapture}
                   onViewSectionDetail={(secNum) => {
                     const padded = secNum.padStart(4, '0');
                     const inScope = scopedSections.some(s => s.sectionNumber === secNum || s.sectionNumber === padded);
@@ -694,7 +701,11 @@ export function App() {
       {/* Modal de Captura Rápida de Campo (Móvil / 1-Click WhatsApp) */}
       <QuickFieldCaptureModal
         isOpen={isQuickCaptureOpen}
-        onClose={() => setIsQuickCaptureOpen(false)}
+        onClose={() => {
+          setIsQuickCaptureOpen(false);
+          setQuickCaptureInitialData(null);
+        }}
+        initialINEData={quickCaptureInitialData}
         availableSections={scopedSections}
         allLeaders={visibleLeaders}
         currentUserLeaderId={visibleLeaders[0]?.id || null}

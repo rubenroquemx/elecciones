@@ -15,8 +15,11 @@ import {
   MessageSquare, 
   Send,
   UserCheck,
-  UserPlus
+  UserPlus,
+  Camera
 } from 'lucide-react';
+import { INECameraScannerModal } from './INECameraScannerModal';
+import type { ExtractedINEData } from '../utils/ineScanner';
 
 interface QuickFieldCaptureModalProps {
   isOpen: boolean;
@@ -26,6 +29,7 @@ interface QuickFieldCaptureModalProps {
   currentUserLeaderId?: string | null;
   onSuccess: (newLeader: TerritorialLeader) => void;
   defaultSectionNumber?: string;
+  initialINEData?: ExtractedINEData | null;
 }
 
 export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
@@ -36,7 +40,10 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
   currentUserLeaderId,
   onSuccess,
   defaultSectionNumber,
+  initialINEData,
 }) => {
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [ocrDetectionNotice, setOcrDetectionNotice] = useState<string | null>(null);
   const [electorKey, setElectorKey] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -47,24 +54,51 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
   const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
   const [registeredContact, setRegisteredContact] = useState<{ name: string; phone: string; section: string } | null>(null);
 
+  const handleDataExtracted = (data: ExtractedINEData) => {
+    if (data.claveElector) {
+      setElectorKey(data.claveElector.toUpperCase());
+    }
+    if (data.name) {
+      setName(data.name);
+    }
+    if (data.address) {
+      setAddress(data.address);
+    }
+    if (data.colonia) {
+      setColonia(data.colonia);
+    }
+    if (data.electoralSection) {
+      const norm = normalizeSectionNumber(data.electoralSection);
+      if (availableSections.some(s => s.sectionNumber === norm || s.sectionNumber === data.electoralSection)) {
+        setSelectedSection(norm);
+      }
+    }
+    setOcrDetectionNotice(`Datos del INE detectados localmente (${data.confidenceScore}% de confianza)`);
+  };
+
   // Set default section when opening
   useEffect(() => {
     if (isOpen) {
-      if (defaultSectionNumber) {
-        setSelectedSection(normalizeSectionNumber(defaultSectionNumber));
-      } else if (availableSections.length > 0) {
-        setSelectedSection(availableSections[0].sectionNumber);
+      if (initialINEData) {
+        handleDataExtracted(initialINEData);
+      } else {
+        if (defaultSectionNumber) {
+          setSelectedSection(normalizeSectionNumber(defaultSectionNumber));
+        } else if (availableSections.length > 0) {
+          setSelectedSection(availableSections[0].sectionNumber);
+        }
+        setElectorKey('');
+        setName('');
+        setPhone('');
+        setAddress('');
+        setColonia('');
+        setRoleType('promovido');
+        setOcrDetectionNotice(null);
       }
-      setElectorKey('');
-      setName('');
-      setPhone('');
-      setAddress('');
-      setColonia('');
-      setRoleType('promovido');
       setIsSubmittedSuccess(false);
       setRegisteredContact(null);
     }
-  }, [isOpen, defaultSectionNumber, availableSections]);
+  }, [isOpen, defaultSectionNumber, availableSections, initialINEData]);
 
   // Elector uniqueness validation
   const existingElector = useMemo(() => {
@@ -271,6 +305,50 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
         ) : (
           /* Main Quick Form */
           <form onSubmit={handleSave} className="p-5 sm:p-6 overflow-y-auto space-y-4">
+            {/* Botón de Escaneo Inteligente Offline */}
+            <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-indigo-50 border border-emerald-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                  <Camera className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    Escanear INE con Cámara
+                    <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded-full border border-emerald-300">
+                      0 Tokens • Offline
+                    </span>
+                  </span>
+                  <p className="text-[11px] text-slate-500">
+                    Captura foto del frente o reverso para auto-llenar los datos al instante
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-xs hover:shadow flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+              >
+                <Camera className="w-4 h-4" />
+                <span>Abrir Escáner</span>
+              </button>
+            </div>
+
+            {ocrDetectionNotice && (
+              <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-medium text-emerald-800 flex items-center justify-between animate-emil-fade">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{ocrDetectionNotice}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOcrDetectionNotice(null)}
+                  className="text-emerald-700 hover:text-emerald-950 p-0.5"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             
             {/* Directriz Global Elector Banner */}
             {!validation.allowed && (
@@ -457,6 +535,13 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
           </form>
         )}
       </div>
+
+      {/* Modal de Escáner de Cámara INE Offline */}
+      <INECameraScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onDataExtracted={handleDataExtracted}
+      />
     </div>
   );
 };
