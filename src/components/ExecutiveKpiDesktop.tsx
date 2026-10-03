@@ -537,15 +537,6 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     );
   }, [isPromotor, promotorNode, currentUser.territoryName]);
 
-  const promotorSectionCatalog = useMemo(() => {
-    if (!isPromotor) return null;
-    return (
-      stateCatalogSections.find(
-        s => s.section === promotorSection || s.section === promotorSection.padStart(4, '0')
-      ) || null
-    );
-  }, [isPromotor, stateCatalogSections, promotorSection]);
-
   // Meta fijada por el Coordinador Territorial (en alta o edición)
   const promotorAssignedGoal = promotorNode?.metaGoal || 150;
 
@@ -600,9 +591,6 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                   <span>
                     Sección <strong className="text-white font-bold">{promotorSection}</strong>
                     {promotorNode?.colonia ? ` • ${promotorNode.colonia}` : ''}
-                    {promotorSectionCatalog?.nominalTotal ? (
-                      <span className="text-slate-400 font-normal"> (Padrón: {promotorSectionCatalog.nominalTotal.toLocaleString()} electores)</span>
-                    ) : ''}
                   </span>
                 </p>
               </div>
