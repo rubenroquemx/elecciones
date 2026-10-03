@@ -8,12 +8,20 @@ import {
   Download,
   Upload,
   Smartphone,
-  Shield
+  Shield,
+  Users,
+  Edit3
 } from 'lucide-react';
 
 import type { UserAccount } from '../types/auth';
 
-export type MainNavSection = 'escritorio' | 'estructura' | 'secciones';
+export type MainNavSection = 
+  | 'escritorio' 
+  | 'estructura' 
+  | 'secciones' 
+  | 'promotores' 
+  | 'crear-promotor' 
+  | 'editar-promotor';
 export type StructureMode = 'organigrama' | 'lista';
 
 interface SidebarProps {
@@ -25,6 +33,7 @@ interface SidebarProps {
   onSelectUser?: (user: UserAccount) => void;
   visibleCount: number;
   sectionsCount: number;
+  promotersCount?: number;
   onOpenAddModal: () => void;
   onOpenQuickCapture?: () => void;
   onOpenCreateUser?: () => void;
@@ -45,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   currentUser,
   visibleCount,
   sectionsCount,
+  promotersCount = 0,
   onOpenAddModal,
   onOpenQuickCapture,
   onOpenCreateUser,
@@ -218,6 +228,81 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {sectionsCount}
                 </span>
               </button>
+            )}
+
+            {/* SECCIÓN DEDICADA PARA COORDINADOR TERRITORIAL: PROMOTORES TERRITORIALES */}
+            {isTerritorial && (
+              <div className="space-y-1 pt-3 border-t border-white/[0.08] animate-emil-fade">
+                <span className="px-3 text-[10px] font-semibold uppercase tracking-wider text-sky-400 apple-caption">
+                  Promotores Territoriales
+                </span>
+
+                {/* 1. Ver / Administrar */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavChange('promotores');
+                    onCloseMobile?.();
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 cursor-pointer ${
+                    activeNav === 'promotores'
+                      ? 'bg-sky-500/25 text-white font-bold border border-sky-400/40 shadow-xs'
+                      : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className={`w-4 h-4 ${activeNav === 'promotores' ? 'text-sky-300' : 'text-sky-400'}`} />
+                    <span>Ver / Administrar</span>
+                  </div>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-sky-500/20 text-sky-300">
+                    {promotersCount}
+                  </span>
+                </button>
+
+                {/* 2. Crear Promotor */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavChange('crear-promotor');
+                    onCloseMobile?.();
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 cursor-pointer ${
+                    activeNav === 'crear-promotor'
+                      ? 'bg-emerald-500/25 text-white font-bold border border-emerald-400/40 shadow-xs'
+                      : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <UserPlus className={`w-4 h-4 ${activeNav === 'crear-promotor' ? 'text-emerald-300' : 'text-emerald-400'}`} />
+                    <span>Crear Promotor</span>
+                  </div>
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-200 font-mono">
+                    + Nuevo
+                  </span>
+                </button>
+
+                {/* 3. Editar Promotor */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    onNavChange('editar-promotor');
+                    onCloseMobile?.();
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 cursor-pointer ${
+                    activeNav === 'editar-promotor'
+                      ? 'bg-amber-500/25 text-white font-bold border border-amber-400/40 shadow-xs'
+                      : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Edit3 className={`w-4 h-4 ${activeNav === 'editar-promotor' ? 'text-amber-300' : 'text-amber-400'}`} />
+                    <span>Editar Promotor</span>
+                  </div>
+                  <span className="text-[9px] text-slate-400">
+                    Edición
+                  </span>
+                </button>
+              </div>
             )}
           </div>
 

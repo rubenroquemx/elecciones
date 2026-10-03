@@ -26,6 +26,9 @@ import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { QuickFieldCaptureModal } from './components/QuickFieldCaptureModal';
 import { ClosedSystemLoginScreen } from './components/ClosedSystemLoginScreen';
 import { CreateManualUserModal } from './components/CreateManualUserModal';
+import { TerritorialPromotersAdminView } from './components/TerritorialPromotersAdminView';
+import { TerritorialPromoterCreatePage } from './components/TerritorialPromoterCreatePage';
+import { TerritorialPromoterEditPage } from './components/TerritorialPromoterEditPage';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -296,6 +299,9 @@ export function App() {
     setIsQuickCaptureOpen(true);
   }, []);
 
+  // Selected promoter for editing in territorial coordinator views
+  const [selectedEditPromoterId, setSelectedEditPromoterId] = useState<string | null>(null);
+
   // Global Omnibox Search state & Ctrl+K shortcut
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false);
 
@@ -335,6 +341,12 @@ export function App() {
     if (!currentUser) return [];
     return getVisibleSubtree(currentUser.leaderId, allComputedLeaders);
   }, [currentUser, allComputedLeaders]);
+
+  // Subordinados directos con rol de promotor para el Coordinador Territorial
+  const territorialPromoters = useMemo(() => {
+    if (!currentUser) return [];
+    return visibleLeaders.filter(l => l.level === 'promotor');
+  }, [currentUser, visibleLeaders]);
 
   // Deselect selected leader ONLY if it was set and is no longer in the visible subtree
   useEffect(() => {
@@ -565,6 +577,53 @@ export function App() {
     handleSaveLeader(newLeader);
   }, [handleSaveLeader]);
 
+  // Handlers para gestión de promotores territoriales (Coordinador Territorial)
+  const handleSaveNewPromoter = useCallback((newLeader: TerritorialLeader, newUserAccount: UserAccount) => {
+    setAccounts(prev => {
+      const updated = [...prev, newUserAccount];
+      try {
+        const customOnly = updated.filter(a => !MOCK_ACCOUNTS.some(m => m.id === a.id));
+        localStorage.setItem('territorial_custom_accounts', JSON.stringify(customOnly));
+      } catch (e) {
+        console.error('Error saving custom accounts', e);
+      }
+      return updated;
+    });
+
+    handleSaveLeader(newLeader);
+  }, [handleSaveLeader]);
+
+  const handleSaveUpdatedPromoter = useCallback((updatedLeader: TerritorialLeader, updatedAccount?: UserAccount) => {
+    handleSaveLeader(updatedLeader);
+
+    if (updatedAccount) {
+      setAccounts(prev => {
+        const updated = prev.map(a => a.id === updatedAccount.id || a.leaderId === updatedLeader.id ? updatedAccount : a);
+        try {
+          const customOnly = updated.filter(a => !MOCK_ACCOUNTS.some(m => m.id === a.id));
+          localStorage.setItem('territorial_custom_accounts', JSON.stringify(customOnly));
+        } catch (e) {
+          console.error('Error saving custom accounts', e);
+        }
+        return updated;
+      });
+    }
+  }, [handleSaveLeader]);
+
+  const handleDeletePromoter = useCallback((promoterId: string) => {
+    handleDeleteLeader(promoterId);
+    setAccounts(prev => {
+      const updated = prev.filter(a => a.leaderId !== promoterId);
+      try {
+        const customOnly = updated.filter(a => !MOCK_ACCOUNTS.some(m => m.id === a.id));
+        localStorage.setItem('territorial_custom_accounts', JSON.stringify(customOnly));
+      } catch (e) {
+        console.error('Error saving custom accounts', e);
+      }
+      return updated;
+    });
+  }, [handleDeleteLeader]);
+
   // Si no hay sesión activa en el sistema cerrado, mostrar pantalla de acceso
   if (!currentUser) {
     return (
@@ -586,6 +645,7 @@ export function App() {
         currentUser={currentUser}
         visibleCount={visibleLeaders.length}
         sectionsCount={scopedSections.length}
+        promotersCount={territorialPromoters.length}
         onOpenAddModal={handleOpenAddModal}
         onOpenQuickCapture={() => handleOpenQuickCapture()}
         onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
@@ -714,6 +774,48 @@ export function App() {
                   onAddStructureToSection={handleAddStructureToSection}
                   onSelectStructureToViewTree={handleSelectStructureToViewTree}
                   onViewSectionDetail={(secNum) => setDetailSectionNumber(secNum)}
+                />
+              )}
+
+              {/* 4. GESTIÓN Y ADMINISTRACIÓN DE PROMOTORES */}
+              {activeNav === 'promotores' && (
+                <TerritorialPromotersAdminView
+                  currentUser={currentUser}
+                  promoters={territorialPromoters}
+                  allLeaders={visibleLeaders}
+                  sections={scopedSections}
+                  accounts={accounts}
+                  onNavigate={setActiveNav}
+                  onSelectEditPromoter={(id) => {
+                    setSelectedEditPromoterId(id);
+                    setActiveNav('editar-promotor');
+                  }}
+                  onDeletePromoter={handleDeletePromoter}
+                />
+              )}
+
+              {/* 5. CREAR PROMOTOR TERRITORIAL */}
+              {activeNav === 'crear-promotor' && (
+                <TerritorialPromoterCreatePage
+                  currentUser={currentUser}
+                  availableSections={scopedSections}
+                  onSavePromoter={handleSaveNewPromoter}
+                  onNavigate={setActiveNav}
+                />
+              )}
+
+              {/* 6. EDITAR PROMOTOR TERRITORIAL */}
+              {activeNav === 'editar-promotor' && (
+                <TerritorialPromoterEditPage
+                  selectedPromoterId={selectedEditPromoterId}
+                  promoters={territorialPromoters}
+                  accounts={accounts}
+                  availableSections={scopedSections}
+                  onSave={handleSaveUpdatedPromoter}
+                  onCancel={() => setActiveNav('promotores')}
+                  onSelectPromoterToEdit={setSelectedEditPromoterId}
+                  onDeletePromoter={handleDeletePromoter}
+                  onNavigate={setActiveNav}
                 />
               )}
             </>

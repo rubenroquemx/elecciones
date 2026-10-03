@@ -9,7 +9,10 @@ import {
   Minimize2,
   MapPin,
   BarChart3,
-  Compass
+  Compass,
+  Users,
+  UserPlus,
+  Edit3
 } from 'lucide-react';
 import type { FilterOptions } from '../types/territory';
 import type { UserAccount } from '../types/auth';
@@ -104,12 +107,36 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     <span>Catálogo de Secciones & Cartografía</span>
                   </>
                 )}
+
+                {activeNav === 'promotores' && (
+                  <>
+                    <Users className="w-5 h-5 text-sky-600" />
+                    <span>Gestión de Promotores Territoriales</span>
+                  </>
+                )}
+
+                {activeNav === 'crear-promotor' && (
+                  <>
+                    <UserPlus className="w-5 h-5 text-emerald-600" />
+                    <span>Alta de Nuevo Promotor Territorial</span>
+                  </>
+                )}
+
+                {activeNav === 'editar-promotor' && (
+                  <>
+                    <Edit3 className="w-5 h-5 text-amber-600" />
+                    <span>Edición de Promotor Territorial</span>
+                  </>
+                )}
               </h1>
             </div>
             <p className="text-[11px] text-slate-400">
               {activeNav === 'escritorio' && 'Tablero ejecutivo de metas y cobertura oficial'}
               {activeNav === 'estructura' && 'Cadena de mando jerárquica y directorio descendente'}
               {activeNav === 'secciones' && 'Universo de casillas, lista nominal y comités seccionales'}
+              {activeNav === 'promotores' && 'Directorio de promotores de campo, avance de captación y estado de cuentas'}
+              {activeNav === 'crear-promotor' && 'Generación de cuenta para el sistema cerrado y asignación de sección'}
+              {activeNav === 'editar-promotor' && 'Actualización de datos operativos, metas y restablecimiento de contraseña'}
             </p>
           </div>
 
