@@ -19,14 +19,16 @@ interface INECameraScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
   onDataExtracted: (data: ExtractedINEData) => void;
+  initialTab?: 'camera' | 'upload';
 }
 
 export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   isOpen,
   onClose,
   onDataExtracted,
+  initialTab = 'camera',
 }) => {
-  const [activeTab, setActiveTab] = useState<'camera' | 'upload'>('camera');
+  const [activeTab, setActiveTab] = useState<'camera' | 'upload'>(initialTab);
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
   const [progressStatus, setProgressStatus] = useState('');
@@ -85,13 +87,17 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      const tabToUse = initialTab || 'camera';
+      setActiveTab(tabToUse);
       setDetectedData(null);
       setEditableData(null);
       setPreviewImageUrl(null);
       setIsProcessing(false);
       setProgressPct(0);
-      if (activeTab === 'camera') {
+      if (tabToUse === 'camera') {
         startCamera();
+      } else {
+        stopCamera();
       }
     } else {
       stopCamera();
@@ -99,7 +105,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
     return () => {
       stopCamera();
     };
-  }, [isOpen, activeTab, startCamera, stopCamera]);
+  }, [isOpen, initialTab, startCamera, stopCamera]);
 
   // Handle capture from live video feed
   const handleCaptureFromVideo = async () => {

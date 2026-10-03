@@ -63,25 +63,24 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onOpenCreateUser,
 }) => {
   return (
-    <header className="apple-chrome sticky top-0 px-4 sm:px-6 py-2.5 shrink-0 z-20">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <header className="apple-chrome sticky top-0 px-3 sm:px-6 py-2.5 shrink-0 z-20">
+      <div className="flex items-center justify-between gap-3 w-full min-h-[40px]">
         
         {/* Left: Mobile Menu Toggle + Title / Breadcrumb / Estructura Switcher */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
           {/* Mobile hamburger button */}
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="p-2 -ml-2 text-slate-600 hover:text-slate-900 rounded-xl hover:bg-black/[0.05] lg:hidden transition-colors"
+            className="p-1.5 -ml-1 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-black/[0.05] lg:hidden transition-colors shrink-0"
             title="Abrir menú"
           >
             <Menu className="w-5 h-5" />
           </button>
 
           {/* Section Breadcrumb & Title */}
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2 apple-title-3">
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight flex items-center gap-2 truncate">
                 {activeNav === 'escritorio' && (
                   <>
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
@@ -151,7 +150,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 )}
               </h1>
             </div>
-          </div>
 
           {/* En Estructura: Toggle entre Organigrama y Lista (Apple Segmented Control) */}
           {activeNav === 'estructura' && currentUser?.level !== 'territorial' && currentUser?.level !== 'promotor' && (
@@ -202,9 +200,9 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
         </div>
 
         {/* Right: Search/Filters (en Estructura) + User Session Switcher (siempre en la esquina superior derecha) */}
-        <div className="flex flex-wrap items-center gap-2.5 ml-auto">
+        <div className="flex items-center gap-2 shrink-0 ml-auto">
           {activeNav === 'estructura' && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="hidden lg:flex items-center gap-2">
               {/* Search Input */}
               <div className="relative min-w-[170px] sm:min-w-[210px]">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
