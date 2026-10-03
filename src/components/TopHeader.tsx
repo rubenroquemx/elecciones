@@ -86,7 +86,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   <>
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
                     <span>Escritorio de Operación</span>
-                    {activeStateName && (
+                    {activeStateName && currentUser?.level !== 'promotor' && (
                       <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
                         {activeStateName} ({activeStateAbbr?.toUpperCase()})
                       </span>
@@ -250,8 +250,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             </div>
           )}
 
-          {/* Omnibox Search Button (Apple Spotlight capsule) */}
-          {onOpenGlobalSearch && (
+          {/* Omnibox Search Button (Apple Spotlight capsule - oculto para Promotor) */}
+          {onOpenGlobalSearch && currentUser?.level !== 'promotor' && (
             <button
               type="button"
               onClick={onOpenGlobalSearch}

@@ -9,8 +9,7 @@ import {
   Upload,
   Smartphone,
   Shield,
-  Users,
-  Edit3
+  Users
 } from 'lucide-react';
 
 import type { UserAccount } from '../types/auth';
@@ -280,28 +279,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     + Nuevo
                   </span>
                 </button>
-
-                {/* 3. Editar Promotor */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onNavChange('editar-promotor');
-                    onCloseMobile?.();
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 cursor-pointer ${
-                    activeNav === 'editar-promotor'
-                      ? 'bg-amber-500/25 text-white font-bold border border-amber-400/40 shadow-xs'
-                      : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Edit3 className={`w-4 h-4 ${activeNav === 'editar-promotor' ? 'text-amber-300' : 'text-amber-400'}`} />
-                    <span>Editar Promotor</span>
-                  </div>
-                  <span className="text-[9px] text-slate-400">
-                    Edición
-                  </span>
-                </button>
               </div>
             )}
           </div>
@@ -393,27 +370,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
 
-        {/* User Session Footer Badge (Indicador estático de sesión) */}
-        <div className="p-3.5 border-t border-slate-800/80 bg-slate-950/60">
-          <div className="flex items-center gap-2.5">
-            {currentUser.picture ? (
-              <img src={currentUser.picture} alt={currentUser.name} className="w-8 h-8 rounded-lg object-cover shadow-xs shrink-0" />
-            ) : (
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs ${currentUser.avatarBg || 'bg-slate-700'}`}>
-                {currentUser.level === 'admin' ? 'A' : currentUser.name.charAt(0)}
+        {/* User Session Footer Badge (Indicador estático de sesión - oculto para Promotor) */}
+        {!isPromotor && (
+          <div className="p-3.5 border-t border-slate-800/80 bg-slate-950/60">
+            <div className="flex items-center gap-2.5">
+              {currentUser.picture ? (
+                <img src={currentUser.picture} alt={currentUser.name} className="w-8 h-8 rounded-lg object-cover shadow-xs shrink-0" />
+              ) : (
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs ${currentUser.avatarBg || 'bg-slate-700'}`}>
+                  {currentUser.level === 'admin' ? 'A' : currentUser.name.charAt(0)}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-xs font-bold text-white truncate">
+                  {currentUser.name}
+                </div>
+                <div className="text-[10px] text-slate-400 truncate">
+                  {currentUser.accountRoleLabel}
+                </div>
               </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-white truncate">
-                {currentUser.name}
-              </div>
-              <div className="text-[10px] text-slate-400 truncate">
-                {currentUser.accountRoleLabel}
-              </div>
+              <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Sesión activa" />
             </div>
-            <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Sesión activa" />
           </div>
-        </div>
+        )}
       </aside>
     </>
   );

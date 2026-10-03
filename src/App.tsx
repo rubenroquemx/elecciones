@@ -308,13 +308,14 @@ export function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        if (currentUser?.level === 'promotor') return;
         e.preventDefault();
         setIsGlobalSearchOpen(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [currentUser]);
 
   const handleSelectSectionFromSearch = useCallback((secNum: string) => {
     setDetailSectionNumber(secNum);
@@ -677,7 +678,7 @@ export function App() {
           onSelectUser={handleSelectUser}
           visibleCount={visibleLeaders.length}
           onLogout={handleLogout}
-          onOpenGlobalSearch={() => setIsGlobalSearchOpen(true)}
+          onOpenGlobalSearch={currentUser?.level === 'promotor' ? undefined : () => setIsGlobalSearchOpen(true)}
           accounts={accounts}
           onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
         />
