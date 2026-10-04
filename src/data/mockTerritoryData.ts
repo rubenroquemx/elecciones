@@ -177,8 +177,29 @@ export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
     status: "completado",
     validationStatus: "validado",
     createdAt: "2026-10-02T10:15:00Z",
-    updatedAt: "2026-10-02T10:15:00Z",
+    updatedAt: "2026-10-03T18:30:00Z",
     changelog: [
+      {
+        id: "cl-1-2",
+        timestamp: "2026-10-03T18:30:00Z",
+        action: "edicion",
+        description: "Modificó: Teléfono Celular, Calle y Número",
+        userName: "Ruben Roque",
+        changes: [
+          {
+            field: "phone",
+            label: "Teléfono Celular",
+            oldValue: "+52 993 555 1100",
+            newValue: "+52 993 555 1122"
+          },
+          {
+            field: "address",
+            label: "Calle y Número",
+            oldValue: "Calle Libertad #100",
+            newValue: "Calle Libertad #102"
+          }
+        ]
+      },
       {
         id: "cl-1-1",
         timestamp: "2026-10-02T10:15:00Z",

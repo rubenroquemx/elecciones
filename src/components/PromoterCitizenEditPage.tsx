@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { TerritorialLeader, LeaderChangelogEntry } from '../types/territory';
+import type { TerritorialLeader, LeaderChangelogEntry, LeaderFieldChange } from '../types/territory';
 import type { ElectoralSection } from '../types/sections';
 import type { MainNavSection } from './Sidebar';
 import { 
@@ -129,27 +129,119 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
     }
 
     const nowIso = new Date().toISOString();
+    const changes: LeaderFieldChange[] = [];
+
+    const normName = trimmedName.toUpperCase();
+    if (normName !== (citizen.name || '').trim().toUpperCase()) {
+      changes.push({
+        field: 'name',
+        label: 'Nombre Completo',
+        oldValue: citizen.name || '(Sin dato)',
+        newValue: normName,
+      });
+    }
+
+    const normKey = trimmedKey.toUpperCase();
+    if (normKey !== (citizen.electorKey || '').trim().toUpperCase()) {
+      changes.push({
+        field: 'electorKey',
+        label: 'Clave de Elector',
+        oldValue: citizen.electorKey || '(Sin dato)',
+        newValue: normKey,
+      });
+    }
+
+    const normCurp = curp.trim().toUpperCase();
+    const oldCurp = (citizen.curp || '').trim().toUpperCase();
+    if (normCurp !== oldCurp) {
+      changes.push({
+        field: 'curp',
+        label: 'CURP',
+        oldValue: oldCurp || '(Sin dato)',
+        newValue: normCurp || '(Sin dato)',
+      });
+    }
+
+    const newPhoneDigits = phone.replace(/\D/g, '').slice(-10);
+    const oldPhoneDigits = citizen.phone ? citizen.phone.replace(/\D/g, '').slice(-10) : '';
+    if (newPhoneDigits !== oldPhoneDigits) {
+      changes.push({
+        field: 'phone',
+        label: 'Teléfono Celular',
+        oldValue: citizen.phone || '(Sin dato)',
+        newValue: newPhoneDigits ? `+52 ${newPhoneDigits.slice(0, 3)} ${newPhoneDigits.slice(3, 6)} ${newPhoneDigits.slice(6)}` : '(Sin dato)',
+      });
+    }
+
+    const oldSec = citizen.electoralSection ? normalizeSectionNumber(citizen.electoralSection) : '';
+    if (normalizedSec !== oldSec) {
+      changes.push({
+        field: 'electoralSection',
+        label: 'Sección Electoral',
+        oldValue: oldSec ? `Sección ${oldSec}` : '(Sin dato)',
+        newValue: `Sección ${normalizedSec}`,
+      });
+    }
+
+    const normAddress = address.trim().toUpperCase();
+    const oldAddress = (citizen.address || '').trim().toUpperCase();
+    if (normAddress !== oldAddress) {
+      changes.push({
+        field: 'address',
+        label: 'Calle y Número',
+        oldValue: oldAddress || '(Sin dato)',
+        newValue: normAddress || '(Sin dato)',
+      });
+    }
+
+    const normColonia = colonia.trim().toUpperCase();
+    const oldColonia = (citizen.colonia || '').trim().toUpperCase();
+    if (normColonia !== oldColonia) {
+      changes.push({
+        field: 'colonia',
+        label: 'Colonia / Localidad',
+        oldValue: oldColonia || '(Sin dato)',
+        newValue: normColonia || '(Sin dato)',
+      });
+    }
+
+    const normNotes = notes.trim().toUpperCase();
+    const oldNotes = (citizen.notes || '').trim().toUpperCase();
+    if (normNotes !== oldNotes) {
+      changes.push({
+        field: 'notes',
+        label: 'Observaciones',
+        oldValue: oldNotes || '(Sin dato)',
+        newValue: normNotes || '(Sin dato)',
+      });
+    }
+
+    const changeDescription = changes.length > 0
+      ? `Modificó: ${changes.map(c => c.label).join(', ')}`
+      : 'Actualización y confirmación de datos sin cambios de campo';
+
     const changelogEntry: LeaderChangelogEntry = {
       id: `cl-${Date.now()}`,
       timestamp: nowIso,
       action: 'edicion',
-      description: `Actualización de expediente en Sección ${normalizedSec}`,
+      description: changeDescription,
       userName: 'Promotor Territorial',
+      changes: changes.length > 0 ? changes : undefined,
     };
 
     const updatedLeader: TerritorialLeader = {
       ...citizen,
-      name: trimmedName.toUpperCase(),
-      electorKey: trimmedKey.toUpperCase(),
-      curp: curp.trim().toUpperCase() || undefined,
-      phone: phone.trim() ? `+52 ${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}` : undefined,
+      name: normName,
+      electorKey: normKey,
+      curp: normCurp || undefined,
+      phone: newPhoneDigits ? `+52 ${newPhoneDigits.slice(0, 3)} ${newPhoneDigits.slice(3, 6)} ${newPhoneDigits.slice(6)}` : undefined,
       electoralSection: normalizedSec,
-      territoryName: `Sección ${normalizedSec} - ${colonia.trim().toUpperCase() || 'TERRITORIO'}`,
-      address: address.trim().toUpperCase(),
-      colonia: colonia.trim().toUpperCase(),
-      notes: notes.trim().toUpperCase(),
+      territoryName: `Sección ${normalizedSec} - ${normColonia || 'TERRITORIO'}`,
+      address: normAddress,
+      colonia: normColonia,
+      notes: normNotes,
       updatedAt: nowIso,
-      changelog: [...(citizen.changelog || []), changelogEntry],
+      changelog: [changelogEntry, ...(citizen.changelog || [])],
     };
 
     persistElectorProfile({

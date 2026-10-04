@@ -15,12 +15,20 @@ export interface LeaderNote {
   createdAt: string;
 }
 
+export interface LeaderFieldChange {
+  field: string;
+  label: string;
+  oldValue?: string;
+  newValue?: string;
+}
+
 export interface LeaderChangelogEntry {
   id: string;
   timestamp: string;
   action: 'creacion' | 'edicion' | 'validacion' | 'nota';
   description: string;
   userName?: string;
+  changes?: LeaderFieldChange[];
 }
 
 export interface TerritorialLeader {

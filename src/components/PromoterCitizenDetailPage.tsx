@@ -212,26 +212,26 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
           </p>
         </div>
 
-        {/* Historial de Cambios / Bitácora (Changelog) */}
+        {/* REGISTRO DE ACTIVIDAD */}
         <div className="border border-slate-200 bg-white p-6 rounded-none space-y-4">
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
               <Clock className="w-4 h-4 text-indigo-600" />
-              <span>Bitácora y Registro de Actividad (Changelog)</span>
+              <span>REGISTRO DE ACTIVIDAD</span>
             </h3>
             <span className="text-[10px] font-mono font-semibold text-slate-500">
-              {citizen.changelog?.length || 1} evento(s) registrado(s)
+              {citizen.changelog?.length || 1} evento(s)
             </span>
           </div>
 
           <div className="space-y-3">
             {citizen.changelog && citizen.changelog.length > 0 ? (
               citizen.changelog.map((entry) => (
-                <div key={entry.id} className="p-3 bg-slate-50 border border-slate-200 rounded-none text-xs space-y-1">
+                <div key={entry.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-none text-xs space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-slate-900 uppercase text-[11px] flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-none bg-emerald-500 inline-block" />
-                      {entry.action.replace('_', ' ')}
+                      <span className={`w-2 h-2 rounded-none ${entry.action === 'creacion' ? 'bg-emerald-500' : 'bg-indigo-600'} inline-block`} />
+                      {entry.action === 'creacion' ? 'Registro Inicial' : entry.action === 'edicion' ? 'Modificación de Expediente' : entry.action}
                     </span>
                     <span className="font-mono text-[10px] text-slate-500">
                       {new Date(entry.timestamp).toLocaleDateString('es-MX', {
@@ -243,16 +243,48 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
                       })}
                     </span>
                   </div>
-                  <p className="text-slate-700">{entry.description}</p>
+
+                  <p className="text-slate-700 font-medium">{entry.description}</p>
+
+                  {/* Detalle claro de los campos modificados */}
+                  {entry.changes && entry.changes.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200 space-y-1.5">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Campos Modificados ({entry.changes.length}):
+                      </span>
+                      <div className="grid grid-cols-1 gap-1.5">
+                        {entry.changes.map((ch, idx) => (
+                          <div 
+                            key={idx} 
+                            className="bg-white p-2.5 border border-slate-200 rounded-none text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5"
+                          >
+                            <span className="font-bold text-slate-900">
+                              {ch.label}
+                            </span>
+                            <div className="flex items-center gap-2 font-mono text-[11px] flex-wrap">
+                              <span className="text-rose-700/80 bg-rose-50 px-1.5 py-0.5 border border-rose-200 line-through">
+                                {ch.oldValue || '(Sin dato)'}
+                              </span>
+                              <span className="text-slate-400 font-bold">→</span>
+                              <span className="text-emerald-800 bg-emerald-50 px-1.5 py-0.5 border border-emerald-200 font-bold">
+                                {ch.newValue || '(Sin dato)'}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {entry.userName && (
-                    <span className="text-[10px] text-slate-400 block font-semibold">
+                    <span className="text-[10px] text-slate-400 block font-semibold pt-0.5">
                       Responsable: {entry.userName}
                     </span>
                   )}
                 </div>
               ))
             ) : (
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-none text-xs space-y-1">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-none text-xs space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 uppercase text-[11px] flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-none bg-emerald-500 inline-block" />
@@ -268,7 +300,7 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
                     })}
                   </span>
                 </div>
-                <p className="text-slate-700">Alta y validación de ciudadano promovido en sección territorial asignada.</p>
+                <p className="text-slate-700 font-medium">Alta y validación de ciudadano promovido en sección territorial asignada.</p>
               </div>
             )}
           </div>
