@@ -11,8 +11,8 @@ import {
   RefreshCw,
   Crop,
   Maximize,
-  Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  AlertTriangle
 } from 'lucide-react';
 
 interface CropBox {
@@ -39,7 +39,6 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'camera' | 'upload'>(initialTab);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progressStatus, setProgressStatus] = useState('');
   const [cameraError, setCameraError] = useState<string | null>(null);
 
   // Estados de flujo: captura -> recorte interactivo
@@ -47,6 +46,10 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
   const [cropBox, setCropBox] = useState<CropBox>({ x: 5, y: 15, width: 90, height: 56.7 });
   const [dragMode, setDragMode] = useState<null | 'move' | 'nw' | 'ne' | 'se' | 'sw'>(null);
+  const [invalidPromptData, setInvalidPromptData] = useState<{
+    result: ExtractedINEData;
+    photoUrl: string;
+  } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -131,7 +134,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
       setStep('capture');
       setRawImageSrc(null);
       setIsProcessing(false);
-      setProgressStatus('');
+      setInvalidPromptData(null);
       if (tabToUse === 'camera') {
         startCamera();
       } else {
@@ -294,26 +297,53 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
 
     if (isGeminiAvailable) {
       setIsProcessing(true);
-      setProgressStatus('Extrayendo datos de la credencial con Inteligencia Artificial (Gemini Vision)...');
       try {
         const aiResult = await scanINEWithAI(croppedDataUrl);
         if (aiResult) {
+          const isNotValid = aiResult.isValidINE === false;
+          const isNotReadable = aiResult.isReadable === false;
+          const lacksEssentialData = !aiResult.name && !aiResult.claveElector && !aiResult.electoralSection && !aiResult.curp;
+
+          if (isNotValid || isNotReadable || lacksEssentialData) {
+            setIsProcessing(false);
+            setInvalidPromptData({
+              result: aiResult,
+              photoUrl: croppedDataUrl,
+            });
+            return;
+          }
+
           aiResult.photoUrl = croppedDataUrl;
+          aiResult.validationStatus = 'validado';
+          setIsProcessing(false);
           onDataExtracted(aiResult);
           onClose();
+          return;
+        } else {
+          setIsProcessing(false);
+          setInvalidPromptData({
+            result: { rawText: '', confidenceScore: 0, isValidINE: false, isReadable: false },
+            photoUrl: croppedDataUrl,
+          });
           return;
         }
       } catch (err) {
         console.warn('Error en Gemini AI:', err);
+        setIsProcessing(false);
+        setInvalidPromptData({
+          result: { rawText: '', confidenceScore: 0, isValidINE: false, isReadable: false },
+          photoUrl: croppedDataUrl,
+        });
+        return;
       }
-      setIsProcessing(false);
     }
 
-    // Modo fuera de línea o fallo de conexión: se pasa la foto recortada directamente
+    // Modo fuera de línea o sin IA: se pasa la foto recortada directamente
     onDataExtracted({
       rawText: '',
       confidenceScore: 0,
       photoUrl: croppedDataUrl,
+      validationStatus: 'sin_validacion',
     });
     onClose();
   };
@@ -321,27 +351,19 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 text-white w-screen h-screen overflow-hidden">
+    <div className="fixed inset-0 z-50 flex flex-col bg-white text-slate-900 w-screen h-screen overflow-hidden">
       {/* 1. Cabecera Fija */}
-      <div className="p-3.5 sm:p-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="p-1.5 bg-emerald-600 rounded-none text-white shrink-0">
+      <div className="p-3.5 sm:p-4 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-xs">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="p-1.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-none shrink-0">
             {step === 'crop' ? <Crop className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
           </div>
           <div className="min-w-0">
-            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-white truncate">
-              {step === 'crop' 
-                ? 'Ajustar y Recortar Credencial INE' 
-                : isGeminiAvailable 
-                ? 'Escanear INE con Inteligencia Artificial' 
-                : 'Tomar Fotografía de Credencial (Modo Fuera de Línea)'}
+            <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 truncate">
+              Escanear INE
             </h3>
-            <p className="text-[11px] text-slate-400 truncate">
-              {step === 'crop'
-                ? 'Ajusta el marco verde para encuadrar únicamente el frente del INE'
-                : isGeminiAvailable
-                ? 'Captura el frente de la credencial para auto-completar los datos'
-                : 'Encuadra la credencial; se guardará la fotografía para validar al sincronizar'}
+            <p className="text-[11px] text-slate-500 truncate">
+              Alinea el frente de la credencial de elector con la guía.
             </p>
           </div>
         </div>
@@ -349,7 +371,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
         <button
           type="button"
           onClick={onClose}
-          className="p-2 text-slate-400 hover:text-white rounded-none hover:bg-slate-800 transition-colors cursor-pointer"
+          className="p-2 text-slate-400 hover:text-slate-800 rounded-none hover:bg-slate-100 transition-colors cursor-pointer"
           title="Cerrar"
         >
           <X className="w-5 h-5" />
@@ -357,10 +379,10 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
       </div>
 
       {/* 2. Cuerpo Principal */}
-      <div className="flex-1 relative flex flex-col overflow-hidden bg-black">
+      <div className="flex-1 relative flex flex-col overflow-hidden bg-slate-50">
         {/* PANTALLA A: CROP / RECORTE DE LA IMAGEN */}
         {step === 'crop' && rawImageSrc && (
-          <div className="flex-1 relative flex flex-col items-center justify-center p-3 sm:p-6 overflow-hidden select-none">
+          <div className="flex-1 relative flex flex-col items-center justify-center p-3 sm:p-6 overflow-hidden select-none bg-slate-100">
             {/* Contenedor relativo para la imagen y la máscara de recorte */}
             <div
               ref={cropContainerRef}
@@ -428,17 +450,17 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
               <button
                 type="button"
                 onClick={handleAutoFitINE}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-none font-semibold flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-none font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <Crop className="w-3.5 h-3.5 text-emerald-400" />
+                <Crop className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Auto-Ajustar al INE</span>
               </button>
               <button
                 type="button"
                 onClick={handleFullFrame}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-none font-semibold flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-none font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <Maximize className="w-3.5 h-3.5 text-slate-400" />
+                <Maximize className="w-3.5 h-3.5 text-slate-500" />
                 <span>Foto Completa</span>
               </button>
               <button
@@ -448,7 +470,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                   setRawImageSrc(null);
                   if (activeTab === 'camera') startCamera();
                 }}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-700 rounded-none font-semibold flex items-center gap-1.5 cursor-pointer"
+                className="px-3 py-1.5 bg-white hover:bg-rose-50 text-rose-700 border border-slate-300 rounded-none font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
                 <span>Volver a Tomar</span>
@@ -474,7 +496,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                 <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4">
                   <div className="w-[88%] max-w-lg aspect-[1.586/1] border-2 border-dashed border-emerald-400/90 rounded-none relative flex items-center justify-center shadow-lg">
                     <div className="absolute -top-3 px-2.5 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-none uppercase tracking-wider flex items-center gap-1 shadow-xs">
-                      <span>Alinee el FRENTE de la credencial aquí</span>
+                      <span>Alinea el frente de la credencial con la guía</span>
                     </div>
                     <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-emerald-400" />
                     <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-emerald-400" />
@@ -493,16 +515,13 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
 
             {activeTab === 'upload' && (
               <div className="p-8 text-center space-y-4 max-w-md mx-auto">
-                <div className="w-20 h-20 bg-slate-900 border-2 border-dashed border-slate-700 flex items-center justify-center mx-auto text-emerald-400">
+                <div className="w-20 h-20 bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center mx-auto text-emerald-600">
                   <Upload className="w-8 h-8" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-white">
+                  <h4 className="text-sm font-bold text-slate-900">
                     Selecciona una fotografía del INE
                   </h4>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Puedes tomar una foto con tu cámara o seleccionar una de tu galería.
-                  </p>
                 </div>
                 <button
                   type="button"
@@ -525,28 +544,83 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
           </div>
         )}
 
-        {/* OVERLAY DE PROCESAMIENTO CON IA */}
+        {/* OVERLAY DE PROCESAMIENTO (SOLO TEXTOS SOLICITADOS) */}
         {isProcessing && (
-          <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 animate-spin rounded-full" />
+          <div className="absolute inset-0 bg-white/95 backdrop-blur-md z-30 flex flex-col items-center justify-center p-6 text-center space-y-4">
+            <div className="w-14 h-14 border-4 border-slate-200 border-t-emerald-600 animate-spin rounded-full" />
             <div className="space-y-1.5 max-w-sm">
-              <div className="flex items-center justify-center gap-2 text-emerald-400 text-xs font-black uppercase tracking-wider">
-                <Sparkles className="w-4 h-4 animate-pulse" />
-                <span>Extracción con Inteligencia Artificial</span>
+              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                Espera un momento...
+              </span>
+              <p className="text-base sm:text-lg font-bold text-slate-900">
+                Extrayendo datos
+              </p>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Los datos extraídos se cargarán automáticamente en el formulario de registro.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL DE CONFIRMACIÓN: IMAGEN NO VÁLIDA O ILEGIBLE */}
+        {invalidPromptData && (
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xs z-40 flex items-center justify-center p-4">
+            <div className="bg-white border border-slate-300 shadow-2xl max-w-md w-full p-6 space-y-4 rounded-none">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-amber-50 border border-amber-200 text-amber-700 shrink-0">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                    Credencial no válida o ilegible
+                  </h4>
+                  <p className="text-xs text-slate-700 leading-relaxed">
+                    La imagen que subiste no corresponde con una credencial válida o la foto es ilegible, ¿deseas continuar?
+                  </p>
+                </div>
               </div>
-              <p className="text-sm font-bold text-white">
-                {progressStatus || 'Analizando credencial...'}
-              </p>
-              <p className="text-xs text-slate-400">
-                Los datos detectados se cargarán automáticamente en el formulario.
-              </p>
+
+              <div className="p-3 bg-slate-50 border border-slate-200 text-[11px] text-slate-600">
+                Si continúas, la imagen se guardará en el expediente pero el registro quedará marcado como <strong className="text-slate-900 font-bold">no validado</strong> para su revisión manual.
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInvalidPromptData(null);
+                    setStep('capture');
+                    if (activeTab === 'camera') startCamera();
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 text-xs font-bold rounded-none cursor-pointer"
+                >
+                  Cancelar / Tomar Otra
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const dataToPass: ExtractedINEData = {
+                      ...invalidPromptData.result,
+                      photoUrl: invalidPromptData.photoUrl,
+                      validationStatus: 'sin_validacion',
+                      isValidINE: false,
+                    };
+                    setInvalidPromptData(null);
+                    onDataExtracted(dataToPass);
+                    onClose();
+                  }}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-none cursor-pointer shadow-xs"
+                >
+                  Sí, Continuar
+                </button>
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* 3. Barra de Acciones Inferior */}
-      <div className="p-4 bg-slate-900 border-t border-slate-800 flex items-center justify-between gap-3 shrink-0">
+      {/* 3. Barra de Acciones Inferior en Blanco */}
+      <div className="p-4 bg-white border-t border-slate-200 flex items-center justify-between gap-3 shrink-0">
         {step === 'capture' && activeTab === 'camera' && (
           <>
             <button
@@ -555,16 +629,16 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                 setActiveTab('upload');
                 stopCamera();
               }}
-              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-none text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-none text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
             >
-              <Upload className="w-4 h-4" />
+              <Upload className="w-4 h-4 text-slate-500" />
               <span>Cargar Archivo</span>
             </button>
 
             <button
               type="button"
               onClick={handleCaptureFromVideo}
-              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-none text-xs font-black tracking-wide flex items-center gap-2 cursor-pointer shadow-lg"
+              className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-none text-xs font-black tracking-wide flex items-center gap-2 cursor-pointer shadow-md"
             >
               <Camera className="w-4 h-4" />
               <span>Tomar Fotografía</span>
@@ -580,9 +654,9 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                 setActiveTab('camera');
                 startCamera();
               }}
-              className="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-none text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+              className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-none text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
             >
-              <Camera className="w-4 h-4" />
+              <Camera className="w-4 h-4 text-slate-500" />
               <span>Usar Cámara</span>
             </button>
             <div />
@@ -598,9 +672,9 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                 setRawImageSrc(null);
                 if (activeTab === 'camera') startCamera();
               }}
-              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-none text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-none text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className="w-4 h-4 text-slate-500" />
               <span>Tomar Otra</span>
             </button>
 
@@ -608,10 +682,10 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
               type="button"
               disabled={isProcessing}
               onClick={handleConfirmCrop}
-              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-50 text-white rounded-none text-xs font-black tracking-wide flex items-center gap-2 cursor-pointer shadow-lg"
+              className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-50 text-white rounded-none text-xs font-black tracking-wide flex items-center gap-2 cursor-pointer shadow-md"
             >
               <Check className="w-4 h-4" />
-              <span>{isGeminiAvailable ? 'Confirmar Recorte y Analizar con IA' : 'Confirmar Recorte y Continuar'}</span>
+              <span>Confirmar Recorte</span>
             </button>
           </>
         )}

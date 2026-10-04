@@ -54,11 +54,17 @@ app.post('/api/scan-ine-ai', async (req, res) => {
     const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
     const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-    const promptText = `Eres un asistente experto en reconocimiento y extracción de credenciales de elector del INE (Instituto Nacional Electoral) de México.
+    const promptText = `Eres un asistente experto en reconocimiento y validación oficial de credenciales de elector del INE (Instituto Nacional Electoral) de México.
 Analiza con máxima precisión esta credencial (puede ser anverso, reverso o ambas).
+
+Evalúa con rigor:
+1. ¿La imagen corresponde efectivamente a una credencial para votar del INE o IFE mexicana válida? (isValidINE: true/false). Si es una foto de una persona, selfie, paisaje, recibo, licencia de conducir u otro documento ajeno, marca isValidINE: false.
+2. ¿La credencial es legible para extraer datos? (isReadable: true/false). Si la foto está totalmente borrosa, oscura, desenfocada o cortada imposibilitando la lectura, marca isReadable: false.
 
 Extrae exactamente los datos oficiales y responde ÚNICAMENTE un objeto JSON válido con estos campos:
 {
+  "isValidINE": true | false,
+  "isReadable": true | false,
   "name": "NOMBRE COMPLETO (Nombres y apellidos completos ordenados)",
   "claveElector": "CLAVE DE ELECTOR (18 caracteres alfanuméricos oficiales)",
   "curp": "CURP (18 caracteres)",
@@ -67,7 +73,7 @@ Extrae exactamente los datos oficiales y responde ÚNICAMENTE un objeto JSON vá
   "colonia": "COLONIA O LOCALIDAD",
   "municipio": "MUNICIPIO O ALCALDÍA",
   "vigencia": "AÑO O RANGO DE VIGENCIA (ej. 2024-2034 o 2030)",
-  "sexo": "Hombre" o "Mujer",
+  "sexo": "Hombre" | "Mujer",
   "detectedSide": "anverso" | "reverso" | "ambos",
   "confidenceScore": 99
 }

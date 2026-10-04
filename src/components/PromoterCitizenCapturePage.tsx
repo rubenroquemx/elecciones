@@ -11,14 +11,12 @@ import {
 import { 
   ArrowLeft, 
   Camera, 
-  CheckCircle2, 
   AlertTriangle, 
   UserCheck, 
   Save, 
   X,
   Maximize2,
-  RefreshCw,
-  Sparkles
+  RefreshCw
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
 import { checkGeminiAvailable, type ExtractedINEData } from '../utils/ineScanner';
@@ -44,7 +42,8 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 }) => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isGeminiAvailable, setIsGeminiAvailable] = useState<boolean>(true);
-  const [ocrNotice, setOcrNotice] = useState<string | null>(null);
+  const [hasExtractedData, setHasExtractedData] = useState<boolean>(false);
+  const [extractionValidationStatus, setExtractionValidationStatus] = useState<'validado' | 'sin_validacion' | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [sectionMismatchError, setSectionMismatchError] = useState<string | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
@@ -172,11 +171,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     }
 
     setFormError(null);
-    if (isGeminiAvailable && data.confidenceScore > 0) {
-      setOcrNotice(`Datos INE verificados exitosamente con Inteligencia Artificial`);
-    } else if (data.photoUrl) {
-      setOcrNotice(`Fotografía de credencial INE capturada y recortada exitosamente`);
-    }
+    const gotData = Boolean(data.name || data.claveElector || data.electoralSection || data.curp);
+    setHasExtractedData(gotData);
+    setExtractionValidationStatus(data.validationStatus || (gotData && isGeminiAvailable ? 'validado' : 'sin_validacion'));
   };
 
   useEffect(() => {
@@ -332,7 +329,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       metaGoal: 1,
       currentCount: 1,
       status: 'completado',
-      validationStatus: isGeminiAvailable ? 'validado' : 'sin_validacion',
+      validationStatus: extractionValidationStatus || (isGeminiAvailable && hasExtractedData ? 'validado' : 'sin_validacion'),
       notes: notes.trim().toUpperCase() || (isGeminiAvailable ? `REGISTRO DE CAMPO EN SECCIÓN ${cleanSection}.` : `REGISTRO OFFLINE (SECCIÓN ${cleanSection}) - PENDIENTE DE VALIDACIÓN AL SINCRONIZAR.`),
       createdAt: nowIso,
       updatedAt: nowIso,
@@ -424,25 +421,23 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                   title="Toca para ampliar imagen de la credencial"
                 />
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
-                      Credencial INE (Frente Digitalizado)
-                    </span>
-                    {isGeminiAvailable ? (
-                      <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-1.5 py-0.5 rounded-none flex items-center gap-1">
-                        <Sparkles className="w-2.5 h-2.5" /> Verificado con IA
+                  <h4 className="text-xs sm:text-sm font-bold text-white tracking-wide">
+                    Credencial cargada exitosamente
+                  </h4>
+                  <div className="text-[11px] mt-1 flex items-center gap-1.5 flex-wrap">
+                    <span className="font-bold text-slate-300">Verificación:</span>
+                    {hasExtractedData && extractionValidationStatus !== 'sin_validacion' ? (
+                      <span className="text-emerald-400 font-semibold">
+                        Se obtuvieron datos de la credencial
                       </span>
                     ) : (
-                      <span className="text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.5 rounded-none">
-                        ⚠ Captura Offline (Sin Validación)
+                      <span className="text-amber-300 font-medium">
+                        La imagen no es legible o no contiene datos. El registro deberá verificarse manualmente.
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-300 mt-0.5 truncate">
-                    Imagen fija para verificar que los datos del formulario coincidan exactamente
-                  </p>
                   {vigencia && (
-                    <span className="text-[10px] text-slate-400 font-mono block">
+                    <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
                       Vigencia: {vigencia}
                     </span>
                   )}
@@ -470,22 +465,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                 </button>
               </div>
             </div>
-          </div>
-        )}
-
-        {ocrNotice && (
-          <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-none text-xs text-emerald-900 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-semibold">{ocrNotice}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setOcrNotice(null)}
-              className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
           </div>
         )}
 

@@ -20,9 +20,12 @@ export interface ExtractedINEData {
   vigencia?: string;
   sexo?: 'Hombre' | 'Mujer';
   confidenceScore: number;
-  detectedSide?: 'anverso' | 'reverso' | 'desconocido';
+  detectedSide?: 'anverso' | 'reverso' | 'desconocido' | 'ambos';
   barcodeFormat?: string;
   photoUrl?: string;
+  isValidINE?: boolean;
+  isReadable?: boolean;
+  validationStatus?: 'validado' | 'sin_validacion';
 }
 
 /**
@@ -601,7 +604,7 @@ export async function scanINEWithAI(imageBase64: string): Promise<ExtractedINEDa
 
     if (res.ok) {
       const data = await res.json();
-      if (data && (data.name || data.claveElector || data.electoralSection)) {
+      if (data) {
         return {
           rawText: JSON.stringify(data),
           name: data.name || undefined,
@@ -613,9 +616,12 @@ export async function scanINEWithAI(imageBase64: string): Promise<ExtractedINEDa
           municipio: data.municipio || undefined,
           vigencia: data.vigencia || undefined,
           sexo: data.sexo || undefined,
-          confidenceScore: 99,
+          confidenceScore: data.confidenceScore ?? 99,
           detectedSide: data.detectedSide || 'ambos',
           photoUrl: imageBase64,
+          isValidINE: data.isValidINE !== false,
+          isReadable: data.isReadable !== false,
+          validationStatus: (data.isValidINE === false || data.isReadable === false) ? 'sin_validacion' : 'validado',
         };
       }
     }
@@ -631,9 +637,16 @@ export async function scanINEWithAI(imageBase64: string): Promise<ExtractedINEDa
       const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
       const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-      const promptText = `Eres un asistente experto en reconocimiento de credenciales del INE de México.
+      const promptText = `Eres un asistente experto en reconocimiento y validación oficial de credenciales del INE de México.
+Analiza con máxima precisión esta credencial (anverso o reverso).
+Evalúa:
+1. ¿Es una credencial de elector oficial de México válida? ("isValidINE": true/false)
+2. ¿Es legible para leer datos? ("isReadable": true/false)
+
 Extrae exactamente los datos y responde ÚNICAMENTE un JSON válido:
 {
+  "isValidINE": true | false,
+  "isReadable": true | false,
   "name": "NOMBRE COMPLETO",
   "claveElector": "CLAVE DE ELECTOR (18 chars)",
   "curp": "CURP (18 chars)",
@@ -642,8 +655,8 @@ Extrae exactamente los datos y responde ÚNICAMENTE un JSON válido:
   "colonia": "COLONIA",
   "municipio": "MUNICIPIO",
   "vigencia": "VIGENCIA",
-  "sexo": "Hombre" o "Mujer",
-  "detectedSide": "anverso" o "reverso",
+  "sexo": "Hombre" | "Mujer",
+  "detectedSide": "anverso" | "reverso" | "ambos",
   "confidenceScore": 99
 }`;
 
@@ -681,9 +694,12 @@ Extrae exactamente los datos y responde ÚNICAMENTE un JSON válido:
             municipio: parsed.municipio || undefined,
             vigencia: parsed.vigencia || undefined,
             sexo: parsed.sexo || undefined,
-            confidenceScore: 99,
+            confidenceScore: parsed.confidenceScore ?? 99,
             detectedSide: parsed.detectedSide || 'ambos',
             photoUrl: imageBase64,
+            isValidINE: parsed.isValidINE !== false,
+            isReadable: parsed.isReadable !== false,
+            validationStatus: (parsed.isValidINE === false || parsed.isReadable === false) ? 'sin_validacion' : 'validado',
           };
         }
       }
