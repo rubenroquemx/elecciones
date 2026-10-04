@@ -561,6 +561,31 @@ async function getOrCreateTesseractWorker(onProgress?: (progress: number, status
 }
 
 /**
+ * Verifica de manera rápida si el dispositivo tiene acceso a internet y disponibilidad de Gemini AI
+ */
+export async function checkGeminiAvailable(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    return false;
+  }
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const res = await fetch('/api/gemini-status', { signal: controller.signal });
+    clearTimeout(timeoutId);
+    if (res.ok) {
+      const data = await res.json();
+      if (typeof data.available === 'boolean') {
+        return data.available;
+      }
+    }
+  } catch (_e) {
+    // Si falla el backend, verificar API Key directa en cliente
+  }
+  const clientKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  return Boolean(clientKey && (typeof navigator === 'undefined' || navigator.onLine));
+}
+
+/**
  * Processes an INE card image with Gemini 2.5 Flash Vision AI.
  * First tries backend endpoint /api/scan-ine-ai, then direct client Gemini API,
  * and returns null if offline or no network response.

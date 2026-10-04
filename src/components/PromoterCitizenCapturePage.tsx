@@ -11,15 +11,17 @@ import {
 import { 
   ArrowLeft, 
   Camera, 
-  Upload,
   CheckCircle2, 
   AlertTriangle, 
   UserCheck, 
-  Save,
-  X
+  Save, 
+  X,
+  Maximize2,
+  RefreshCw,
+  Sparkles
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
-import type { ExtractedINEData } from '../utils/ineScanner';
+import { checkGeminiAvailable, type ExtractedINEData } from '../utils/ineScanner';
 
 interface PromoterCitizenCapturePageProps {
   currentUser: UserAccount;
@@ -41,34 +43,32 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   initialINEData,
 }) => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [scannerTab, setScannerTab] = useState<'camera' | 'upload'>('camera');
-  const [canUseCamera, setCanUseCamera] = useState<boolean>(true);
+  const [isGeminiAvailable, setIsGeminiAvailable] = useState<boolean>(true);
   const [ocrNotice, setOcrNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [sectionMismatchError, setSectionMismatchError] = useState<string | null>(null);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
+  // Verificar reactivamente si el sistema tiene acceso a Gemini IA
   useEffect(() => {
-    const checkCamera = async () => {
-      try {
-        if (
-          typeof navigator === 'undefined' ||
-          !navigator.mediaDevices ||
-          !navigator.mediaDevices.getUserMedia
-        ) {
-          setCanUseCamera(false);
-          setScannerTab('upload');
-          return;
-        }
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const hasVideo = devices.some(d => d.kind === 'videoinput');
-        setCanUseCamera(hasVideo);
-        if (!hasVideo) setScannerTab('upload');
-      } catch {
-        setCanUseCamera(false);
-        setScannerTab('upload');
-      }
+    let mounted = true;
+    const verifyAccess = async () => {
+      const available = await checkGeminiAvailable();
+      if (mounted) setIsGeminiAvailable(available);
     };
-    checkCamera();
+    verifyAccess();
+
+    const handleOnline = () => verifyAccess();
+    const handleOffline = () => { if (mounted) setIsGeminiAvailable(false); };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const assignedSection = useMemo(() => {
@@ -92,6 +92,21 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   const [vigencia, setVigencia] = useState<string>('');
   const [vigenciaError, setVigenciaError] = useState<string | null>(null);
 
+  // Limpieza tolerante y robusta del número telefónico (con o sin +52)
+  const cleanPhoneDigits = (val: string): string => {
+    let clean = val.replace(/\D/g, '');
+    if (clean.startsWith('52') && clean.length > 10) {
+      clean = clean.slice(2);
+    }
+    return clean.slice(0, 10);
+  };
+
+  const handlePhoneChange = (val: string) => {
+    const digits10 = cleanPhoneDigits(val);
+    setPhone(digits10);
+    setFormError(null);
+  };
+
   const handleDataExtracted = (data: ExtractedINEData) => {
     if (data.claveElector) setElectorKey(data.claveElector.toUpperCase());
     if (data.curp) setCurp(data.curp.toUpperCase());
@@ -100,7 +115,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     if (data.colonia) setColonia(data.colonia.toUpperCase());
     if (data.photoUrl) setInePhotoUrl(data.photoUrl);
     if (data.vigencia) {
-      setVigencia(data.vigencia);
+      setVigencia(data.vigencia.toUpperCase());
       const matches = data.vigencia.match(/20\d{2}/g);
       if (matches && matches.length > 0) {
         const expYear = parseInt(matches[matches.length - 1], 10);
@@ -127,7 +142,11 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     }
 
     setFormError(null);
-    setOcrNotice(`Datos INE verificados exitosamente (${data.confidenceScore}% confianza)`);
+    if (isGeminiAvailable && data.confidenceScore > 0) {
+      setOcrNotice(`Datos INE verificados exitosamente con Inteligencia Artificial`);
+    } else if (data.photoUrl) {
+      setOcrNotice(`Fotografía de credencial INE capturada y recortada exitosamente`);
+    }
   };
 
   useEffect(() => {
@@ -156,19 +175,18 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     if (isOwnLeader) {
       return `Este ciudadano ya se encuentra promovido por ti en esta sección electoral (${duplicateLeader.name.toUpperCase()}).`;
     }
-    const promoter = allLeaders.find(l => l.id === duplicateLeader.parentId);
-    const promoterName = promoter ? promoter.name.toUpperCase() : 'OTRO PROMOTOR TERRITORIAL';
-    const territory = duplicateLeader.territoryName ? ` (${duplicateLeader.territoryName.toUpperCase()})` : '';
-    return `Este ciudadano ya se encuentra promovido en el sistema por ${promoterName}${territory}. No es posible registrarlo nuevamente.`;
-  }, [duplicateLeader, currentUser, allLeaders]);
+    return `Este ciudadano ya se encuentra promovido en el sistema por otro promotor. No es posible registrarlo nuevamente.`;
+  }, [duplicateLeader, currentUser]);
 
   useEffect(() => {
     if (existingElector) {
-      setName(prev => prev || existingElector.name);
-      setCurp(prev => prev || (existingElector.curp || ''));
-      setPhone(prev => prev || (existingElector.phone || ''));
-      setAddress(prev => prev || (existingElector.address || ''));
-      setColonia(prev => prev || (existingElector.colonia || ''));
+      setName(prev => prev || existingElector.name.toUpperCase());
+      setCurp(prev => prev || (existingElector.curp ? existingElector.curp.toUpperCase() : ''));
+      if (existingElector.phone && !phone) {
+        setPhone(cleanPhoneDigits(existingElector.phone));
+      }
+      setAddress(prev => prev || (existingElector.address ? existingElector.address.toUpperCase() : ''));
+      setColonia(prev => prev || (existingElector.colonia ? existingElector.colonia.toUpperCase() : ''));
       if (existingElector.electoralSection) {
         const sec = normalizeSectionNumber(existingElector.electoralSection);
         if (sec !== assignedSection) {
@@ -197,18 +215,13 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     );
   }, [electorKey, assignedSection, sectionMismatchError, allLeaders, availableSections]);
 
-  const handlePhoneChange = (val: string) => {
-    const digits = val.replace(/\D/g, '').slice(0, 10);
-    setPhone(digits);
-    setFormError(null);
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    const trimmedName = name.trim();
+    const trimmedName = name.trim().toUpperCase();
     const trimmedKey = electorKey.trim().toUpperCase();
+    const cleanDigits = cleanPhoneDigits(phone);
 
     if (!trimmedName) {
       setFormError('El nombre completo del ciudadano es obligatorio.');
@@ -216,6 +229,10 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     }
     if (!trimmedKey || trimmedKey.length < 6) {
       setFormError('La Clave de Elector es obligatoria (mínimo 6 caracteres).');
+      return;
+    }
+    if (!cleanDigits || cleanDigits.length < 10) {
+      setFormError('El teléfono celular (WhatsApp) es obligatorio y debe tener 10 dígitos (con o sin +52).');
       return;
     }
     if (duplicateNotice) {
@@ -235,10 +252,12 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       return;
     }
 
+    const formattedPhone = `+52 ${cleanDigits.slice(0, 3)} ${cleanDigits.slice(3, 6)} ${cleanDigits.slice(6)}`;
     const newId = `field-promovido-${Date.now()}`;
+
     const newLeader: TerritorialLeader = {
       id: newId,
-      name: trimmedName.toUpperCase(),
+      name: trimmedName,
       role: 'Ciudadano Promovido',
       level: 'promovido',
       levelIndex: 5,
@@ -247,9 +266,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       address: address.trim().toUpperCase(),
       colonia: colonia.trim().toUpperCase(),
       electoralSection: assignedSection,
-      electorKey: trimmedKey.toUpperCase(),
+      electorKey: trimmedKey,
       curp: curp.trim().toUpperCase() || undefined,
-      phone: phone.trim() ? `+52 ${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}` : undefined,
+      phone: formattedPhone,
       inePhotoUrl: inePhotoUrl || undefined,
       photoUrl: inePhotoUrl || undefined,
       vigencia: vigencia.trim().toUpperCase() || undefined,
@@ -257,13 +276,13 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       metaGoal: 1,
       currentCount: 1,
       status: 'completado',
-      validationStatus: 'validado',
-      notes: notes.trim().toUpperCase() || `REGISTRO DE CAMPO EN SECCIÓN ${assignedSection}.`,
+      validationStatus: isGeminiAvailable ? 'validado' : 'sin_validacion',
+      notes: notes.trim().toUpperCase() || (isGeminiAvailable ? `REGISTRO DE CAMPO EN SECCIÓN ${assignedSection}.` : `REGISTRO OFFLINE (SECCIÓN ${assignedSection}) - PENDIENTE DE VALIDACIÓN AL SINCRONIZAR.`),
     };
 
     persistElectorProfile({
-      electorKey: trimmedKey.toUpperCase(),
-      name: trimmedName.toUpperCase(),
+      electorKey: trimmedKey,
+      name: trimmedName,
       curp: curp.trim().toUpperCase() || undefined,
       address: address.trim().toUpperCase(),
       colonia: colonia.trim().toUpperCase(),
@@ -287,8 +306,8 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-white p-0">
-      {/* Barra Superior con botón para volver y grupo unificado de escaneo (Sin indicador de sección) */}
+    <div className="flex-1 overflow-y-auto bg-white p-0 relative">
+      {/* Barra Superior */}
       <div className="bg-slate-900 text-white px-4 sm:px-8 py-3.5 border-b border-slate-800 flex items-center justify-between gap-3">
         <div className="flex items-center gap-3 min-w-0">
           <button
@@ -305,14 +324,11 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           </h1>
         </div>
 
-        {/* Botón Dinámico: Solo Escanear cuando la cámara está disponible; en caso contrario Cargar Foto */}
-        {canUseCamera ? (
+        {/* Botón único condicionado según disponibilidad de Gemini */}
+        {isGeminiAvailable ? (
           <button
             type="button"
-            onClick={() => {
-              setScannerTab('camera');
-              setIsScannerOpen(true);
-            }}
+            onClick={() => setIsScannerOpen(true)}
             className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border border-emerald-500"
             title="Escanear INE con cámara en vivo e Inteligencia Artificial"
           >
@@ -323,41 +339,100 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
         ) : (
           <button
             type="button"
-            onClick={() => {
-              setScannerTab('upload');
-              setIsScannerOpen(true);
-            }}
+            onClick={() => setIsScannerOpen(true)}
             className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border border-indigo-500"
-            title="Cargar foto de credencial INE para procesar con Inteligencia Artificial"
+            title="Tomar fotografía de la credencial en modo fuera de línea"
           >
-            <Upload className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Cargar Foto INE (IA)</span>
-            <span className="sm:hidden">Cargar Foto</span>
+            <Camera className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Tomar Foto de Credencial</span>
+            <span className="sm:hidden">Tomar Foto</span>
           </button>
         )}
       </div>
 
-      {/* Formulario en Página Limpia (Sin Márgenes Redondeados) */}
+      {/* Formulario en Página Limpia */}
       <div className="max-w-4xl mx-auto p-5 sm:p-8 space-y-6">
+        {/* FOTOGRAFÍA INE FIJA EN LA PARTE SUPERIOR PARA COTEJAR Y VERIFICAR */}
+        {inePhotoUrl && (
+          <div className="sticky top-0 z-30 bg-slate-900 text-white p-3.5 border-b-2 border-emerald-500 shadow-lg -mx-5 sm:-mx-8 -mt-5 sm:-mt-8 mb-6 backdrop-blur-md">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <img
+                  src={inePhotoUrl}
+                  alt="INE Recortado y Digitalizado"
+                  className="h-16 sm:h-20 w-auto object-contain bg-black border border-slate-700 rounded-none shrink-0 cursor-pointer shadow-md hover:opacity-90 transition-opacity"
+                  onClick={() => setIsImageModalOpen(true)}
+                  title="Toca para ampliar imagen de la credencial"
+                />
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                      Credencial INE (Frente Digitalizado)
+                    </span>
+                    {isGeminiAvailable ? (
+                      <span className="text-[9px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-1.5 py-0.5 rounded-none flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5" /> Verificado con IA
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30 px-1.5 py-0.5 rounded-none">
+                        ⚠ Captura Offline (Sin Validación)
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-300 mt-0.5 truncate">
+                    Imagen fija para verificar que los datos del formulario coincidan exactamente
+                  </p>
+                  {vigencia && (
+                    <span className="text-[10px] text-slate-400 font-mono block">
+                      Vigencia: {vigencia}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsImageModalOpen(true)}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-none text-xs font-semibold flex items-center gap-1 cursor-pointer"
+                  title="Ampliar vista del INE"
+                >
+                  <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="hidden sm:inline">Ampliar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsScannerOpen(true)}
+                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                  title="Volver a escanear o fotografiar"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Reemplazar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {ocrNotice && (
           <div className="p-3 bg-emerald-50 border border-emerald-300 rounded-none text-xs text-emerald-900 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>{ocrNotice}</span>
+              <span className="font-semibold">{ocrNotice}</span>
             </div>
             <button
               type="button"
               onClick={() => setOcrNotice(null)}
-              className="text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer"
+              className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
 
-        {/* Alerta de Sección no coincidente */}
+        {/* Alerta de Sección Fuera de Demarcación */}
         {sectionMismatchError && (
-          <div className="p-4 bg-rose-50 border-2 border-rose-400 rounded-none text-rose-950 flex items-start gap-3 shadow-xs">
+          <div className="p-4 bg-rose-50 border-2 border-rose-500 rounded-none text-rose-950 flex items-start gap-3 shadow-xs">
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <h4 className="text-xs font-bold uppercase tracking-wider text-rose-900">
@@ -486,24 +561,24 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             />
           </div>
 
-          {/* Fila 3: Teléfono Celular (WhatsApp) */}
+          {/* Fila 3: Teléfono Celular (WhatsApp) - Obligatorio y tolerante con o sin +52 */}
           <div>
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
               Teléfono Celular (WhatsApp)*
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">+52</span>
+              <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono font-bold">+52</span>
               <input
                 type="tel"
                 required
                 value={phone}
                 onChange={e => handlePhoneChange(e.target.value)}
                 placeholder="993 123 4567"
-                className="w-full pl-11 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full pl-11 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
-            <span className="text-[10px] text-slate-500 mt-1 block">
-              10 dígitos para comunicación directa
+            <span className="text-[10px] text-slate-500 mt-1 block font-mono">
+              10 dígitos obligatorios • {phone.length}/10 capturados (válido con o sin prefijo +52)
             </span>
           </div>
 
@@ -550,37 +625,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             />
           </div>
 
-          {/* Fotografía del INE Digitalizada (si fue capturada) */}
-          {inePhotoUrl && (
-            <div className="p-3 bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <img
-                  src={inePhotoUrl}
-                  alt="Fotografía INE digitalizada"
-                  className="w-20 h-14 object-cover border border-slate-300 rounded-none shrink-0"
-                />
-                <div className="text-xs">
-                  <span className="font-bold text-slate-900 block">Fotografía del INE Digitalizada</span>
-                  <span className="text-[11px] text-emerald-700 font-semibold block">
-                    Se guardará automáticamente en el expediente del ciudadano
-                  </span>
-                  {vigencia && (
-                    <span className="text-[10px] text-slate-500 font-mono block">
-                      Vigencia detectada: {vigencia}
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setInePhotoUrl(null)}
-                className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2 py-1 bg-white border border-rose-200 hover:bg-rose-50 cursor-pointer"
-              >
-                Quitar Foto
-              </button>
-            </div>
-          )}
-
           {/* Botones de Guardar y Cancelar */}
           <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-end gap-3">
             <button
@@ -592,7 +636,15 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             </button>
             <button
               type="submit"
-              disabled={Boolean(duplicateNotice) || Boolean(sectionMismatchError) || Boolean(vigenciaError) || !validation.allowed || !name.trim() || electorKey.length < 6}
+              disabled={
+                Boolean(duplicateNotice) || 
+                Boolean(sectionMismatchError) || 
+                Boolean(vigenciaError) || 
+                !validation.allowed || 
+                !name.trim() || 
+                electorKey.length < 6 ||
+                cleanPhoneDigits(phone).length < 10
+              }
               className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-none shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Save className="w-4 h-4" />
@@ -602,14 +654,37 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
         </form>
       </div>
 
-      {/* Modal de Escáner INE con Cámara y Modo de Subida */}
+      {/* Modal de Escáner INE con Cámara, Recorte Interactivo y Soporte Offline */}
       <INECameraScannerModal
         isOpen={isScannerOpen}
-        initialTab={scannerTab}
-        assignedSection={assignedSection}
+        isGeminiAvailable={isGeminiAvailable}
         onClose={() => setIsScannerOpen(false)}
         onDataExtracted={handleDataExtracted}
       />
+
+      {/* Modal de Imagen Ampliada de la Credencial */}
+      {isImageModalOpen && inePhotoUrl && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4 backdrop-blur-sm"
+          onClick={() => setIsImageModalOpen(false)}
+        >
+          <div className="relative max-w-4xl max-h-[85vh] bg-slate-900 border border-slate-700 p-2 shadow-2xl">
+            <button
+              type="button"
+              onClick={() => setIsImageModalOpen(false)}
+              className="absolute -top-10 right-0 p-1.5 bg-slate-800 text-white hover:bg-slate-700 rounded-none cursor-pointer flex items-center gap-1 text-xs font-bold"
+            >
+              <X className="w-4 h-4" />
+              <span>Cerrar</span>
+            </button>
+            <img
+              src={inePhotoUrl}
+              alt="Credencial INE Ampliada"
+              className="max-h-[80vh] w-auto object-contain block mx-auto"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

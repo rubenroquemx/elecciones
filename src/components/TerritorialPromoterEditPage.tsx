@@ -75,7 +75,7 @@ export const TerritorialPromoterEditPage: React.FC<TerritorialPromoterEditPagePr
   const [assignedSections, setAssignedSections] = useState<string[]>([]);
   const [metaGoal, setMetaGoal] = useState<number>(100);
   const [status, setStatus] = useState<'en_progreso' | 'completado' | 'critico' | 'vacante'>('en_progreso');
-  const [validationStatus, setValidationStatus] = useState<'validado' | 'pendiente' | 'rechazado'>('validado');
+  const [validationStatus, setValidationStatus] = useState<'validado' | 'pendiente' | 'rechazado' | 'sin_validacion'>('validado');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [notes, setNotes] = useState('');

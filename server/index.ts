@@ -31,6 +31,12 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+// Estado de disponibilidad de Inteligencia Artificial (Gemini Vision)
+app.get('/api/gemini-status', (req, res) => {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+  res.json({ available: Boolean(apiKey) });
+});
+
 // Endpoint de Extracción de Datos de INE con Inteligencia Artificial (Gemini Vision)
 app.post('/api/scan-ine-ai', async (req, res) => {
   try {

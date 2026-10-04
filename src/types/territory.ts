@@ -57,7 +57,7 @@ export interface TerritorialLeader {
   
   // Estatus operativo
   status: 'completado' | 'en_progreso' | 'critico' | 'vacante';
-  validationStatus: 'validado' | 'pendiente' | 'rechazado';
+  validationStatus: 'validado' | 'pendiente' | 'rechazado' | 'sin_validacion';
   notes?: string;
   
   // Coordenadas aproximadas para vista territorial
