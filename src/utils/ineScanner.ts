@@ -22,6 +22,7 @@ export interface ExtractedINEData {
   confidenceScore: number;
   detectedSide?: 'anverso' | 'reverso' | 'desconocido';
   barcodeFormat?: string;
+  photoUrl?: string;
 }
 
 /**
@@ -589,7 +590,7 @@ export async function scanINEWithAI(imageBase64: string): Promise<ExtractedINEDa
           sexo: data.sexo || undefined,
           confidenceScore: 99,
           detectedSide: data.detectedSide || 'ambos',
-          barcodeFormat: 'IA Gemini 2.5',
+          photoUrl: imageBase64,
         };
       }
     }
@@ -657,7 +658,7 @@ Extrae exactamente los datos y responde ÚNICAMENTE un JSON válido:
             sexo: parsed.sexo || undefined,
             confidenceScore: 99,
             detectedSide: parsed.detectedSide || 'ambos',
-            barcodeFormat: 'IA Gemini 2.5',
+            photoUrl: imageBase64,
           };
         }
       }
@@ -729,6 +730,7 @@ export async function scanINEImage(
 
     // If barcode already has both name and section, return directly!
     if (parsedBarcode.name && parsedBarcode.electoralSection) {
+      parsedBarcode.photoUrl = canvas.toDataURL('image/jpeg', 0.92);
       onProgress?.(100, 'Datos del reverso extraídos con 100% de precisión');
       return parsedBarcode;
     }
@@ -757,6 +759,7 @@ export async function scanINEImage(
 
     // If we have both name and section from MRZ, we're done!
     if (finalData.name && finalData.electoralSection) {
+      finalData.photoUrl = canvas.toDataURL('image/jpeg', 0.92);
       onProgress?.(100, 'Datos del reverso procesados con éxito');
       return finalData;
     }
@@ -780,6 +783,7 @@ export async function scanINEImage(
 
   finalData.confidenceScore = Math.max(finalData.confidenceScore, parsedFull.confidenceScore, 80);
   finalData.rawText = [finalData.rawText, fullOcrResult.data.text].filter(Boolean).join('\n---\n');
+  finalData.photoUrl = canvas.toDataURL('image/jpeg', 0.92);
 
   onProgress?.(100, 'Lectura completada');
   return finalData;

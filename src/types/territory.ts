@@ -35,6 +35,8 @@ export interface TerritorialLeader {
   electoralSection?: string;
   curp?: string;
   electorKey?: string;
+  inePhotoUrl?: string;
+  vigencia?: string;
 
   // Datos Operativos
   committeeAlias?: string;

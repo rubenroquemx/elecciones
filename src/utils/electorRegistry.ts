@@ -19,6 +19,8 @@ export interface ElectorProfile {
   electoralSection: string; // The strictly unique electoral section
   phone?: string;
   email?: string;
+  inePhotoUrl?: string;
+  vigencia?: string;
   structures: ElectorStructureItem[];
 }
 

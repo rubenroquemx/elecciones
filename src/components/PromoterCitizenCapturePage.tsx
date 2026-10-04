@@ -88,6 +88,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   const [address, setAddress] = useState('');
   const [colonia, setColonia] = useState('');
   const [notes, setNotes] = useState('');
+  const [inePhotoUrl, setInePhotoUrl] = useState<string | null>(null);
+  const [vigencia, setVigencia] = useState<string>('');
+  const [vigenciaError, setVigenciaError] = useState<string | null>(null);
 
   const handleDataExtracted = (data: ExtractedINEData) => {
     if (data.claveElector) setElectorKey(data.claveElector.toUpperCase());
@@ -95,13 +98,26 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     if (data.name) setName(data.name);
     if (data.address) setAddress(data.address);
     if (data.colonia) setColonia(data.colonia);
+    if (data.photoUrl) setInePhotoUrl(data.photoUrl);
+    if (data.vigencia) {
+      setVigencia(data.vigencia);
+      const matches = data.vigencia.match(/20\d{2}/g);
+      if (matches && matches.length > 0) {
+        const expYear = parseInt(matches[matches.length - 1], 10);
+        if (expYear < 2026) {
+          setVigenciaError(`La credencial INE tiene vigencia ${expYear} (menor a 2026) y no es válida para el proceso electoral.`);
+        } else {
+          setVigenciaError(null);
+        }
+      }
+    }
 
     // Validación estricta: Notificar si el INE escaneado no es de la sección asignada
     if (data.electoralSection) {
       const extractedSec = normalizeSectionNumber(data.electoralSection);
       if (extractedSec !== assignedSection) {
         setSectionMismatchError(
-          `Este promovido pertenece a la Sección Electoral ${extractedSec}. Tu sección asignada es la ${assignedSection}. No es posible capturar ciudadanos fuera de tu sección asignada.`
+          `Este promovido pertenece a la Sección Electoral ${extractedSec}. Tu sección asignada es la ${assignedSection}. No es posible registrar ciudadanos fuera de tu sección asignada.`
         );
       } else {
         setSectionMismatchError(null);
@@ -111,7 +127,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     }
 
     setFormError(null);
-    setOcrNotice(`Datos INE procesados en el dispositivo (${data.confidenceScore}% confianza)`);
+    setOcrNotice(`Datos INE verificados exitosamente (${data.confidenceScore}% confianza)`);
   };
 
   useEffect(() => {
@@ -187,6 +203,10 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       setFormError(sectionMismatchError);
       return;
     }
+    if (vigenciaError) {
+      setFormError(vigenciaError);
+      return;
+    }
     if (!validation.allowed) {
       setFormError(validation.errorMsg || 'No se puede registrar este ciudadano según las directrices territoriales.');
       return;
@@ -207,6 +227,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       electorKey: trimmedKey,
       curp: curp.trim().toUpperCase() || undefined,
       phone: phone.trim() ? `+52 ${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}` : undefined,
+      inePhotoUrl: inePhotoUrl || undefined,
+      photoUrl: inePhotoUrl || undefined,
+      vigencia: vigencia.trim() || undefined,
       hasAccount: false,
       metaGoal: 1,
       currentCount: 1,
@@ -223,6 +246,8 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       colonia: colonia.trim(),
       electoralSection: assignedSection,
       phone: newLeader.phone,
+      inePhotoUrl: inePhotoUrl || undefined,
+      vigencia: vigencia.trim() || undefined,
       structures: [
         {
           id: newId,
@@ -317,6 +342,21 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
               </h4>
               <p className="text-xs text-rose-800 font-medium leading-relaxed">
                 {sectionMismatchError}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Alerta de Vigencia Menor a 2026 */}
+        {vigenciaError && !sectionMismatchError && (
+          <div className="p-4 bg-rose-50 border-2 border-rose-400 rounded-none text-rose-950 flex items-start gap-3 shadow-xs">
+            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-rose-900">
+                Captura No Permitida - Credencial No Vigente
+              </h4>
+              <p className="text-xs text-rose-800 font-medium leading-relaxed">
+                {vigenciaError}
               </p>
             </div>
           </div>
@@ -472,6 +512,37 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             />
           </div>
 
+          {/* Fotografía del INE Digitalizada (si fue capturada) */}
+          {inePhotoUrl && (
+            <div className="p-3 bg-slate-50 border border-slate-200 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <img
+                  src={inePhotoUrl}
+                  alt="Fotografía INE digitalizada"
+                  className="w-20 h-14 object-cover border border-slate-300 rounded-none shrink-0"
+                />
+                <div className="text-xs">
+                  <span className="font-bold text-slate-900 block">Fotografía del INE Digitalizada</span>
+                  <span className="text-[11px] text-emerald-700 font-semibold block">
+                    Se guardará automáticamente en el expediente del ciudadano
+                  </span>
+                  {vigencia && (
+                    <span className="text-[10px] text-slate-500 font-mono block">
+                      Vigencia detectada: {vigencia}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInePhotoUrl(null)}
+                className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2 py-1 bg-white border border-rose-200 hover:bg-rose-50"
+              >
+                Quitar Foto
+              </button>
+            </div>
+          )}
+
           {/* Botones de Guardar y Cancelar */}
           <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-end gap-3">
             <button
@@ -483,7 +554,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             </button>
             <button
               type="submit"
-              disabled={Boolean(sectionMismatchError) || !validation.allowed || !name.trim() || electorKey.length < 6}
+              disabled={Boolean(sectionMismatchError) || Boolean(vigenciaError) || !validation.allowed || !name.trim() || electorKey.length < 6}
               className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-none shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Save className="w-4 h-4" />
@@ -497,6 +568,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       <INECameraScannerModal
         isOpen={isScannerOpen}
         initialTab={scannerTab}
+        assignedSection={assignedSection}
         onClose={() => setIsScannerOpen(false)}
         onDataExtracted={handleDataExtracted}
       />

@@ -192,6 +192,31 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
           </div>
         </div>
 
+        {/* Fotografía de Credencial INE en el Expediente */}
+        {(citizen.inePhotoUrl || citizen.photoUrl) && (
+          <div className="border border-slate-200 bg-white p-6 rounded-none space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <span>Credencial de Elector (INE) Digitalizada</span>
+              </h3>
+              {citizen.vigencia && (
+                <span className="text-[11px] font-bold px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-none flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Vigencia: {citizen.vigencia}</span>
+                </span>
+              )}
+            </div>
+            <div className="bg-slate-950 p-2 border border-slate-800 max-w-md">
+              <img
+                src={citizen.inePhotoUrl || citizen.photoUrl}
+                alt={`Credencial INE de ${citizen.name}`}
+                className="w-full h-auto max-h-72 object-contain"
+              />
+            </div>
+          </div>
+        )}
+
         {/* Sección de Observaciones y Compromiso de Campo */}
         <div className="border border-slate-200 bg-white p-6 rounded-none space-y-3">
           <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
