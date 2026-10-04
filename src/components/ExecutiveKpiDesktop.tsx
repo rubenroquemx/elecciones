@@ -27,8 +27,7 @@ import {
   UserPlus,
   Plus,
   Phone,
-  Eye,
-  Edit3,
+  Clock,
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
 import type { ExtractedINEData } from '../utils/ineScanner';
@@ -62,7 +61,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   onOpenCreateUser,
   onViewSectionDetail,
   onViewCitizen,
-  onEditCitizen,
+  onEditCitizen: _onEditCitizen,
   activeStateId,
 }) => {
   // Filtros de navegación geográfica y estado activo
@@ -836,15 +835,32 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                     <p className="text-xs text-slate-400 mt-1">Usa el botón flotante (+) para registrar a un ciudadano.</p>
                   </div>
                 ) : (
-                  filteredPromovidos.map((promovido) => (
-                    <div key={promovido.id} className="p-4 hover:bg-slate-50 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex items-start gap-3 min-w-0">
-                        <div className="w-10 h-10 rounded-none bg-emerald-100 text-emerald-700 font-black text-sm flex items-center justify-center shrink-0 border border-emerald-200 mt-0.5">
-                          {promovido.name.charAt(0)}
-                        </div>
+                  filteredPromovidos.map((promovido) => {
+                    const isModified = Boolean(promovido.updatedAt && promovido.updatedAt !== promovido.createdAt);
+                    const dateLabel = isModified ? 'Modificado:' : 'Registrado:';
+                    const rawDate = promovido.updatedAt || promovido.createdAt || '2026-10-03T12:00:00Z';
+                    let formattedDate = rawDate;
+                    try {
+                      formattedDate = new Date(rawDate).toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      });
+                    } catch {
+                      formattedDate = rawDate;
+                    }
+
+                    return (
+                      <div 
+                        key={promovido.id} 
+                        onClick={() => onViewCitizen?.(promovido.id)}
+                        className="p-4 hover:bg-slate-50 transition-colors flex items-center justify-between gap-4 cursor-pointer group"
+                      >
                         <div className="min-w-0 space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm font-bold text-slate-900">
+                            <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
                               {promovido.name}
                             </h4>
                             <span className="text-[10px] font-mono px-2 py-0.5 rounded-none bg-slate-100 text-slate-700 border border-slate-200 font-semibold">
@@ -860,74 +876,45 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-slate-500 flex flex-wrap items-center gap-x-4 gap-y-1">
-                            {promovido.address && (
-                              <span className="flex items-center gap-1">
-                                <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                {promovido.address}{promovido.colonia ? `, ${promovido.colonia}` : ''}
-                              </span>
-                            )}
-                            {promovido.curp && (
-                              <span className="font-mono text-[11px] text-slate-400">
-                                CURP: {promovido.curp}
-                              </span>
-                            )}
+
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 font-mono">
+                            <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>
+                              {dateLabel} {formattedDate}
+                            </span>
                           </div>
-                          {promovido.notes && (
-                            <p className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded-none border border-slate-100 mt-1">
-                              {promovido.notes}
-                            </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {promovido.phone && (
+                            <a
+                              href={`tel:${promovido.phone.replace(/\D/g, '')}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-8 h-8 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none flex items-center justify-center transition-all shadow-none cursor-pointer"
+                              title="Llamar directamente al promovido"
+                              aria-label="Llamar"
+                            >
+                              <Phone className="w-4 h-4" />
+                            </a>
+                          )}
+
+                          {promovido.phone && (
+                            <a
+                              href={`https://wa.me/52${promovido.phone.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(promovido.name)},%20te%20saluda%20${encodeURIComponent(currentUser.name)}%20de%20Estrategia%20Territorial`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="w-8 h-8 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-none flex items-center justify-center transition-all cursor-pointer"
+                              title="Enviar WhatsApp al promovido"
+                              aria-label="WhatsApp"
+                            >
+                              <Smartphone className="w-4 h-4 text-emerald-600" />
+                            </a>
                           )}
                         </div>
                       </div>
-
-                      <div className="flex flex-wrap items-center gap-2 shrink-0 self-end sm:self-center">
-                        <button
-                          type="button"
-                          onClick={() => onViewCitizen?.(promovido.id)}
-                          className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                          title="Ver expediente en página nueva"
-                        >
-                          <Eye className="w-3.5 h-3.5 text-slate-600" />
-                          <span>Ver</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => onEditCitizen?.(promovido.id)}
-                          className="px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                          title="Editar en página nueva"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
-                          <span>Editar</span>
-                        </button>
-
-                        {promovido.phone && (
-                          <a
-                            href={`tel:${promovido.phone.replace(/\D/g, '')}`}
-                            className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 shadow-none"
-                            title="Llamar directamente al promovido"
-                          >
-                            <Phone className="w-3.5 h-3.5" />
-                            <span>Llamar</span>
-                          </a>
-                        )}
-
-                        {promovido.phone && (
-                          <a
-                            href={`https://wa.me/52${promovido.phone.replace(/\D/g, '')}?text=Hola%20${encodeURIComponent(promovido.name)},%20te%20saluda%20Ruben%20Roque%20de%20Estrategia%20Territorial`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5"
-                            title="Enviar WhatsApp al promovido"
-                          >
-                            <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>WhatsApp</span>
-                          </a>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

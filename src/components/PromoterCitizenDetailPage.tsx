@@ -227,6 +227,68 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
             {citizen.notes || 'Registro de campo verificado en la sección asignada.'}
           </p>
         </div>
+
+        {/* Historial de Cambios / Bitácora (Changelog) */}
+        <div className="border border-slate-200 bg-white p-6 rounded-none space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <Clock className="w-4 h-4 text-indigo-600" />
+              <span>Bitácora y Registro de Actividad (Changelog)</span>
+            </h3>
+            <span className="text-[10px] font-mono font-semibold text-slate-500">
+              {citizen.changelog?.length || 1} evento(s) registrado(s)
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {citizen.changelog && citizen.changelog.length > 0 ? (
+              citizen.changelog.map((entry) => (
+                <div key={entry.id} className="p-3 bg-slate-50 border border-slate-200 rounded-none text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 uppercase text-[11px] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-none bg-emerald-500 inline-block" />
+                      {entry.action.replace('_', ' ')}
+                    </span>
+                    <span className="font-mono text-[10px] text-slate-500">
+                      {new Date(entry.timestamp).toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-slate-700">{entry.description}</p>
+                  {entry.userName && (
+                    <span className="text-[10px] text-slate-400 block font-semibold">
+                      Responsable: {entry.userName}
+                    </span>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-none text-xs space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 uppercase text-[11px] flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-none bg-emerald-500 inline-block" />
+                    Registro Inicial
+                  </span>
+                  <span className="font-mono text-[10px] text-slate-500">
+                    {new Date(citizen.createdAt || '2026-10-03T12:00:00Z').toLocaleDateString('es-MX', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                </div>
+                <p className="text-slate-700">Alta y validación de ciudadano promovido en sección territorial asignada.</p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

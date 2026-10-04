@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import type { UserAccount } from '../types/auth';
 import type { ElectoralSection } from '../types/sections';
-import type { TerritorialLeader } from '../types/territory';
+import type { TerritorialLeader, LeaderChangelogEntry } from '../types/territory';
 import { 
   findElectorByKey, 
   validateElectorSection, 
@@ -81,6 +81,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     return '0416';
   }, [defaultSectionNumber, currentUser]);
 
+  const [electoralSection, setElectoralSection] = useState(assignedSection || '0416');
   const [electorKey, setElectorKey] = useState('');
   const [curp, setCurp] = useState('');
   const [name, setName] = useState('');
@@ -91,6 +92,34 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   const [inePhotoUrl, setInePhotoUrl] = useState<string | null>(null);
   const [vigencia, setVigencia] = useState<string>('');
   const [vigenciaError, setVigenciaError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (assignedSection && (!electoralSection || electoralSection === '0416')) {
+      setElectoralSection(assignedSection);
+    }
+  }, [assignedSection]);
+
+  const handleSectionChange = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 4);
+    setElectoralSection(digits);
+    setFormError(null);
+    if (digits.length === 4) {
+      const norm = normalizeSectionNumber(digits);
+      if (norm !== assignedSection) {
+        setSectionMismatchError(
+          `La sección ingresada (${norm}) no coincide con tu sección asignada (${assignedSection}). No es posible registrar ciudadanos fuera de tu demarcación.`
+        );
+      } else {
+        setSectionMismatchError(null);
+      }
+    } else if (digits.length > 0 && digits !== assignedSection.slice(0, digits.length)) {
+      setSectionMismatchError(
+        `La sección ingresada (${digits}) no coincide con tu sección asignada (${assignedSection}).`
+      );
+    } else {
+      setSectionMismatchError(null);
+    }
+  };
 
   // Limpieza tolerante y robusta del número telefónico (con o sin +52)
   const cleanPhoneDigits = (val: string): string => {
@@ -127,9 +156,10 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       }
     }
 
-    // Validación estricta: Notificar si el INE escaneado no es de la sección asignada
+    // Validación estricta: Capturar y notificar si el INE escaneado no es de la sección asignada
     if (data.electoralSection) {
       const extractedSec = normalizeSectionNumber(data.electoralSection);
+      setElectoralSection(extractedSec);
       if (extractedSec !== assignedSection) {
         setSectionMismatchError(
           `Este promovido pertenece a la Sección Electoral ${extractedSec}. Tu sección asignada es la ${assignedSection}. No es posible registrar ciudadanos fuera de tu sección asignada.`
@@ -204,6 +234,12 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     if (sectionMismatchError) {
       return { allowed: false, errorMsg: sectionMismatchError };
     }
+    if (electoralSection && normalizeSectionNumber(electoralSection) !== assignedSection) {
+      return { 
+        allowed: false, 
+        errorMsg: `La sección electoral capturada (${electoralSection}) no coincide con tu sección asignada (${assignedSection}).` 
+      };
+    }
     if (!electorKey.trim() || electorKey.trim().length < 6) {
       return { allowed: true, errorMsg: undefined };
     }
@@ -213,7 +249,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       allLeaders,
       availableSections
     );
-  }, [electorKey, assignedSection, sectionMismatchError, allLeaders, availableSections]);
+  }, [electorKey, assignedSection, electoralSection, sectionMismatchError, allLeaders, availableSections]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -222,7 +258,16 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     const trimmedName = name.trim().toUpperCase();
     const trimmedKey = electorKey.trim().toUpperCase();
     const cleanDigits = cleanPhoneDigits(phone);
+    const cleanSection = normalizeSectionNumber(electoralSection.trim());
 
+    if (!cleanSection) {
+      setFormError('La Sección Electoral (4 dígitos) es obligatoria.');
+      return;
+    }
+    if (cleanSection !== assignedSection) {
+      setFormError(`La sección ${cleanSection} no coincide con tu sección asignada (${assignedSection}). Solo puedes registrar ciudadanos de tu sección asignada.`);
+      return;
+    }
     if (!trimmedName) {
       setFormError('El nombre completo del ciudadano es obligatorio.');
       return;
@@ -254,6 +299,17 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 
     const formattedPhone = `+52 ${cleanDigits.slice(0, 3)} ${cleanDigits.slice(3, 6)} ${cleanDigits.slice(6)}`;
     const newId = `field-promovido-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+
+    const initialChangelog: LeaderChangelogEntry[] = [
+      {
+        id: `cl-${Date.now()}`,
+        timestamp: nowIso,
+        action: 'creacion',
+        description: `Registro inicial de promovido en Sección ${cleanSection} por ${currentUser?.name || 'Promotor Territorial'}`,
+        userName: currentUser?.name || 'Promotor Territorial',
+      }
+    ];
 
     const newLeader: TerritorialLeader = {
       id: newId,
@@ -262,10 +318,10 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       level: 'promovido',
       levelIndex: 5,
       parentId: currentUser?.leaderId || null,
-      territoryName: `Sección ${assignedSection} - ${colonia.trim().toUpperCase() || 'TERRITORIO'}`,
+      territoryName: `Sección ${cleanSection} - ${colonia.trim().toUpperCase() || 'TERRITORIO'}`,
       address: address.trim().toUpperCase(),
       colonia: colonia.trim().toUpperCase(),
-      electoralSection: assignedSection,
+      electoralSection: cleanSection,
       electorKey: trimmedKey,
       curp: curp.trim().toUpperCase() || undefined,
       phone: formattedPhone,
@@ -277,7 +333,10 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       currentCount: 1,
       status: 'completado',
       validationStatus: isGeminiAvailable ? 'validado' : 'sin_validacion',
-      notes: notes.trim().toUpperCase() || (isGeminiAvailable ? `REGISTRO DE CAMPO EN SECCIÓN ${assignedSection}.` : `REGISTRO OFFLINE (SECCIÓN ${assignedSection}) - PENDIENTE DE VALIDACIÓN AL SINCRONIZAR.`),
+      notes: notes.trim().toUpperCase() || (isGeminiAvailable ? `REGISTRO DE CAMPO EN SECCIÓN ${cleanSection}.` : `REGISTRO OFFLINE (SECCIÓN ${cleanSection}) - PENDIENTE DE VALIDACIÓN AL SINCRONIZAR.`),
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      changelog: initialChangelog,
     };
 
     persistElectorProfile({
@@ -286,7 +345,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       curp: curp.trim().toUpperCase() || undefined,
       address: address.trim().toUpperCase(),
       colonia: colonia.trim().toUpperCase(),
-      electoralSection: assignedSection,
+      electoralSection: cleanSection,
       phone: newLeader.phone,
       inePhotoUrl: inePhotoUrl || undefined,
       vigencia: vigencia.trim().toUpperCase() || undefined,
@@ -499,8 +558,37 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6 border border-slate-200 bg-white p-6 sm:p-8 rounded-none shadow-none">
-          {/* Fila 1: Clave de Elector y CURP */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Fila 1: Sección Electoral, Clave de Elector y CURP */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Sección Electoral*</span>
+                <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 border border-emerald-200 font-bold">
+                  Asignada: {assignedSection}
+                </span>
+              </label>
+              <input
+                type="text"
+                required
+                maxLength={4}
+                value={electoralSection}
+                onChange={e => handleSectionChange(e.target.value)}
+                placeholder={assignedSection}
+                className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-none text-xs font-mono font-bold uppercase focus:outline-none tracking-wider ${
+                  electoralSection && normalizeSectionNumber(electoralSection) !== assignedSection
+                    ? 'border-rose-500 text-rose-700 bg-rose-50 focus:ring-1 focus:ring-rose-500'
+                    : 'border-slate-300 text-slate-900 focus:ring-1 focus:ring-slate-900'
+                }`}
+              />
+              <span className="text-[10px] mt-1 block font-mono">
+                {electoralSection && normalizeSectionNumber(electoralSection) !== assignedSection ? (
+                  <span className="text-rose-600 font-bold">⚠ Debe coincidir con sección {assignedSection}</span>
+                ) : (
+                  <span className="text-slate-500">4 dígitos • Demarcación del promotor</span>
+                )}
+              </span>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
                 Clave de Elector INE (18 caracteres)*
@@ -643,7 +731,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                 !validation.allowed || 
                 !name.trim() || 
                 electorKey.length < 6 ||
-                cleanPhoneDigits(phone).length < 10
+                cleanPhoneDigits(phone).length < 10 ||
+                !electoralSection ||
+                normalizeSectionNumber(electoralSection) !== assignedSection
               }
               className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-none shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >

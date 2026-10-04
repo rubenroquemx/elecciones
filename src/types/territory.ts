@@ -15,6 +15,14 @@ export interface LeaderNote {
   createdAt: string;
 }
 
+export interface LeaderChangelogEntry {
+  id: string;
+  timestamp: string;
+  action: 'creacion' | 'edicion' | 'validacion' | 'nota';
+  description: string;
+  userName?: string;
+}
+
 export interface TerritorialLeader {
   id: string;
   name: string;
@@ -28,6 +36,11 @@ export interface TerritorialLeader {
   email?: string;
   photoUrl?: string;
   avatarBg?: string;
+
+  // Fechas y Bitácora de Auditoría (Changelog)
+  createdAt?: string;
+  updatedAt?: string;
+  changelog?: LeaderChangelogEntry[];
 
   // Datos Generales de Registro
   address?: string;

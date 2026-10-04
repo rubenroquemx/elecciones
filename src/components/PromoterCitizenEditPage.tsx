@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import type { TerritorialLeader } from '../types/territory';
+import type { TerritorialLeader, LeaderChangelogEntry } from '../types/territory';
 import type { ElectoralSection } from '../types/sections';
 import type { MainNavSection } from './Sidebar';
 import { 
@@ -128,25 +128,36 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
       return;
     }
 
+    const nowIso = new Date().toISOString();
+    const changelogEntry: LeaderChangelogEntry = {
+      id: `cl-${Date.now()}`,
+      timestamp: nowIso,
+      action: 'edicion',
+      description: `Actualización de expediente en Sección ${normalizedSec}`,
+      userName: 'Promotor Territorial',
+    };
+
     const updatedLeader: TerritorialLeader = {
       ...citizen,
-      name: trimmedName,
-      electorKey: trimmedKey,
+      name: trimmedName.toUpperCase(),
+      electorKey: trimmedKey.toUpperCase(),
       curp: curp.trim().toUpperCase() || undefined,
       phone: phone.trim() ? `+52 ${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}` : undefined,
       electoralSection: normalizedSec,
-      territoryName: `Sección ${normalizedSec} - ${colonia.trim() || 'Territorio'}`,
-      address: address.trim(),
-      colonia: colonia.trim(),
-      notes: notes.trim(),
+      territoryName: `Sección ${normalizedSec} - ${colonia.trim().toUpperCase() || 'TERRITORIO'}`,
+      address: address.trim().toUpperCase(),
+      colonia: colonia.trim().toUpperCase(),
+      notes: notes.trim().toUpperCase(),
+      updatedAt: nowIso,
+      changelog: [...(citizen.changelog || []), changelogEntry],
     };
 
     persistElectorProfile({
-      electorKey: trimmedKey,
-      name: trimmedName,
+      electorKey: trimmedKey.toUpperCase(),
+      name: trimmedName.toUpperCase(),
       curp: curp.trim().toUpperCase() || undefined,
-      address: address.trim(),
-      colonia: colonia.trim(),
+      address: address.trim().toUpperCase(),
+      colonia: colonia.trim().toUpperCase(),
       electoralSection: normalizedSec,
       phone: updatedLeader.phone,
       structures: [

@@ -176,6 +176,17 @@ export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
     currentCount: 1,
     status: "completado",
     validationStatus: "validado",
+    createdAt: "2026-10-02T10:15:00Z",
+    updatedAt: "2026-10-02T10:15:00Z",
+    changelog: [
+      {
+        id: "cl-1-1",
+        timestamp: "2026-10-02T10:15:00Z",
+        action: "creacion",
+        description: "Registro inicial de promovido por Ruben Roque",
+        userName: "Ruben Roque"
+      }
+    ],
     notes: "Promovida comprometida en Sección 0416."
   },
   {
@@ -196,6 +207,17 @@ export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
     currentCount: 1,
     status: "completado",
     validationStatus: "validado",
+    createdAt: "2026-10-02T12:40:00Z",
+    updatedAt: "2026-10-02T12:40:00Z",
+    changelog: [
+      {
+        id: "cl-2-1",
+        timestamp: "2026-10-02T12:40:00Z",
+        action: "creacion",
+        description: "Registro en brigada de campo por Ruben Roque",
+        userName: "Ruben Roque"
+      }
+    ],
     notes: "Promovido registrado en brigada de campo."
   },
   {
@@ -216,6 +238,17 @@ export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
     currentCount: 1,
     status: "completado",
     validationStatus: "validado",
+    createdAt: "2026-10-03T09:20:00Z",
+    updatedAt: "2026-10-03T09:20:00Z",
+    changelog: [
+      {
+        id: "cl-3-1",
+        timestamp: "2026-10-03T09:20:00Z",
+        action: "creacion",
+        description: "Registro inicial de promovida por Ruben Roque",
+        userName: "Ruben Roque"
+      }
+    ],
     notes: "Promovida registrada en Sección 0416."
   }
 ];
