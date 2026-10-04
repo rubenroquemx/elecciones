@@ -29,6 +29,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   initialTab = 'camera',
 }) => {
   const [activeTab, setActiveTab] = useState<'camera' | 'upload'>(initialTab);
+  const [selectedSide, setSelectedSide] = useState<'reverso' | 'anverso'>('reverso');
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
   const [progressStatus, setProgressStatus] = useState('');
@@ -153,7 +154,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
     setProgressStatus('Iniciando escaneo local...');
 
     try {
-      const result = await scanINEImage(source, width, height, (pct, status) => {
+      const result = await scanINEImage(source, width, height, selectedSide, (pct, status) => {
         setProgressPct(pct);
         setProgressStatus(status);
       });
@@ -221,40 +222,75 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
           </button>
         </div>
 
-        {/* Mode Selector Tabs (only when not showing results) */}
+        {/* Mode Selector & Card Side Toggle (only when not showing results) */}
         {!detectedData && !isProcessing && (
-          <div className="px-5 pt-3 pb-1 border-b border-slate-100 bg-slate-50 flex items-center gap-2 text-xs">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('camera');
-                startCamera();
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all ${
-                activeTab === 'camera'
-                  ? 'bg-white text-indigo-700 border border-slate-200 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Camera className="w-3.5 h-3.5" />
-              <span>Cámara en Vivo</span>
-            </button>
+          <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center justify-between gap-2 text-xs">
+            {/* Input type: Camera vs Upload */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('camera');
+                  startCamera();
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  activeTab === 'camera'
+                    ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Camera className="w-3.5 h-3.5" />
+                <span>Cámara en Vivo</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('upload');
-                stopCamera();
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-semibold transition-all ${
-                activeTab === 'upload'
-                  ? 'bg-white text-indigo-700 border border-slate-200 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Upload className="w-3.5 h-3.5" />
-              <span>Subir o Tomar Foto</span>
-            </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveTab('upload');
+                  stopCamera();
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-all ${
+                  activeTab === 'upload'
+                    ? 'bg-emerald-50 text-emerald-800 font-bold border border-emerald-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>Subir Foto</span>
+              </button>
+            </div>
+
+            {/* Cara a Escanear: Reverso (Códigos / MRZ) vs Frente */}
+            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setSelectedSide('reverso')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                  selectedSide === 'reverso'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Atrás (Reverso)</span>
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full uppercase tracking-wider font-extrabold ${
+                  selectedSide === 'reverso' ? 'bg-emerald-800 text-emerald-100' : 'bg-slate-100 text-slate-600'
+                }`}>
+                  Códigos / MRZ
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedSide('anverso')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                  selectedSide === 'anverso'
+                    ? 'bg-indigo-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Frente</span>
+              </button>
+            </div>
           </div>
         )}
 
@@ -275,9 +311,16 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                     </p>
                   </div>
                 </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-bold uppercase">
-                  {detectedData.detectedSide || 'INE'}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  {detectedData.barcodeFormat && (
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold border border-emerald-300">
+                      {detectedData.barcodeFormat}
+                    </span>
+                  )}
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 font-bold uppercase">
+                    {detectedData.detectedSide === 'reverso' ? 'Reverso (MRZ)' : detectedData.detectedSide || 'INE'}
+                  </span>
+                </div>
               </div>
 
               <div className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] text-slate-600 flex items-center gap-2">
@@ -486,9 +529,24 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                   {/* INE Card Frame Overlay */}
                   <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4">
                     <div className="w-[88%] h-[72%] border-2 border-dashed border-emerald-400/90 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.45)] relative flex items-center justify-center">
-                      <div className="absolute -top-3 px-2 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full uppercase tracking-wider">
-                        Alinee el frente del INE aquí
+                      <div className="absolute -top-3 px-2.5 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-full uppercase tracking-wider flex items-center gap-1 shadow-xs">
+                        {selectedSide === 'reverso' ? (
+                          <span>Alinee el REVERSO (códigos y texto IDMEX al pie)</span>
+                        ) : (
+                          <span>Alinee el FRENTE del INE aquí</span>
+                        )}
                       </div>
+
+                      {selectedSide === 'reverso' && (
+                        <>
+                          <div className="absolute top-2 right-2 border border-emerald-400/60 bg-emerald-500/20 rounded px-1.5 py-0.5 text-[9px] text-emerald-200 font-mono">
+                            [ QR / Barras ]
+                          </div>
+                          <div className="absolute bottom-1 left-2 right-2 border-t border-dashed border-emerald-400/80 pt-0.5 text-center text-[9px] text-emerald-200 font-mono font-bold">
+                            Líneas IDMEX / MRZ (al pie)
+                          </div>
+                        </>
+                      )}
 
                       {/* Corner marks */}
                       <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-emerald-400" />
