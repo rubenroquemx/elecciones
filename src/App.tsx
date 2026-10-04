@@ -33,7 +33,7 @@ import { PromoterCitizenCapturePage } from './components/PromoterCitizenCaptureP
 import { PromoterCitizenDetailPage } from './components/PromoterCitizenDetailPage';
 import { PromoterCitizenEditPage } from './components/PromoterCitizenEditPage';
 import { PromoterNotificationsModal } from './components/PromoterNotificationsModal';
-import { Users, Bell } from 'lucide-react';
+import { Users, Bell, CheckCircle2, X } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -334,6 +334,15 @@ export function App() {
   // Selected citizen for view / edit in promoter pages
   const [selectedPromovidoId, setSelectedPromovidoId] = useState<string | null>(null);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [topSuccessNotice, setTopSuccessNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!topSuccessNotice) return;
+    const timer = setTimeout(() => {
+      setTopSuccessNotice(null);
+    }, 6000);
+    return () => clearTimeout(timer);
+  }, [topSuccessNotice]);
 
   const handleOpenQuickCapture = useCallback((data?: ExtractedINEData) => {
     setQuickCaptureInitialData(data || null);
@@ -481,7 +490,11 @@ export function App() {
       saveLeaderApi(savedLeader, exists).catch(e => console.warn('Sync API error:', e));
       return calculateHierarchyAggregates(updated);
     });
-    setSelectedLeaderId(savedLeader.id);
+    if (savedLeader.level !== 'promovido') {
+      setSelectedLeaderId(savedLeader.id);
+    } else {
+      setSelectedLeaderId(null);
+    }
   }, []);
 
   const handleDeleteLeader = useCallback((id: string) => {
@@ -740,6 +753,26 @@ export function App() {
           />
         )}
 
+        {/* Notificación Superior de Registro Exitoso */}
+        {topSuccessNotice && (
+          <div className="bg-emerald-600 text-white px-4 sm:px-6 py-2.5 flex items-center justify-between border-b border-emerald-700 shadow-xs z-30 shrink-0">
+            <div className="flex items-center gap-2.5">
+              <CheckCircle2 className="w-5 h-5 text-white shrink-0" />
+              <p className="text-xs sm:text-sm font-bold tracking-wide">
+                {topSuccessNotice}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTopSuccessNotice(null)}
+              className="text-emerald-100 hover:text-white p-1 hover:bg-emerald-700 transition-colors cursor-pointer rounded-none"
+              title="Cerrar notificación"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Contenido Dinámico */}
         <main className={`flex-1 relative flex ${
           currentUser?.level === 'promotor' ? 'overflow-visible md:overflow-hidden pb-16 md:pb-0' : 'overflow-hidden'
@@ -889,7 +922,10 @@ export function App() {
                   initialINEData={quickCaptureInitialData}
                   onSaveCitizen={(newLeader) => {
                     handleSaveLeader(newLeader);
+                    setSelectedLeaderId(null);
                     setQuickCaptureInitialData(null);
+                    setTopSuccessNotice(`¡Ciudadano ${newLeader.name} registrado con éxito en la Sección ${newLeader.electoralSection}!`);
+                    setActiveNav('escritorio');
                   }}
                   onNavigate={setActiveNav}
                 />
@@ -916,6 +952,8 @@ export function App() {
                   availableSections={captureAvailableSections}
                   onSaveCitizen={(updatedLeader) => {
                     handleSaveLeader(updatedLeader);
+                    setSelectedLeaderId(null);
+                    setTopSuccessNotice(`¡Expediente de ${updatedLeader.name} actualizado con éxito!`);
                     setActiveNav('escritorio');
                   }}
                   onDeleteCitizen={(id) => {
@@ -978,6 +1016,8 @@ export function App() {
         defaultSectionNumber={currentUser?.assignedSections?.[0] || currentUser?.territoryName?.match(/\d{3,4}/)?.[0] || '0416'}
         onSuccess={(newLeader) => {
           handleSaveLeader(newLeader);
+          setSelectedLeaderId(null);
+          setTopSuccessNotice(`¡Ciudadano ${newLeader.name} registrado con éxito!`);
         }}
       />
 

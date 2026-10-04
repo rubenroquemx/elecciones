@@ -95,9 +95,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   const handleDataExtracted = (data: ExtractedINEData) => {
     if (data.claveElector) setElectorKey(data.claveElector.toUpperCase());
     if (data.curp) setCurp(data.curp.toUpperCase());
-    if (data.name) setName(data.name);
-    if (data.address) setAddress(data.address);
-    if (data.colonia) setColonia(data.colonia);
+    if (data.name) setName(data.name.toUpperCase());
+    if (data.address) setAddress(data.address.toUpperCase());
+    if (data.colonia) setColonia(data.colonia.toUpperCase());
     if (data.photoUrl) setInePhotoUrl(data.photoUrl);
     if (data.vigencia) {
       setVigencia(data.vigencia);
@@ -142,6 +142,25 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     }
     return null;
   }, [electorKey, allLeaders, availableSections]);
+
+  // Detección estricta de duplicados por Clave de Elector en toda la estructura territorial
+  const duplicateLeader = useMemo(() => {
+    const cleanKey = electorKey.trim().toUpperCase();
+    if (cleanKey.length < 6) return null;
+    return allLeaders.find(l => l.electorKey && l.electorKey.trim().toUpperCase() === cleanKey);
+  }, [electorKey, allLeaders]);
+
+  const duplicateNotice = useMemo(() => {
+    if (!duplicateLeader) return null;
+    const isOwnLeader = duplicateLeader.parentId === currentUser?.leaderId || duplicateLeader.id === currentUser?.leaderId;
+    if (isOwnLeader) {
+      return `Este ciudadano ya se encuentra promovido por ti en esta sección electoral (${duplicateLeader.name.toUpperCase()}).`;
+    }
+    const promoter = allLeaders.find(l => l.id === duplicateLeader.parentId);
+    const promoterName = promoter ? promoter.name.toUpperCase() : 'OTRO PROMOTOR TERRITORIAL';
+    const territory = duplicateLeader.territoryName ? ` (${duplicateLeader.territoryName.toUpperCase()})` : '';
+    return `Este ciudadano ya se encuentra promovido en el sistema por ${promoterName}${territory}. No es posible registrarlo nuevamente.`;
+  }, [duplicateLeader, currentUser, allLeaders]);
 
   useEffect(() => {
     if (existingElector) {
@@ -199,6 +218,10 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       setFormError('La Clave de Elector es obligatoria (mínimo 6 caracteres).');
       return;
     }
+    if (duplicateNotice) {
+      setFormError(duplicateNotice);
+      return;
+    }
     if (sectionMismatchError) {
       setFormError(sectionMismatchError);
       return;
@@ -215,39 +238,39 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     const newId = `field-promovido-${Date.now()}`;
     const newLeader: TerritorialLeader = {
       id: newId,
-      name: trimmedName,
+      name: trimmedName.toUpperCase(),
       role: 'Ciudadano Promovido',
       level: 'promovido',
       levelIndex: 5,
       parentId: currentUser?.leaderId || null,
-      territoryName: `Sección ${assignedSection} - ${colonia.trim() || 'Territorio'}`,
-      address: address.trim(),
-      colonia: colonia.trim(),
+      territoryName: `Sección ${assignedSection} - ${colonia.trim().toUpperCase() || 'TERRITORIO'}`,
+      address: address.trim().toUpperCase(),
+      colonia: colonia.trim().toUpperCase(),
       electoralSection: assignedSection,
-      electorKey: trimmedKey,
+      electorKey: trimmedKey.toUpperCase(),
       curp: curp.trim().toUpperCase() || undefined,
       phone: phone.trim() ? `+52 ${phone.slice(0, 3)} ${phone.slice(3, 6)} ${phone.slice(6)}` : undefined,
       inePhotoUrl: inePhotoUrl || undefined,
       photoUrl: inePhotoUrl || undefined,
-      vigencia: vigencia.trim() || undefined,
+      vigencia: vigencia.trim().toUpperCase() || undefined,
       hasAccount: false,
       metaGoal: 1,
       currentCount: 1,
       status: 'completado',
       validationStatus: 'validado',
-      notes: notes.trim() || `Registro de campo en Sección ${assignedSection}.`,
+      notes: notes.trim().toUpperCase() || `REGISTRO DE CAMPO EN SECCIÓN ${assignedSection}.`,
     };
 
     persistElectorProfile({
-      electorKey: trimmedKey,
-      name: trimmedName,
+      electorKey: trimmedKey.toUpperCase(),
+      name: trimmedName.toUpperCase(),
       curp: curp.trim().toUpperCase() || undefined,
-      address: address.trim(),
-      colonia: colonia.trim(),
+      address: address.trim().toUpperCase(),
+      colonia: colonia.trim().toUpperCase(),
       electoralSection: assignedSection,
       phone: newLeader.phone,
       inePhotoUrl: inePhotoUrl || undefined,
-      vigencia: vigencia.trim() || undefined,
+      vigencia: vigencia.trim().toUpperCase() || undefined,
       structures: [
         {
           id: newId,
@@ -362,21 +385,36 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           </div>
         )}
 
-        {formError && !sectionMismatchError && (
+        {/* Alerta Bloqueante si la Clave de Elector ya está registrada en la estructura */}
+        {duplicateNotice && (
+          <div className="p-4 bg-amber-50 border-2 border-amber-500 rounded-none text-amber-950 flex items-start gap-3 shadow-xs">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-amber-900">
+                Ciudadano Ya Promovido (Clave Duplicada)
+              </h4>
+              <p className="text-xs text-amber-800 font-medium leading-relaxed">
+                {duplicateNotice}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {formError && !sectionMismatchError && !duplicateNotice && (
           <div className="p-3 bg-rose-50 border border-rose-300 rounded-none text-xs text-rose-900 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
             <span>{formError}</span>
           </div>
         )}
 
-        {!validation.allowed && !sectionMismatchError && (
+        {!validation.allowed && !sectionMismatchError && !duplicateNotice && (
           <div className="p-3 bg-rose-50 border border-rose-300 rounded-none text-xs text-rose-900 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
             <span><strong>Bloqueo de Directriz:</strong> {validation.errorMsg}</span>
           </div>
         )}
 
-        {existingElector && validation.allowed && (
+        {existingElector && validation.allowed && !duplicateNotice && (
           <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-none text-xs text-indigo-900 flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
             <span>
@@ -440,11 +478,11 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
               required
               value={name}
               onChange={e => {
-                setName(e.target.value);
+                setName(e.target.value.toUpperCase());
                 setFormError(null);
               }}
               placeholder="Nombre(s) y Apellidos tal como figuran en el INE"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-semibold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
             />
           </div>
 
@@ -478,9 +516,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
               <input
                 type="text"
                 value={address}
-                onChange={e => setAddress(e.target.value)}
+                onChange={e => setAddress(e.target.value.toUpperCase())}
                 placeholder="Calle, No. Exterior e Interior"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
 
@@ -491,9 +529,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
               <input
                 type="text"
                 value={colonia}
-                onChange={e => setColonia(e.target.value)}
+                onChange={e => setColonia(e.target.value.toUpperCase())}
                 placeholder="Colonia, Fraccionamiento o Barrio"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
           </div>
@@ -501,14 +539,14 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           {/* Fila 5: Observaciones */}
           <div>
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-              Observaciones / Compromiso de Apoyo
+              Observaciones
             </label>
             <textarea
               rows={3}
               value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Notas de visita, apoyo comprometido, etc."
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900 resize-none"
+              onChange={e => setNotes(e.target.value.toUpperCase())}
+              placeholder="Notas de visita, detalles del promovido, etc."
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 resize-none"
             />
           </div>
 
@@ -536,7 +574,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
               <button
                 type="button"
                 onClick={() => setInePhotoUrl(null)}
-                className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2 py-1 bg-white border border-rose-200 hover:bg-rose-50"
+                className="text-xs text-rose-600 hover:text-rose-800 font-bold px-2 py-1 bg-white border border-rose-200 hover:bg-rose-50 cursor-pointer"
               >
                 Quitar Foto
               </button>
@@ -554,7 +592,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             </button>
             <button
               type="submit"
-              disabled={Boolean(sectionMismatchError) || Boolean(vigenciaError) || !validation.allowed || !name.trim() || electorKey.length < 6}
+              disabled={Boolean(duplicateNotice) || Boolean(sectionMismatchError) || Boolean(vigenciaError) || !validation.allowed || !name.trim() || electorKey.length < 6}
               className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-none shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Save className="w-4 h-4" />

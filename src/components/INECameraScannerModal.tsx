@@ -32,7 +32,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   assignedSection,
 }) => {
   const [activeTab, setActiveTab] = useState<'camera' | 'upload'>(initialTab);
-  const [selectedSide, setSelectedSide] = useState<'reverso' | 'anverso'>('reverso');
+  const selectedSide = 'anverso'; // Modo frontal predeterminado (frente del INE)
   const [isProcessing, setIsProcessing] = useState(false);
   const [progressPct, setProgressPct] = useState(0);
   const [progressStatus, setProgressStatus] = useState('');
@@ -317,34 +317,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
               </button>
             </div>
           )}
-
-          {/* Selector de Cara: Reverso vs Frente (solo cuando no hay resultados) */}
-          {!detectedData && !isProcessing && (
-            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-none border border-slate-200 text-xs">
-              <button
-                type="button"
-                onClick={() => setSelectedSide('reverso')}
-                className={`px-2.5 py-1 font-bold rounded-none transition-all ${
-                  selectedSide === 'reverso'
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Reverso
-              </button>
-              <button
-                type="button"
-                onClick={() => setSelectedSide('anverso')}
-                className={`px-2.5 py-1 font-bold rounded-none transition-all ${
-                  selectedSide === 'anverso'
-                    ? 'bg-emerald-600 text-white'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Frente
-              </button>
-            </div>
-          )}
+          {/* Escaneo predeterminado del frente/frontal del INE */}
 
           <button
             type="button"
@@ -518,7 +491,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                     type="text"
                     value={editableData?.name || ''}
                     onChange={(e) => {
-                      const val = e.target.value;
+                      const val = e.target.value.toUpperCase();
                       setEditableData(prev => prev ? { ...prev, name: val } : prev);
                     }}
                     placeholder="Nombre completo"
@@ -647,7 +620,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                     type="text"
                     value={editableData?.address || ''}
                     onChange={(e) => {
-                      const val = e.target.value;
+                      const val = e.target.value.toUpperCase();
                       setEditableData(prev => prev ? { ...prev, address: val } : prev);
                     }}
                     placeholder="Calle, No. Ext."
@@ -668,7 +641,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                     type="text"
                     value={editableData?.colonia || ''}
                     onChange={(e) => {
-                      const val = e.target.value;
+                      const val = e.target.value.toUpperCase();
                       setEditableData(prev => prev ? { ...prev, colonia: val } : prev);
                     }}
                     placeholder="Colonia"
@@ -765,23 +738,8 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
                   <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center p-4">
                     <div className="w-[88%] h-[72%] border-2 border-dashed border-emerald-400/90 rounded-none relative flex items-center justify-center">
                       <div className="absolute -top-3 px-2.5 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-none uppercase tracking-wider flex items-center gap-1 shadow-xs">
-                        {selectedSide === 'reverso' ? (
-                          <span>Alinee el REVERSO (códigos y texto IDMEX al pie)</span>
-                        ) : (
-                          <span>Alinee el FRENTE de la credencial aquí</span>
-                        )}
+                        <span>Alinee el FRENTE de la credencial aquí</span>
                       </div>
-
-                      {selectedSide === 'reverso' && (
-                        <>
-                          <div className="absolute top-2 right-2 border border-emerald-400/60 bg-emerald-500/20 px-1.5 py-0.5 text-[9px] text-emerald-200 font-mono">
-                            [ QR / Barras ]
-                          </div>
-                          <div className="absolute bottom-1 left-2 right-2 border-t border-dashed border-emerald-400/80 pt-0.5 text-center text-[9px] text-emerald-200 font-mono font-bold">
-                            Líneas IDMEX / MRZ (al pie)
-                          </div>
-                        </>
-                      )}
 
                       <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-emerald-400" />
                       <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-emerald-400" />

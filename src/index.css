@@ -24,6 +24,14 @@ html, body, #root {
   text-rendering: optimizeLegibility;
   background-color: #f5f5f7;
   color: #1d1d1f;
+  touch-action: manipulation;
+}
+
+/* Evitar auto-zoom forzado por iOS Safari y Android al hacer tap en campos de entrada */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
 
 /* Apple Typography Optical Sizing & Tracking */
