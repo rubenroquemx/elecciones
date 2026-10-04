@@ -31,6 +31,89 @@ app.get('/api/config', (req, res) => {
   });
 });
 
+// Endpoint de Extracción de Datos de INE con Inteligencia Artificial (Gemini Vision)
+app.post('/api/scan-ine-ai', async (req, res) => {
+  try {
+    const { imageBase64 } = req.body;
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'Imagen requerida' });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: 'API Key de IA no configurada en el servidor' });
+    }
+
+    const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z+]+;base64,/, '');
+    const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+    const promptText = `Eres un asistente experto en reconocimiento y extracción de credenciales de elector del INE (Instituto Nacional Electoral) de México.
+Analiza con máxima precisión esta credencial (puede ser anverso, reverso o ambas).
+
+Extrae exactamente los datos oficiales y responde ÚNICAMENTE un objeto JSON válido con estos campos:
+{
+  "name": "NOMBRE COMPLETO (Nombres y apellidos completos ordenados)",
+  "claveElector": "CLAVE DE ELECTOR (18 caracteres alfanuméricos oficiales)",
+  "curp": "CURP (18 caracteres)",
+  "electoralSection": "SECCIÓN ELECTORAL (4 dígitos numéricos, ej. 0416)",
+  "address": "CALLE Y NÚMERO EXTERIOR/INTERIOR",
+  "colonia": "COLONIA O LOCALIDAD",
+  "municipio": "MUNICIPIO O ALCALDÍA",
+  "vigencia": "AÑO O RANGO DE VIGENCIA (ej. 2024-2034 o 2030)",
+  "sexo": "Hombre" o "Mujer",
+  "detectedSide": "anverso" | "reverso" | "ambos",
+  "confidenceScore": 99
+}
+
+Reglas:
+1. Si un campo no es visible en esta cara, déjalo como null o cadena vacía.
+2. Si es el reverso, extrae el nombre y la sección electoral de las 3 líneas MRZ al pie (IDMEX...) o códigos QR/barras.
+3. Responde únicamente con el JSON sin bloques de código ni texto adicional.`;
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const response = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: promptText },
+            {
+              inlineData: {
+                mimeType,
+                data: cleanBase64
+              }
+            }
+          ]
+        }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error('Error de Gemini API en servidor:', errText);
+      return res.status(502).json({ error: 'Error del motor de IA', details: errText });
+    }
+
+    const data = await response.json();
+    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!replyText) {
+      return res.status(500).json({ error: 'No se obtuvo respuesta de la IA' });
+    }
+
+    const parsed = JSON.parse(replyText);
+    res.json(parsed);
+  } catch (err: any) {
+    console.error('Error en /api/scan-ine-ai:', err);
+    res.status(500).json({ error: 'Error al procesar con IA', message: err.message });
+  }
+});
+
 // --- LEADERS API ---
 
 app.get('/api/leaders', async (req, res) => {

@@ -42,9 +42,34 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 }) => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannerTab, setScannerTab] = useState<'camera' | 'upload'>('camera');
+  const [canUseCamera, setCanUseCamera] = useState<boolean>(true);
   const [ocrNotice, setOcrNotice] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [sectionMismatchError, setSectionMismatchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const checkCamera = async () => {
+      try {
+        if (
+          typeof navigator === 'undefined' ||
+          !navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia
+        ) {
+          setCanUseCamera(false);
+          setScannerTab('upload');
+          return;
+        }
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const hasVideo = devices.some(d => d.kind === 'videoinput');
+        setCanUseCamera(hasVideo);
+        if (!hasVideo) setScannerTab('upload');
+      } catch {
+        setCanUseCamera(false);
+        setScannerTab('upload');
+      }
+    };
+    checkCamera();
+  }, []);
 
   const assignedSection = useMemo(() => {
     if (defaultSectionNumber) return normalizeSectionNumber(defaultSectionNumber);
@@ -232,35 +257,36 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           </h1>
         </div>
 
-        {/* Grupo de Acciones Unificadas: Escanear INE y Subir INE con Iconos */}
-        <div className="inline-flex items-center border border-slate-700 bg-slate-800/90 rounded-none p-0.5 shrink-0 shadow-xs">
+        {/* Botón Dinámico: Solo Escanear cuando la cámara está disponible; en caso contrario Cargar Foto */}
+        {canUseCamera ? (
           <button
             type="button"
             onClick={() => {
               setScannerTab('camera');
               setIsScannerOpen(true);
             }}
-            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-none"
-            title="Escanear INE con cámara en vivo"
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border border-emerald-500"
+            title="Escanear INE con cámara en vivo e Inteligencia Artificial"
           >
             <Camera className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Escanear INE</span>
-            <span className="sm:hidden">Escanear</span>
+            <span className="hidden sm:inline">Escanear INE (IA)</span>
+            <span className="sm:hidden">Escanear INE</span>
           </button>
+        ) : (
           <button
             type="button"
             onClick={() => {
               setScannerTab('upload');
               setIsScannerOpen(true);
             }}
-            className="px-3 py-1.5 text-slate-200 hover:text-white hover:bg-slate-700/80 active:scale-95 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border-l border-slate-700"
-            title="Subir foto de credencial INE"
+            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border border-indigo-500"
+            title="Cargar foto de credencial INE para procesar con Inteligencia Artificial"
           >
-            <Upload className="w-3.5 h-3.5 text-sky-400" />
-            <span className="hidden sm:inline">Subir INE</span>
-            <span className="sm:hidden">Subir</span>
+            <Upload className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Cargar Foto INE (IA)</span>
+            <span className="sm:hidden">Cargar Foto</span>
           </button>
-        </div>
+        )}
       </div>
 
       {/* Formulario en Página Limpia (Sin Márgenes Redondeados) */}

@@ -12,7 +12,8 @@ import {
   Cpu,
   ShieldCheck,
   RefreshCw,
-  Check
+  Check,
+  Sparkles
 } from 'lucide-react';
 
 interface INECameraScannerModalProps {
@@ -201,14 +202,14 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
             </div>
             <div>
               <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
-                Escaneo Inteligente de INE
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-full border border-emerald-200 flex items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                  0 Tokens • 100% Offline
+                Escaneo de INE con IA
+                <span className="text-[10px] bg-indigo-100 text-indigo-800 font-extrabold px-2 py-0.5 rounded-full border border-indigo-200 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-indigo-600" />
+                  Gemini Vision 2.5
                 </span>
               </h3>
               <p className="text-[11px] text-slate-500">
-                Extracción automática local con inteligencia en el dispositivo
+                Extracción automática con Inteligencia Artificial (con respaldo offline en campo)
               </p>
             </div>
           </div>
