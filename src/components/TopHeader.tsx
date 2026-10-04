@@ -142,7 +142,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 {activeNav === 'ver-promovido' && (
                   <>
                     <Users className="w-5 h-5 text-sky-600" />
-                    <span>Expediente del Promovido</span>
+                    <span>Expediente</span>
                   </>
                 )}
 

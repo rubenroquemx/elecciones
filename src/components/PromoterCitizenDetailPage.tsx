@@ -52,38 +52,28 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
 
   return (
     <div className="flex-1 overflow-y-auto bg-white p-0">
-      {/* Barra de Encabezado Superior con esquinas rectas */}
-      <div className="bg-slate-900 text-white px-5 sm:px-8 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onNavigate('escritorio')}
-            className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-none transition-colors flex items-center gap-2 text-xs font-bold cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Volver</span>
-          </button>
-          <div className="h-5 w-[1px] bg-slate-700" />
-          <div>
-            <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <span>Expediente del Promovido</span>
-              <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-none font-bold">
-                {citizen.electoralSection ? `Sección ${citizen.electoralSection}` : 'Sección Asignada'}
-              </span>
-            </h1>
-          </div>
-        </div>
+      {/* Barra de Encabezado Superior con esquinas rectas en una sola línea */}
+      <div className="bg-slate-900 text-white px-4 sm:px-8 py-2.5 border-b border-slate-800 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onNavigate('escritorio')}
+          className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-none transition-colors cursor-pointer"
+          title="Volver al escritorio"
+          aria-label="Volver"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
 
-        {/* Acciones Rápidas: Llamar, WhatsApp, Editar */}
-        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+        {/* Acciones Rápidas en una sola línea: Llamar, WhatsApp, Editar como íconos */}
+        <div className="flex items-center gap-2">
           {cleanPhone && (
             <a
               href={`tel:${cleanPhone}`}
-              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 shadow-none"
+              className="w-9 h-9 flex items-center justify-center bg-emerald-600 hover:bg-emerald-500 text-white rounded-none transition-colors shadow-none cursor-pointer"
               title="Llamar directamente por teléfono"
+              aria-label="Llamar"
             >
-              <Phone className="w-3.5 h-3.5" />
-              <span>Llamar</span>
+              <Phone className="w-4 h-4" />
             </a>
           )}
 
@@ -92,21 +82,22 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
               href={whatsappUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-none text-xs font-bold transition-all flex items-center gap-1.5"
+              className="w-9 h-9 flex items-center justify-center bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-none transition-colors cursor-pointer"
               title="Abrir chat en WhatsApp"
+              aria-label="WhatsApp"
             >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>WhatsApp</span>
+              <Smartphone className="w-4 h-4 text-emerald-600" />
             </a>
           )}
 
           <button
             type="button"
             onClick={() => onEdit(citizen.id)}
-            className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-900 rounded-none text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center bg-white hover:bg-slate-100 text-slate-900 rounded-none transition-colors cursor-pointer"
+            title="Editar Datos"
+            aria-label="Editar Datos"
           >
-            <Edit3 className="w-3.5 h-3.5 text-indigo-600" />
-            <span>Editar Datos</span>
+            <Edit3 className="w-4 h-4 text-indigo-600" />
           </button>
         </div>
       </div>
@@ -115,25 +106,18 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
       <div className="max-w-4xl mx-auto p-5 sm:p-8 space-y-6">
         {/* Tarjeta de Identificación Principal */}
         <div className="border border-slate-200 bg-slate-50/50 p-6 rounded-none space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 bg-emerald-600 text-white font-black text-xl flex items-center justify-center rounded-none shadow-sm">
-                {citizen.name.charAt(0)}
-              </div>
-              <div>
-                <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  {citizen.name}
-                </h2>
-                <div className="flex flex-wrap items-center gap-2 mt-1">
-                  <span className="text-[11px] font-mono px-2 py-0.5 bg-slate-200 text-slate-800 rounded-none font-bold">
-                    Clave INE: {citizen.electorKey || 'No registrada'}
-                  </span>
-                  <span className="text-[11px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-none border border-emerald-300 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                    <span>Validado en Padrón</span>
-                  </span>
-                </div>
-              </div>
+          <div className="pb-4 border-b border-slate-200">
+            <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              {citizen.name}
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+              <span className="text-[11px] font-mono px-2 py-0.5 bg-slate-200 text-slate-800 rounded-none font-bold">
+                Clave INE: {citizen.electorKey || 'No registrada'}
+              </span>
+              <span className="text-[11px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-none border border-emerald-300 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                <span>Validado en Padrón</span>
+              </span>
             </div>
           </div>
 
