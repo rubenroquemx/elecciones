@@ -120,17 +120,67 @@ Reglas:
   }
 });
 
-// --- LEADERS API ---
+// --- LEADERS API CON RESPALDO RESILIENTE Y CAMPOS COMPLETOS ---
+
+const STORE_DIR = path.join(__dirname, '../data');
+const STORE_FILE = path.join(STORE_DIR, 'leaders_store.json');
+
+function readBackupStore(): any[] {
+  try {
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    if (fs.existsSync(STORE_FILE)) {
+      const content = fs.readFileSync(STORE_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.warn('Error reading backup store:', e);
+  }
+  return [];
+}
+
+function writeBackupStore(leaders: any[]) {
+  try {
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    fs.writeFileSync(STORE_FILE, JSON.stringify(leaders, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Error writing backup store:', e);
+  }
+}
 
 app.get('/api/leaders', async (req, res) => {
   try {
-    const leaders = await prisma.leader.findMany({
-      orderBy: [{ levelIndex: 'asc' }, { name: 'asc' }],
-    });
-    res.json(leaders);
+    let dbLeaders: any[] = [];
+    try {
+      dbLeaders = await prisma.leader.findMany({
+        orderBy: [{ levelIndex: 'asc' }, { name: 'asc' }],
+      });
+    } catch (dbErr: any) {
+      console.warn('Aviso al consultar PostgreSQL:', dbErr.message);
+    }
+
+    const fileLeaders = readBackupStore();
+    
+    // Combinar registros asegurando que no se pierda ninguno
+    const mergedMap = new Map<string, any>();
+    for (const l of fileLeaders) {
+      mergedMap.set(l.id, l);
+    }
+    for (const l of dbLeaders) {
+      const existing = mergedMap.get(l.id) || {};
+      mergedMap.set(l.id, { ...existing, ...l });
+    }
+
+    const result = Array.from(mergedMap.values());
+    if (result.length > fileLeaders.length) {
+      writeBackupStore(result);
+    }
+
+    res.json(result);
   } catch (err: any) {
-    console.warn('Aviso al consultar líderes en BD:', err.message);
-    res.status(500).json({ error: 'Error al obtener líderes', details: err.message });
+    console.warn('Aviso general en /api/leaders:', err.message);
+    const fallback = readBackupStore();
+    res.json(fallback);
   }
 });
 
@@ -141,30 +191,89 @@ app.post('/api/leaders', async (req, res) => {
       data.id = `node-${Date.now()}`;
     }
 
-    const created = await prisma.leader.create({
-      data: {
-        id: data.id,
-        name: data.name,
-        role: data.role,
-        level: data.level,
-        levelIndex: Number(data.levelIndex) || 0,
-        parentId: data.parentId || null,
-        territoryName: data.territoryName,
-        code: data.code || null,
-        phone: data.phone || null,
-        email: data.email || null,
-        username: data.username || null,
-        hasAccount: data.hasAccount ?? (data.level !== 'promovido'),
-        metaGoal: Number(data.metaGoal) || 0,
-        currentCount: Number(data.currentCount) || 0,
-        status: data.status || 'en_progreso',
-        validationStatus: data.validationStatus || 'validado',
-        notes: data.notes || null,
-        avatarBg: data.avatarBg || 'bg-indigo-600',
-      },
-    });
+    // 1. Guardar de inmediato en almacenamiento resiliente central
+    const currentStore = readBackupStore();
+    const existingIndex = currentStore.findIndex((l: any) => l.id === data.id);
+    if (existingIndex >= 0) {
+      currentStore[existingIndex] = { ...currentStore[existingIndex], ...data };
+    } else {
+      currentStore.push(data);
+    }
+    writeBackupStore(currentStore);
 
-    res.status(201).json(created);
+    // 2. Persistir en PostgreSQL
+    let createdInDb = null;
+    try {
+      // Validar si el padre existe antes de asignar parentId para evitar violación de FK
+      let safeParentId = data.parentId || null;
+      if (safeParentId) {
+        const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+        if (!parentExists) safeParentId = null;
+      }
+
+      createdInDb = await prisma.leader.upsert({
+        where: { id: data.id },
+        update: {
+          name: data.name,
+          role: data.role,
+          level: data.level,
+          levelIndex: Number(data.levelIndex) || 0,
+          parentId: safeParentId,
+          territoryName: data.territoryName,
+          code: data.code || null,
+          phone: data.phone || null,
+          email: data.email || null,
+          username: data.username || null,
+          hasAccount: data.hasAccount ?? (data.level !== 'promovido'),
+          metaGoal: Number(data.metaGoal) || 0,
+          currentCount: Number(data.currentCount) || 0,
+          status: data.status || 'en_progreso',
+          validationStatus: data.validationStatus || 'validado',
+          notes: data.notes || null,
+          avatarBg: data.avatarBg || 'bg-indigo-600',
+          address: data.address || null,
+          colonia: data.colonia || null,
+          electoralSection: data.electoralSection || null,
+          curp: data.curp || null,
+          electorKey: data.electorKey || null,
+          inePhotoUrl: data.inePhotoUrl || null,
+          vigencia: data.vigencia || null,
+          changelog: data.changelog ? JSON.parse(JSON.stringify(data.changelog)) : null,
+        },
+        create: {
+          id: data.id,
+          name: data.name,
+          role: data.role,
+          level: data.level,
+          levelIndex: Number(data.levelIndex) || 0,
+          parentId: safeParentId,
+          territoryName: data.territoryName,
+          code: data.code || null,
+          phone: data.phone || null,
+          email: data.email || null,
+          username: data.username || null,
+          hasAccount: data.hasAccount ?? (data.level !== 'promovido'),
+          metaGoal: Number(data.metaGoal) || 0,
+          currentCount: Number(data.currentCount) || 0,
+          status: data.status || 'en_progreso',
+          validationStatus: data.validationStatus || 'validado',
+          notes: data.notes || null,
+          avatarBg: data.avatarBg || 'bg-indigo-600',
+          address: data.address || null,
+          colonia: data.colonia || null,
+          electoralSection: data.electoralSection || null,
+          curp: data.curp || null,
+          electorKey: data.electorKey || null,
+          inePhotoUrl: data.inePhotoUrl || null,
+          vigencia: data.vigencia || null,
+          changelog: data.changelog ? JSON.parse(JSON.stringify(data.changelog)) : null,
+        },
+      });
+    } catch (dbErr: any) {
+      console.warn('Aviso guardando en PostgreSQL (respaldo en archivo activo):', dbErr.message);
+    }
+
+    res.status(201).json(createdInDb || data);
   } catch (err: any) {
     console.error('Error creating leader:', err);
     res.status(500).json({ error: 'Error al registrar líder', details: err.message });
@@ -176,30 +285,60 @@ app.put('/api/leaders/:id', async (req, res) => {
     const { id } = req.params;
     const data = req.body;
 
-    const updated = await prisma.leader.update({
-      where: { id },
-      data: {
-        name: data.name,
-        role: data.role,
-        level: data.level,
-        levelIndex: Number(data.levelIndex) || 0,
-        parentId: data.parentId || null,
-        territoryName: data.territoryName,
-        code: data.code || null,
-        phone: data.phone || null,
-        email: data.email || null,
-        username: data.username || null,
-        hasAccount: data.hasAccount ?? (data.level !== 'promovido'),
-        metaGoal: Number(data.metaGoal) || 0,
-        currentCount: Number(data.currentCount) || 0,
-        status: data.status,
-        validationStatus: data.validationStatus,
-        notes: data.notes || null,
-        avatarBg: data.avatarBg,
-      },
-    });
+    // 1. Actualizar en respaldo central
+    const currentStore = readBackupStore();
+    const idx = currentStore.findIndex((l: any) => l.id === id);
+    if (idx >= 0) {
+      currentStore[idx] = { ...currentStore[idx], ...data };
+    } else {
+      currentStore.push({ ...data, id });
+    }
+    writeBackupStore(currentStore);
 
-    res.json(updated);
+    // 2. Actualizar en PostgreSQL
+    let updatedInDb = null;
+    try {
+      let safeParentId = data.parentId || null;
+      if (safeParentId) {
+        const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+        if (!parentExists) safeParentId = null;
+      }
+
+      updatedInDb = await prisma.leader.update({
+        where: { id },
+        data: {
+          name: data.name,
+          role: data.role,
+          level: data.level,
+          levelIndex: Number(data.levelIndex) || 0,
+          parentId: safeParentId,
+          territoryName: data.territoryName,
+          code: data.code || null,
+          phone: data.phone || null,
+          email: data.email || null,
+          username: data.username || null,
+          hasAccount: data.hasAccount ?? (data.level !== 'promovido'),
+          metaGoal: Number(data.metaGoal) || 0,
+          currentCount: Number(data.currentCount) || 0,
+          status: data.status,
+          validationStatus: data.validationStatus,
+          notes: data.notes || null,
+          avatarBg: data.avatarBg,
+          address: data.address || null,
+          colonia: data.colonia || null,
+          electoralSection: data.electoralSection || null,
+          curp: data.curp || null,
+          electorKey: data.electorKey || null,
+          inePhotoUrl: data.inePhotoUrl || null,
+          vigencia: data.vigencia || null,
+          changelog: data.changelog ? JSON.parse(JSON.stringify(data.changelog)) : null,
+        },
+      });
+    } catch (dbErr: any) {
+      console.warn('Aviso actualizando en PostgreSQL (respaldo en archivo activo):', dbErr.message);
+    }
+
+    res.json(updatedInDb || data);
   } catch (err: any) {
     console.error('Error updating leader:', err);
     res.status(500).json({ error: 'Error al actualizar líder', details: err.message });
@@ -411,12 +550,32 @@ if (PORT !== 80) {
 }
 
 // Sincronización asíncrona de PostgreSQL
+async function ensureDbSchema() {
+  if (!process.env.DATABASE_URL) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "address" TEXT;
+      ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "colonia" TEXT;
+      ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "electoralSection" TEXT;
+      ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "curp" TEXT;
+      ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "electorKey" TEXT;
+      ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "inePhotoUrl" TEXT;
+      ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "vigencia" TEXT;
+      ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "changelog" JSONB;
+    `);
+    console.log('✓ Columnas de ciudadano verificadas en tabla Leader.');
+  } catch (err: any) {
+    console.warn('Aviso en ensureDbSchema:', err.message);
+  }
+}
+
 async function syncDatabase() {
   if (!process.env.DATABASE_URL) {
     console.log('DATABASE_URL no configurada; operando con dataset inicial.');
     return;
   }
   try {
+    await ensureDbSchema();
     console.log('Sincronizando esquema con Prisma...');
     const pushResult = await execAsync('npx prisma db push --skip-generate --accept-data-loss');
     console.log(pushResult.stdout);
@@ -431,3 +590,4 @@ async function syncDatabase() {
 }
 
 setTimeout(syncDatabase, 500);
+

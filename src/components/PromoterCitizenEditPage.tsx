@@ -11,7 +11,13 @@ import {
   ArrowLeft, 
   Save, 
   Trash2, 
-  AlertTriangle 
+  AlertTriangle,
+  CheckCircle2,
+  CreditCard,
+  Phone,
+  MapPin,
+  Clock,
+  FileText
 } from 'lucide-react';
 
 interface PromoterCitizenEditPageProps {
@@ -276,41 +282,46 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
 
   return (
     <div className="flex-1 overflow-y-auto bg-white p-0">
-      {/* Barra de Encabezado Superior con esquinas rectas */}
-      <div className="bg-slate-900 text-white px-5 sm:px-8 py-4 border-b border-slate-800 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => onNavigate('escritorio')}
-            className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-none transition-colors flex items-center gap-2 text-xs font-bold cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Volver</span>
-          </button>
-          <div className="h-5 w-[1px] bg-slate-700" />
-          <div>
-            <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
-              <span>Editar Ciudadano Promovido</span>
-              <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 rounded-none font-bold">
-                {citizen.name}
-              </span>
-            </h1>
-          </div>
-        </div>
+      {/* Barra de Encabezado Superior con esquinas rectas en una sola línea idéntica a visualización (sin Llamar ni WhatsApp) */}
+      <div className="bg-slate-900 text-white px-4 sm:px-8 py-2.5 border-b border-slate-800 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => onNavigate('ver-promovido')}
+          className="p-2 text-slate-300 hover:text-white hover:bg-slate-800 rounded-none transition-colors cursor-pointer"
+          title="Volver al expediente"
+          aria-label="Volver"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
 
-        {onDeleteCitizen && (
+        {/* Acciones de Edición: Eliminar (opcional) y Guardar Cambios */}
+        <div className="flex items-center gap-2">
+          {onDeleteCitizen && (
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="w-9 h-9 flex items-center justify-center bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/60 rounded-none transition-colors cursor-pointer"
+              title="Eliminar Promovido"
+              aria-label="Eliminar"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+
           <button
-            type="button"
-            onClick={handleDelete}
-            className="px-3.5 py-1.5 bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/60 rounded-none text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
+            type="submit"
+            form="edit-promovido-form"
+            disabled={!validation.allowed || !name.trim() || electorKey.length < 6}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-none"
+            title="Guardar Cambios"
           >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Eliminar Promovido</span>
+            <Save className="w-4 h-4" />
+            <span>Guardar</span>
           </button>
-        )}
+        </div>
       </div>
 
-      {/* Formulario en Página Limpia (Sin Bordes Redondeados) */}
+      {/* Contenido en Página Limpia con Ángulos Rectos (Estructura idéntica a visualización) */}
       <div className="max-w-4xl mx-auto p-5 sm:p-8 space-y-6">
         {formError && (
           <div className="p-3 bg-rose-50 border border-rose-300 rounded-none text-xs text-rose-900 flex items-center gap-2">
@@ -326,164 +337,315 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6 border border-slate-200 bg-white p-6 sm:p-8 rounded-none shadow-none">
-          {/* Fila 1: Clave de Elector y CURP */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                Clave de Elector INE (18 caracteres)*
-              </label>
-              <input
-                type="text"
-                required
-                maxLength={18}
-                value={electorKey}
-                onChange={e => {
-                  setElectorKey(e.target.value.toUpperCase());
-                  setFormError(null);
-                }}
-                placeholder="ABCD123456EFGH7890"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
-              />
-              <span className="text-[10px] text-slate-500 mt-1 block font-mono">
-                {electorKey.length}/18 caracteres
-              </span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                CURP (18 caracteres)
-              </label>
-              <input
-                type="text"
-                maxLength={18}
-                value={curp}
-                onChange={e => {
-                  setCurp(e.target.value.toUpperCase());
-                  setFormError(null);
-                }}
-                placeholder="ABCD123456HDFRRN01"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
-              />
-              <span className="text-[10px] text-slate-500 mt-1 block font-mono">
-                {curp.length}/18 caracteres • Opcional
-              </span>
-            </div>
-          </div>
-
-          {/* Fila 2: Nombre Completo */}
-          <div>
-            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-              Nombre Completo del Ciudadano*
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={e => {
-                setName(e.target.value);
-                setFormError(null);
-              }}
-              placeholder="Nombre(s) y Apellidos"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
-            />
-          </div>
-
-          {/* Fila 3: Teléfono y Sección */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                Teléfono Móvil (WhatsApp)*
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono">+52</span>
+        <form id="edit-promovido-form" onSubmit={handleSubmit} className="space-y-6">
+          {/* Tarjeta de Identificación Principal */}
+          <div className="border border-slate-200 bg-slate-50/50 p-6 rounded-none space-y-4">
+            <div className="pb-4 border-b border-slate-200 space-y-3">
+              <div>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                  Nombre Completo del Ciudadano*
+                </label>
                 <input
-                  type="tel"
+                  type="text"
                   required
-                  value={phone}
+                  value={name}
                   onChange={e => {
-                    const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
-                    setPhone(digits);
+                    setName(e.target.value.toUpperCase());
                     setFormError(null);
                   }}
-                  placeholder="993 123 4567"
-                  className="w-full pl-11 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-medium text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  placeholder="NOMBRE COMPLETO TAL COMO FIGURA EN EL INE"
+                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-none text-lg sm:text-xl font-black text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-tight"
                 />
               </div>
-              <span className="text-[10px] text-slate-500 mt-1 block">
-                10 dígitos
-              </span>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Clave de Elector INE (18 caracteres)*
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={18}
+                    value={electorKey}
+                    onChange={e => {
+                      setElectorKey(e.target.value.toUpperCase());
+                      setFormError(null);
+                    }}
+                    placeholder="ABCD123456EFGH7890"
+                    className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
+                  />
+                  <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">
+                    {electorKey.length}/18 caracteres
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2 sm:pt-0 sm:justify-end">
+                  <span className="text-[11px] font-bold px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-none border border-emerald-300 flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{citizen.validationStatus === 'sin_validacion' ? 'Sin Validación (Pendiente)' : 'Validado en Padrón'}</span>
+                  </span>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                Sección Electoral Asignada*
-              </label>
-              <select
-                value={selectedSection}
-                onChange={e => {
-                  setSelectedSection(e.target.value);
-                  setFormError(null);
-                }}
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer"
-              >
-                {sectionOptions.map(s => (
-                  <option key={s.id} value={s.sectionNumber}>
-                    Sección {s.sectionNumber} ({s.municipio || 'Centro'})
-                  </option>
-                ))}
-              </select>
+            {/* Grilla de Datos Detallados */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 text-xs">
+              <div className="p-3.5 bg-white border border-slate-200 rounded-none space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <CreditCard className="w-3 h-3 text-slate-400" />
+                  CURP
+                </label>
+                <input
+                  type="text"
+                  maxLength={18}
+                  value={curp}
+                  onChange={e => {
+                    setCurp(e.target.value.toUpperCase());
+                    setFormError(null);
+                  }}
+                  placeholder="ABCD123456HDFRRN01"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
+                />
+                <span className="text-[10px] text-slate-400 font-mono block">
+                  {curp.length}/18 caracteres • Opcional
+                </span>
+              </div>
+
+              <div className="p-3.5 bg-white border border-slate-200 rounded-none space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <Phone className="w-3 h-3 text-slate-400" />
+                  Teléfono de Contacto
+                </label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1.5 text-xs text-slate-400 font-mono font-bold">+52</span>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={14}
+                    value={phone}
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                      setPhone(digits);
+                      setFormError(null);
+                    }}
+                    placeholder="993 123 4567"
+                    className="w-full pl-10 pr-2 py-1.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  />
+                </div>
+                <span className="text-[10px] text-slate-400 font-mono block">
+                  {phone.length}/10 dígitos obligatorios
+                </span>
+              </div>
+
+              <div className="p-3.5 bg-white border border-slate-200 rounded-none space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-slate-400" />
+                  Sección Electoral
+                </label>
+                <select
+                  value={selectedSection}
+                  onChange={e => {
+                    setSelectedSection(e.target.value);
+                    setFormError(null);
+                  }}
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-rose-700 focus:outline-none focus:ring-1 focus:ring-slate-900 cursor-pointer"
+                >
+                  {sectionOptions.map(s => (
+                    <option key={s.id} value={s.sectionNumber}>
+                      Sección {s.sectionNumber} ({s.municipio || 'Centro'})
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[10px] text-slate-400 font-mono block">
+                  Demarcación territorial
+                </span>
+              </div>
+
+              <div className="sm:col-span-2 p-3.5 bg-white border border-slate-200 rounded-none space-y-2">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-slate-400" />
+                  Domicilio Oficial
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Calle y Número</span>
+                    <input
+                      type="text"
+                      value={address}
+                      onChange={e => setAddress(e.target.value.toUpperCase())}
+                      placeholder="Calle, No. Exterior e Interior"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    />
+                  </div>
+                  <div>
+                    <span className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">Colonia o Localidad</span>
+                    <input
+                      type="text"
+                      value={colonia}
+                      onChange={e => setColonia(e.target.value.toUpperCase())}
+                      placeholder="Colonia, Fraccionamiento o Barrio"
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-white border border-slate-200 rounded-none space-y-1.5 flex flex-col justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-slate-400" />
+                  Estatus Operativo
+                </span>
+                <div className="py-1">
+                  <span className="text-emerald-700 font-bold text-xs block">
+                    Ciudadano Comprometido 2027
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    Estructura de Promoción
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Fila 4: Domicilio y Colonia */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                Calle y Número
-              </label>
-              <input
-                type="text"
-                value={address}
-                onChange={e => setAddress(e.target.value)}
-                placeholder="Calle, No. Exterior e Interior"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
-              />
+          {/* Fotografía de Credencial INE en el Expediente */}
+          {(citizen.inePhotoUrl || citizen.photoUrl) && (
+            <div className="border border-slate-200 bg-white p-6 rounded-none space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-emerald-600" />
+                  <span>Credencial de Elector (INE) Digitalizada</span>
+                </h3>
+                {citizen.vigencia && (
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-none flex items-center gap-1">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Vigencia: {citizen.vigencia}</span>
+                  </span>
+                )}
+              </div>
+              <div className="bg-slate-950 p-2 border border-slate-800 max-w-md">
+                <img
+                  src={citizen.inePhotoUrl || citizen.photoUrl}
+                  alt={`Credencial INE de ${citizen.name}`}
+                  className="w-full h-auto max-h-72 object-contain"
+                />
+              </div>
             </div>
+          )}
 
-            <div>
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                Colonia o Localidad
-              </label>
-              <input
-                type="text"
-                value={colonia}
-                onChange={e => setColonia(e.target.value)}
-                placeholder="Colonia, Fraccionamiento o Barrio"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900"
-              />
-            </div>
-          </div>
-
-          {/* Fila 5: Observaciones */}
-          <div>
-            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-              Observaciones de Campo
-            </label>
+          {/* Sección de Observaciones y Compromiso de Campo */}
+          <div className="border border-slate-200 bg-white p-6 rounded-none space-y-3">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <FileText className="w-4 h-4 text-slate-500" />
+              <span>Notas de Captura y Compromiso Comunitario</span>
+            </h3>
             <textarea
               rows={3}
               value={notes}
-              onChange={e => setNotes(e.target.value)}
-              placeholder="Notas y compromisos adquiridos"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-900 resize-none"
+              onChange={e => setNotes(e.target.value.toUpperCase())}
+              placeholder="Notas y compromisos de campo..."
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-none text-xs text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 resize-none leading-relaxed"
             />
           </div>
 
-          {/* Botones de Guardar y Cancelar */}
+          {/* REGISTRO DE ACTIVIDAD */}
+          <div className="border border-slate-200 bg-white p-6 rounded-none space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                <Clock className="w-4 h-4 text-indigo-600" />
+                <span>REGISTRO DE ACTIVIDAD</span>
+              </h3>
+              <span className="text-[10px] font-mono font-semibold text-slate-500">
+                {citizen.changelog?.length || 1} evento(s)
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {citizen.changelog && citizen.changelog.length > 0 ? (
+                citizen.changelog.map((entry) => (
+                  <div key={entry.id} className="p-3.5 bg-slate-50 border border-slate-200 rounded-none text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900 uppercase text-[11px] flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-none ${entry.action === 'creacion' ? 'bg-emerald-500' : 'bg-indigo-600'} inline-block`} />
+                        {entry.action === 'creacion' ? 'Registro Inicial' : entry.action === 'edicion' ? 'Modificación de Expediente' : entry.action}
+                      </span>
+                      <span className="font-mono text-[10px] text-slate-500">
+                        {new Date(entry.timestamp).toLocaleDateString('es-MX', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+
+                    <p className="text-slate-700 font-medium">{entry.description}</p>
+
+                    {entry.changes && entry.changes.length > 0 && (
+                      <div className="pt-2 border-t border-slate-200 space-y-1.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                          Campos Modificados ({entry.changes.length}):
+                        </span>
+                        <div className="grid grid-cols-1 gap-1.5">
+                          {entry.changes.map((ch, idx) => (
+                            <div 
+                              key={idx} 
+                              className="bg-white p-2.5 border border-slate-200 rounded-none text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-1.5"
+                            >
+                              <span className="font-bold text-slate-900">
+                                {ch.label}
+                              </span>
+                              <div className="flex items-center gap-2 font-mono text-[11px] flex-wrap">
+                                <span className="text-rose-700/80 bg-rose-50 px-1.5 py-0.5 border border-rose-200 line-through">
+                                  {ch.oldValue || '(Sin dato)'}
+                                </span>
+                                <span className="text-slate-400 font-bold">→</span>
+                                <span className="text-emerald-800 bg-emerald-50 px-1.5 py-0.5 border border-emerald-200 font-bold">
+                                  {ch.newValue || '(Sin dato)'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {entry.userName && (
+                      <span className="text-[10px] text-slate-400 block font-semibold pt-0.5">
+                        Responsable: {entry.userName}
+                      </span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-none text-xs space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-slate-900 uppercase text-[11px] flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-none bg-emerald-500 inline-block" />
+                      Registro Inicial
+                    </span>
+                    <span className="font-mono text-[10px] text-slate-500">
+                      {new Date(citizen.createdAt || '2026-10-03T12:00:00Z').toLocaleDateString('es-MX', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-slate-700 font-medium">Alta y validación de ciudadano promovido en sección territorial asignada.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Botones de Guardar y Cancelar inferiores */}
           <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-end gap-3">
             <button
               type="button"
-              onClick={() => onNavigate('escritorio')}
+              onClick={() => onNavigate('ver-promovido')}
               className="w-full sm:w-auto px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-none transition-colors cursor-pointer"
             >
               Cancelar

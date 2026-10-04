@@ -64,13 +64,59 @@ export function App() {
     return calculateHierarchyAggregates(INITIAL_TERRITORY_DATA);
   });
 
-  // Load latest data from PostgreSQL API on mount (only if matching our project structures)
+  // Sincronización bidireccional continua en tiempo real (móvil <-> servidor central <-> PC)
+  const syncLeadersWithServer = useCallback(async () => {
+    try {
+      const serverLeaders = await fetchLeadersApi();
+      if (!serverLeaders || serverLeaders.length === 0) return;
+
+      setLeadersData(prev => {
+        const serverIds = new Set(serverLeaders.map(l => l.id));
+        // Registros creados en este dispositivo que aún no están en el backend
+        const localPending = prev.filter(l => !serverIds.has(l.id) && (l.level === 'promovido' || l.id.startsWith('cit-') || l.id.startsWith('prom-cit-')));
+
+        if (localPending.length > 0) {
+          localPending.forEach(localLeader => {
+            saveLeaderApi(localLeader, false).catch(e => console.warn('Sync pending record error:', e));
+          });
+        }
+
+        const combined = [...serverLeaders, ...localPending];
+
+        const prevMap = new Map(prev.map(p => [p.id, p]));
+        let hasChanges = combined.length !== prev.length;
+        if (!hasChanges) {
+          for (const item of combined) {
+            const ex = prevMap.get(item.id);
+            if (!ex || ex.name !== item.name || ex.phone !== item.phone || ex.updatedAt !== item.updatedAt) {
+              hasChanges = true;
+              break;
+            }
+          }
+        }
+
+        if (!hasChanges) return prev;
+
+        try {
+          localStorage.setItem('territorial_leaders_data', JSON.stringify(combined));
+        } catch (e) {
+          console.warn('Error saving synced leaders to localStorage', e);
+        }
+        return calculateHierarchyAggregates(combined);
+      });
+    } catch (e) {
+      console.warn('Error sincronizando con servidor:', e);
+    }
+  }, []);
+
   useEffect(() => {
-    fetchLeadersApi().then((data) => {
-      if (data && data.length > 0 && data.some(l => l.id === 'coord-dist-fed-04' || l.id === 'prom-ruben-roque')) {
-        setLeadersData(calculateHierarchyAggregates(data));
-      }
-    });
+    syncLeadersWithServer();
+
+    // Sincronización automática periódica (cada 4 seg) y al enfocar la ventana
+    const interval = setInterval(syncLeadersWithServer, 4000);
+    const handleFocus = () => syncLeadersWithServer();
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('visibilitychange', handleFocus);
 
     fetchSectionsApi().then((data) => {
       if (data && data.length > 0) {
@@ -90,7 +136,13 @@ export function App() {
         });
       }
     });
-  }, []);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('visibilitychange', handleFocus);
+    };
+  }, [syncLeadersWithServer]);
 
   // Ensure root URL without /state slugs and clean legacy cache
   useEffect(() => {
@@ -487,7 +539,9 @@ export function App() {
       } catch (e) {
         console.warn('Error saving leaders to localStorage', e);
       }
-      saveLeaderApi(savedLeader, exists).catch(e => console.warn('Sync API error:', e));
+      saveLeaderApi(savedLeader, exists)
+        .then(() => syncLeadersWithServer())
+        .catch(e => console.warn('Sync API error:', e));
       return calculateHierarchyAggregates(updated);
     });
     if (savedLeader.level !== 'promovido') {
@@ -495,7 +549,7 @@ export function App() {
     } else {
       setSelectedLeaderId(null);
     }
-  }, []);
+  }, [syncLeadersWithServer]);
 
   const handleDeleteLeader = useCallback((id: string) => {
     if (window.confirm('¿Seguro que deseas eliminar este nodo de la estructura?')) {
@@ -518,9 +572,11 @@ export function App() {
       if (filters.focusNodeId === id) {
         setFilters(f => ({ ...f, focusNodeId: null }));
       }
-      deleteLeaderApi(id).catch(e => console.warn('Delete API error:', e));
+      deleteLeaderApi(id)
+        .then(() => syncLeadersWithServer())
+        .catch(e => console.warn('Delete API error:', e));
     }
-  }, [selectedLeaderId, filters.focusNodeId]);
+  }, [selectedLeaderId, filters.focusNodeId, syncLeadersWithServer]);
 
   // Sections handlers
   const handleSaveSection = useCallback((savedSection: ElectoralSection) => {

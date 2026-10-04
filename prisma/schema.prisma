@@ -28,6 +28,14 @@ model Leader {
   validationStatus String   @default("validado")   // 'validado' | 'pendiente' | 'rechazado'
   notes            String?  @db.Text
   avatarBg         String?  @default("bg-indigo-600")
+  address          String?
+  colonia          String?
+  electoralSection String?
+  curp             String?
+  electorKey       String?
+  inePhotoUrl      String?  @db.Text
+  vigencia         String?
+  changelog        Json?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
