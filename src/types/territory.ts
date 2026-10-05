@@ -57,6 +57,8 @@ export interface TerritorialLeader {
   curp?: string;
   electorKey?: string;
   inePhotoUrl?: string;
+  ineAnversoUrl?: string;
+  ineReversoUrl?: string;
   vigencia?: string;
 
   // Datos Operativos

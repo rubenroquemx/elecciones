@@ -9,15 +9,23 @@ import {
 interface INECameraScannerModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onDataExtracted: (data: ExtractedINEData) => void;
+  onDataExtracted?: (data: ExtractedINEData) => void;
+  onCapture?: (photoUrl: string) => void;
   initialTab?: 'camera' | 'upload';
+  side?: 'anverso' | 'reverso';
+  title?: string;
+  subtitle?: string;
 }
 
 export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   isOpen,
   onClose,
   onDataExtracted,
+  onCapture,
   initialTab = 'camera',
+  side = 'anverso',
+  title,
+  subtitle,
 }) => {
   const [activeTab, setActiveTab] = useState<'camera' | 'upload'>(initialTab);
   const [cameraError, setCameraError] = useState<string | null>(null);
@@ -149,14 +157,19 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
     stopCamera();
 
     // Retornar inmediatamente el INE recortado a la cuadrícula sin OCR ni IA
-    onDataExtracted({
-      rawText: '',
-      confidenceScore: 100,
-      photoUrl: croppedDataUrl,
-      isValidINE: true,
-      isReadable: true,
-      validationStatus: 'sin_validacion',
-    });
+    if (onCapture) {
+      onCapture(croppedDataUrl);
+    }
+    if (onDataExtracted) {
+      onDataExtracted({
+        rawText: '',
+        confidenceScore: 100,
+        photoUrl: croppedDataUrl,
+        isValidINE: true,
+        isReadable: true,
+        validationStatus: 'sin_validacion',
+      });
+    }
     onClose();
   };
 
@@ -192,14 +205,19 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
           const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
 
           stopCamera();
-          onDataExtracted({
-            rawText: '',
-            confidenceScore: 100,
-            photoUrl: croppedDataUrl,
-            isValidINE: true,
-            isReadable: true,
-            validationStatus: 'sin_validacion',
-          });
+          if (onCapture) {
+            onCapture(croppedDataUrl);
+          }
+          if (onDataExtracted) {
+            onDataExtracted({
+              rawText: '',
+              confidenceScore: 100,
+              photoUrl: croppedDataUrl,
+              isValidINE: true,
+              isReadable: true,
+              validationStatus: 'sin_validacion',
+            });
+          }
           onClose();
         }
       };
@@ -209,6 +227,14 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
   };
 
   if (!isOpen) return null;
+
+  const displayTitle = title || (side === 'reverso' ? 'Paso 2: Capturar Reverso del INE' : 'Paso 1: Capturar Anverso del INE');
+  const displaySubtitle = subtitle || (side === 'reverso' 
+    ? 'Alinea la parte trasera de la credencial dentro de la cuadrícula.' 
+    : 'Alinea el frente de la credencial dentro de la cuadrícula.');
+  const guideLabel = side === 'reverso' 
+    ? 'REVERSO (PARTE TRASERA) • ALINEAR A LA CUADRÍCULA' 
+    : 'ANVERSO (FRENTE) • ALINEAR A LA CUADRÍCULA';
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-white text-slate-900 w-screen h-screen overflow-hidden">
@@ -220,10 +246,10 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
           </div>
           <div className="min-w-0">
             <h3 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-slate-900 truncate">
-              Escanear INE
+              {displayTitle}
             </h3>
             <p className="text-[11px] text-slate-500 truncate">
-              Alinea el frente de la credencial de elector con la guía.
+              {displaySubtitle}
             </p>
           </div>
         </div>
@@ -277,7 +303,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
 
                 {/* Etiqueta superior */}
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-2.5 py-0.5 bg-emerald-600 text-white text-[10px] font-bold rounded-none uppercase tracking-wider flex items-center gap-1 shadow-md whitespace-nowrap">
-                  <span>Alinea la credencial dentro de la cuadrícula</span>
+                  <span>{guideLabel}</span>
                 </div>
               </div>
             </div>

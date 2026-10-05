@@ -219,7 +219,7 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
       metaGoal: roleType === 'promovido' ? 1 : 25,
       currentCount: roleType === 'promovido' ? 1 : 0,
       status: 'completado',
-      validationStatus: 'validado',
+      validationStatus: roleType === 'promovido' ? 'sin_validacion' : 'validado',
       inePhotoUrl: inePhotoUrl || undefined,
       notes: `Registro ágil de campo (Captura Móvil) en Sección ${normalizedSec}.`,
     };

@@ -871,7 +871,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                             </span>
                             {promovido.validationStatus === 'sin_validacion' ? (
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-amber-50 text-amber-800 border border-amber-300">
-                                ⚠ Sin Validación
+                                ⚠ No verificado
                               </span>
                             ) : (
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-emerald-50 text-emerald-700 border border-emerald-200">

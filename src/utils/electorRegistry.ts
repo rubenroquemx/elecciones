@@ -20,6 +20,8 @@ export interface ElectorProfile {
   phone?: string;
   email?: string;
   inePhotoUrl?: string;
+  ineAnversoUrl?: string;
+  ineReversoUrl?: string;
   vigencia?: string;
   structures: ElectorStructureItem[];
 }

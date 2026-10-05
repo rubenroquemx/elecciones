@@ -16,7 +16,11 @@ import {
   Save, 
   X,
   Maximize2,
-  RefreshCw
+  RefreshCw,
+  CheckCircle2,
+  CreditCard,
+  FileCheck2,
+  Info
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
 import type { ExtractedINEData } from '../utils/ineScanner';
@@ -40,12 +44,16 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   defaultSectionNumber,
   initialINEData,
 }) => {
+  // Estado de escáner y fotos
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [hasExtractedData, setHasExtractedData] = useState<boolean>(false);
-  const [extractionValidationStatus, setExtractionValidationStatus] = useState<'validado' | 'sin_validacion' | null>(null);
+  const [scannerSide, setScannerSide] = useState<'anverso' | 'reverso'>('anverso');
+  const [ineAnversoUrl, setIneAnversoUrl] = useState<string | null>(null);
+  const [ineReversoUrl, setIneReversoUrl] = useState<string | null>(null);
+  const [modalImagePreview, setModalImagePreview] = useState<{ url: string; title: string } | null>(null);
+
+  // Errores de validación
   const [formError, setFormError] = useState<string | null>(null);
   const [sectionMismatchError, setSectionMismatchError] = useState<string | null>(null);
-  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   const assignedSection = useMemo(() => {
     if (defaultSectionNumber) return normalizeSectionNumber(defaultSectionNumber);
@@ -57,6 +65,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     return '0416';
   }, [defaultSectionNumber, currentUser]);
 
+  // Campos de datos complementarios
   const [electoralSection, setElectoralSection] = useState(assignedSection || '0416');
   const [electorKey, setElectorKey] = useState('');
   const [curp, setCurp] = useState('');
@@ -65,15 +74,24 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   const [address, setAddress] = useState('');
   const [colonia, setColonia] = useState('');
   const [notes, setNotes] = useState('');
-  const [inePhotoUrl, setInePhotoUrl] = useState<string | null>(null);
-  const [vigencia, setVigencia] = useState<string>('');
-  const [vigenciaError, setVigenciaError] = useState<string | null>(null);
 
   useEffect(() => {
     if (assignedSection && (!electoralSection || electoralSection === '0416')) {
       setElectoralSection(assignedSection);
     }
   }, [assignedSection]);
+
+  // Si recibe initialINEData
+  useEffect(() => {
+    if (initialINEData?.photoUrl) {
+      setIneAnversoUrl(initialINEData.photoUrl);
+    }
+    if (initialINEData?.claveElector) setElectorKey(initialINEData.claveElector.toUpperCase());
+    if (initialINEData?.curp) setCurp(initialINEData.curp.toUpperCase());
+    if (initialINEData?.name) setName(initialINEData.name.toUpperCase());
+    if (initialINEData?.address) setAddress(initialINEData.address.toUpperCase());
+    if (initialINEData?.colonia) setColonia(initialINEData.colonia.toUpperCase());
+  }, [initialINEData]);
 
   const handleSectionChange = (val: string) => {
     const digits = val.replace(/\D/g, '').slice(0, 4);
@@ -97,7 +115,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     }
   };
 
-  // Limpieza tolerante y robusta del número telefónico (con o sin +52)
   const cleanPhoneDigits = (val: string): string => {
     let clean = val.replace(/\D/g, '');
     if (clean.startsWith('52') && clean.length > 10) {
@@ -112,52 +129,30 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     setFormError(null);
   };
 
-  const handleDataExtracted = (data: ExtractedINEData) => {
-    if (data.claveElector) setElectorKey(data.claveElector.toUpperCase());
-    if (data.curp) setCurp(data.curp.toUpperCase());
-    if (data.name) setName(data.name.toUpperCase());
-    if (data.address) setAddress(data.address.toUpperCase());
-    if (data.colonia) setColonia(data.colonia.toUpperCase());
-    if (data.photoUrl) setInePhotoUrl(data.photoUrl);
-    if (data.vigencia) {
-      setVigencia(data.vigencia.toUpperCase());
-      const matches = data.vigencia.match(/20\d{2}/g);
-      if (matches && matches.length > 0) {
-        const expYear = parseInt(matches[matches.length - 1], 10);
-        if (expYear < 2026) {
-          setVigenciaError(`La credencial INE tiene vigencia ${expYear} (menor a 2026) y no es válida para el proceso electoral.`);
-        } else {
-          setVigenciaError(null);
-        }
-      }
-    }
-
-    // Validación estricta: Capturar y notificar si el INE escaneado no es de la sección asignada
-    if (data.electoralSection) {
-      const extractedSec = normalizeSectionNumber(data.electoralSection);
-      setElectoralSection(extractedSec);
-      if (extractedSec !== assignedSection) {
-        setSectionMismatchError(
-          `Este promovido pertenece a la Sección Electoral ${extractedSec}. Tu sección asignada es la ${assignedSection}. No es posible registrar ciudadanos fuera de tu sección asignada.`
-        );
-      } else {
-        setSectionMismatchError(null);
-      }
-    } else {
-      setSectionMismatchError(null);
-    }
-
-    setFormError(null);
-    const gotData = Boolean(data.name || data.claveElector || data.electoralSection || data.curp);
-    setHasExtractedData(gotData);
-    setExtractionValidationStatus(data.validationStatus || 'sin_validacion');
+  // Abrir cámara para un lado específico
+  const openScannerFor = (side: 'anverso' | 'reverso') => {
+    setScannerSide(side);
+    setIsScannerOpen(true);
   };
 
-  useEffect(() => {
-    if (initialINEData) {
-      handleDataExtracted(initialINEData);
+  // Callback al capturar foto desde INECameraScannerModal
+  const handlePhotoCaptured = (photoUrl: string) => {
+    if (scannerSide === 'anverso') {
+      setIneAnversoUrl(photoUrl);
+      setIsScannerOpen(false);
+      // Si el reverso aún no se ha capturado, sugerir/abrir automáticamente para agilizar el flujo de 4 pasos
+      if (!ineReversoUrl) {
+        setTimeout(() => {
+          setScannerSide('reverso');
+          setIsScannerOpen(true);
+        }, 350);
+      }
+    } else {
+      setIneReversoUrl(photoUrl);
+      setIsScannerOpen(false);
     }
-  }, [initialINEData]);
+    setFormError(null);
+  };
 
   const existingElector = useMemo(() => {
     if (electorKey.trim().length >= 6) {
@@ -166,7 +161,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     return null;
   }, [electorKey, allLeaders, availableSections]);
 
-  // Detección estricta de duplicados por Clave de Elector en toda la estructura territorial
   const duplicateLeader = useMemo(() => {
     const cleanKey = electorKey.trim().toUpperCase();
     if (cleanKey.length < 6) return null;
@@ -225,6 +219,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     );
   }, [electorKey, assignedSection, electoralSection, sectionMismatchError, allLeaders, availableSections]);
 
+  // Paso 4: Guardar como "No verificado"
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
@@ -262,10 +257,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       setFormError(sectionMismatchError);
       return;
     }
-    if (vigenciaError) {
-      setFormError(vigenciaError);
-      return;
-    }
     if (!validation.allowed) {
       setFormError(validation.errorMsg || 'No se puede registrar este ciudadano según las directrices territoriales.');
       return;
@@ -280,10 +271,12 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
         id: `cl-${Date.now()}`,
         timestamp: nowIso,
         action: 'creacion',
-        description: `Registro inicial de promovido en Sección ${cleanSection} por ${currentUser?.name || 'Promotor Territorial'}`,
+        description: `Registro inicial de promovido en Sección ${cleanSection} por ${currentUser?.name || 'Promotor Territorial'} (Guardado como No verificado)`,
         userName: currentUser?.name || 'Promotor Territorial',
       }
     ];
+
+    const mainInePhoto = ineAnversoUrl || ineReversoUrl || undefined;
 
     const newLeader: TerritorialLeader = {
       id: newId,
@@ -299,14 +292,15 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       electorKey: trimmedKey,
       curp: curp.trim().toUpperCase() || undefined,
       phone: formattedPhone,
-      inePhotoUrl: inePhotoUrl || undefined,
-      photoUrl: inePhotoUrl || undefined,
-      vigencia: vigencia.trim().toUpperCase() || undefined,
+      inePhotoUrl: mainInePhoto,
+      ineAnversoUrl: ineAnversoUrl || undefined,
+      ineReversoUrl: ineReversoUrl || undefined,
+      photoUrl: mainInePhoto,
       hasAccount: false,
       metaGoal: 1,
       currentCount: 1,
       status: 'completado',
-      validationStatus: extractionValidationStatus || 'sin_validacion',
+      validationStatus: 'sin_validacion', // Siempre guardado como "No verificado"
       notes: notes.trim().toUpperCase() || `REGISTRO DE CAMPO EN SECCIÓN ${cleanSection}.`,
       createdAt: nowIso,
       updatedAt: nowIso,
@@ -321,8 +315,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       colonia: colonia.trim().toUpperCase(),
       electoralSection: cleanSection,
       phone: newLeader.phone,
-      inePhotoUrl: inePhotoUrl || undefined,
-      vigencia: vigencia.trim().toUpperCase() || undefined,
+      inePhotoUrl: mainInePhoto,
+      ineAnversoUrl: ineAnversoUrl || undefined,
+      ineReversoUrl: ineReversoUrl || undefined,
       structures: [
         {
           id: newId,
@@ -340,8 +335,8 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 
   return (
     <div className="flex-1 overflow-y-auto bg-white p-0 relative">
-      {/* Barra Superior */}
-      <div className="bg-slate-900 text-white px-4 sm:px-8 py-3.5 border-b border-slate-800 flex items-center justify-between gap-3">
+      {/* 1. BARRA SUPERIOR */}
+      <div className="bg-slate-900 text-white px-4 sm:px-8 py-3.5 border-b border-slate-800 flex items-center justify-between gap-3 sticky top-0 z-20">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"
@@ -352,86 +347,268 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             <span className="hidden sm:inline">Volver</span>
           </button>
           <div className="h-5 w-[1px] bg-slate-700 shrink-0" />
-          <h1 className="text-sm sm:text-base font-bold text-white truncate">
-            Capturar Promovido
-          </h1>
+          <div>
+            <h1 className="text-sm sm:text-base font-bold text-white truncate">
+              Capturar Promovido
+            </h1>
+            <p className="text-[11px] text-slate-400 hidden sm:block">
+              Flujo oficial: Anverso → Reverso → Datos complementarios → Guardar "No verificado"
+            </p>
+          </div>
         </div>
 
-        {/* Botón único para fotografiar credencial INE */}
-        <button
-          type="button"
-          onClick={() => setIsScannerOpen(true)}
-          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border border-emerald-500"
-          title="Tomar fotografía de la credencial con guía de cuadrícula"
-        >
-          <Camera className="w-3.5 h-3.5" />
-          <span>Fotografiar INE</span>
-        </button>
+        <div className="flex items-center gap-2">
+          <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold uppercase tracking-wider hidden sm:inline-flex items-center gap-1">
+            <Info className="w-3 h-3 text-amber-400" />
+            <span>Estatus: No verificado</span>
+          </span>
+        </div>
       </div>
 
-      {/* Formulario en Página Limpia */}
-      <div className="max-w-4xl mx-auto p-5 sm:p-8 space-y-6">
-        {/* FOTOGRAFÍA INE FIJA EN LA PARTE SUPERIOR PARA COTEJAR Y VERIFICAR */}
-        {inePhotoUrl && (
-          <div className="sticky top-0 z-30 bg-slate-900 text-white p-3.5 border-b-2 border-emerald-500 shadow-lg -mx-5 sm:-mx-8 -mt-5 sm:-mt-8 mb-6 backdrop-blur-md">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <img
-                  src={inePhotoUrl}
-                  alt="INE Recortado y Digitalizado"
-                  className="h-16 sm:h-20 w-auto object-contain bg-black border border-slate-700 rounded-none shrink-0 cursor-pointer shadow-md hover:opacity-90 transition-opacity"
-                  onClick={() => setIsImageModalOpen(true)}
-                  title="Toca para ampliar imagen de la credencial"
-                />
-                <div className="min-w-0">
-                  <h4 className="text-xs sm:text-sm font-bold text-white tracking-wide">
-                    Credencial cargada exitosamente
-                  </h4>
-                  <div className="text-[11px] mt-1 flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-slate-300">Verificación:</span>
-                    {hasExtractedData && extractionValidationStatus !== 'sin_validacion' ? (
-                      <span className="text-emerald-400 font-semibold">
-                        Se obtuvieron datos de la credencial
-                      </span>
-                    ) : (
-                      <span className="text-amber-300 font-medium">
-                        La imagen no es legible o no contiene datos. El registro deberá verificarse manualmente.
-                      </span>
-                    )}
-                  </div>
-                  {vigencia && (
-                    <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                      Vigencia: {vigencia}
-                    </span>
-                  )}
-                </div>
+      {/* 2. BARRA DE INDICADOR DE 4 PASOS */}
+      <div className="bg-slate-50 border-b border-slate-200 px-4 sm:px-8 py-3">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {/* Paso 1 */}
+            <div 
+              onClick={() => openScannerFor('anverso')}
+              className={`p-2.5 border rounded-none cursor-pointer transition-all flex items-center gap-2.5 ${
+                ineAnversoUrl 
+                  ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900' 
+                  : 'bg-white border-slate-300 hover:border-emerald-500 text-slate-800'
+              }`}
+            >
+              <div className={`w-6 h-6 rounded-none flex items-center justify-center font-bold text-xs shrink-0 ${
+                ineAnversoUrl ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {ineAnversoUrl ? '✓' : '1'}
               </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] font-bold block truncate uppercase">1. Anverso INE</span>
+                <span className="text-[10px] text-slate-500 block truncate">
+                  {ineAnversoUrl ? 'Listo' : 'Alinear y capturar'}
+                </span>
+              </div>
+            </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setIsImageModalOpen(true)}
-                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-none text-xs font-semibold flex items-center gap-1 cursor-pointer"
-                  title="Ampliar vista del INE"
-                >
-                  <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="hidden sm:inline">Ampliar</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsScannerOpen(true)}
-                  className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold flex items-center gap-1 cursor-pointer shadow-xs"
-                  title="Volver a escanear o fotografiar"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Reemplazar</span>
-                </button>
+            {/* Paso 2 */}
+            <div 
+              onClick={() => openScannerFor('reverso')}
+              className={`p-2.5 border rounded-none cursor-pointer transition-all flex items-center gap-2.5 ${
+                ineReversoUrl 
+                  ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900' 
+                  : 'bg-white border-slate-300 hover:border-emerald-500 text-slate-800'
+              }`}
+            >
+              <div className={`w-6 h-6 rounded-none flex items-center justify-center font-bold text-xs shrink-0 ${
+                ineReversoUrl ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {ineReversoUrl ? '✓' : '2'}
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] font-bold block truncate uppercase">2. Reverso INE</span>
+                <span className="text-[10px] text-slate-500 block truncate">
+                  {ineReversoUrl ? 'Listo' : 'Alinear y capturar'}
+                </span>
+              </div>
+            </div>
+
+            {/* Paso 3 */}
+            <div className="p-2.5 bg-white border border-slate-300 rounded-none flex items-center gap-2.5 text-slate-800">
+              <div className="w-6 h-6 rounded-none bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                3
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] font-bold block truncate uppercase">3. Datos</span>
+                <span className="text-[10px] text-slate-500 block truncate">Formulario</span>
+              </div>
+            </div>
+
+            {/* Paso 4 */}
+            <div className="p-2.5 bg-white border border-slate-300 rounded-none flex items-center gap-2.5 text-slate-800">
+              <div className="w-6 h-6 rounded-none bg-amber-500 text-slate-900 flex items-center justify-center font-bold text-xs shrink-0">
+                4
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-[11px] font-bold block truncate uppercase">4. Guardar</span>
+                <span className="text-[10px] text-amber-700 font-bold block truncate">No verificado</span>
               </div>
             </div>
           </div>
-        )}
+        </div>
+      </div>
 
-        {/* Alerta de Sección Fuera de Demarcación */}
+      {/* 3. CONTENIDO PRINCIPAL */}
+      <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6">
+
+        {/* PASOS 1 Y 2: TARJETAS DE CAPTURA ANVERSO Y REVERSO */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Tarjeta Paso 1: Anverso */}
+          <div className={`p-4 border rounded-none transition-all ${
+            ineAnversoUrl ? 'bg-slate-50 border-emerald-400' : 'bg-white border-dashed border-2 border-slate-300 hover:border-emerald-500'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className={`w-5 h-5 flex items-center justify-center text-xs font-black ${
+                  ineAnversoUrl ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-800'
+                }`}>
+                  1
+                </div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-emerald-600" />
+                  <span>Anverso del INE (Frente)</span>
+                </h3>
+              </div>
+              {ineAnversoUrl && (
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>Capturado</span>
+                </span>
+              )}
+            </div>
+
+            {ineAnversoUrl ? (
+              <div className="space-y-3">
+                <div className="relative bg-black aspect-[1.586/1] border border-slate-700 overflow-hidden flex items-center justify-center group">
+                  <img
+                    src={ineAnversoUrl}
+                    alt="Anverso del INE"
+                    className="w-full h-full object-contain cursor-pointer"
+                    onClick={() => setModalImagePreview({ url: ineAnversoUrl, title: 'Anverso del INE (Frente)' })}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setModalImagePreview({ url: ineAnversoUrl, title: 'Anverso del INE (Frente)' })}
+                      className="px-2.5 py-1.5 bg-slate-900/90 text-white text-xs font-bold rounded-none flex items-center gap-1 cursor-pointer hover:bg-black"
+                    >
+                      <Maximize2 className="w-3 h-3 text-emerald-400" />
+                      <span>Ampliar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openScannerFor('anverso')}
+                      className="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-none flex items-center gap-1 cursor-pointer hover:bg-emerald-500"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Volver a capturar</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-[11px] text-slate-500">Recorte automático a la cuadrícula</span>
+                  <button
+                    type="button"
+                    onClick={() => openScannerFor('anverso')}
+                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Reemplazar Anverso</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="py-6 text-center space-y-3">
+                <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                  Alinea el frente de la credencial con la guía para recortar automáticamente.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openScannerFor('anverso')}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 mx-auto cursor-pointer"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Capturar Anverso</span>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Tarjeta Paso 2: Reverso */}
+          <div className={`p-4 border rounded-none transition-all ${
+            ineReversoUrl ? 'bg-slate-50 border-emerald-400' : 'bg-white border-dashed border-2 border-slate-300 hover:border-emerald-500'
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className={`w-5 h-5 flex items-center justify-center text-xs font-black ${
+                  ineReversoUrl ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-800'
+                }`}>
+                  2
+                </div>
+                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <FileCheck2 className="w-4 h-4 text-emerald-600" />
+                  <span>Reverso del INE (Atrás)</span>
+                </h3>
+              </div>
+              {ineReversoUrl && (
+                <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                  <span>Capturado</span>
+                </span>
+              )}
+            </div>
+
+            {ineReversoUrl ? (
+              <div className="space-y-3">
+                <div className="relative bg-black aspect-[1.586/1] border border-slate-700 overflow-hidden flex items-center justify-center group">
+                  <img
+                    src={ineReversoUrl}
+                    alt="Reverso del INE"
+                    className="w-full h-full object-contain cursor-pointer"
+                    onClick={() => setModalImagePreview({ url: ineReversoUrl, title: 'Reverso del INE (Atrás)' })}
+                  />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setModalImagePreview({ url: ineReversoUrl, title: 'Reverso del INE (Atrás)' })}
+                      className="px-2.5 py-1.5 bg-slate-900/90 text-white text-xs font-bold rounded-none flex items-center gap-1 cursor-pointer hover:bg-black"
+                    >
+                      <Maximize2 className="w-3 h-3 text-emerald-400" />
+                      <span>Ampliar</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openScannerFor('reverso')}
+                      className="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-none flex items-center gap-1 cursor-pointer hover:bg-emerald-500"
+                    >
+                      <RefreshCw className="w-3 h-3" />
+                      <span>Volver a capturar</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-[11px] text-slate-500">Recorte automático a la cuadrícula</span>
+                  <button
+                    type="button"
+                    onClick={() => openScannerFor('reverso')}
+                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer flex items-center gap-1"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Reemplazar Reverso</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="py-6 text-center space-y-3">
+                <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                  Alinea el reverso (código de barras / firma) con la guía para recortar.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => openScannerFor('reverso')}
+                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 mx-auto cursor-pointer"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>Capturar Reverso</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ALERTA DE SECCIÓN FUERA DE DEMARCACIÓN */}
         {sectionMismatchError && (
           <div className="p-4 bg-rose-50 border-2 border-rose-500 rounded-none text-rose-950 flex items-start gap-3 shadow-xs">
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
@@ -446,22 +623,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           </div>
         )}
 
-        {/* Alerta de Vigencia Menor a 2026 */}
-        {vigenciaError && !sectionMismatchError && (
-          <div className="p-4 bg-rose-50 border-2 border-rose-400 rounded-none text-rose-950 flex items-start gap-3 shadow-xs">
-            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-rose-900">
-                Captura No Permitida - Credencial No Vigente
-              </h4>
-              <p className="text-xs text-rose-800 font-medium leading-relaxed">
-                {vigenciaError}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* Alerta Bloqueante si la Clave de Elector ya está registrada en la estructura */}
+        {/* ALERTA BLOQUEANTE SI CLAVE ESTÁ DUPLICADA */}
         {duplicateNotice && (
           <div className="p-4 bg-amber-50 border-2 border-amber-500 rounded-none text-amber-950 flex items-start gap-3 shadow-xs">
             <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -494,12 +656,27 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-none text-xs text-indigo-900 flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
             <span>
-              <strong>Elector ya identificado:</strong> {existingElector.name}.
+              <strong>Elector ya identificado en padrón:</strong> {existingElector.name}.
             </span>
           </div>
         )}
 
+        {/* PASO 3: FORMULARIO DE DATOS COMPLEMENTARIOS */}
         <form onSubmit={handleSubmit} className="space-y-6 border border-slate-200 bg-white p-6 sm:p-8 rounded-none shadow-none">
+          <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
+                3
+              </div>
+              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
+                Paso 3: Capturar Datos Complementarios
+              </h3>
+            </div>
+            <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
+              Coteja la información visualizando las fotos superiores
+            </span>
+          </div>
+
           {/* Fila 1: Sección Electoral, Clave de Elector y CURP */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
@@ -655,63 +832,79 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             />
           </div>
 
-          {/* Botones de Guardar y Cancelar */}
-          <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-end gap-3">
-            <button
-              type="button"
-              onClick={() => onNavigate('escritorio')}
-              className="w-full sm:w-auto px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-none transition-colors cursor-pointer"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={
-                Boolean(duplicateNotice) || 
-                Boolean(sectionMismatchError) || 
-                Boolean(vigenciaError) || 
-                !validation.allowed || 
-                !name.trim() || 
-                electorKey.length < 6 ||
-                cleanPhoneDigits(phone).length < 10 ||
-                !electoralSection ||
-                normalizeSectionNumber(electoralSection) !== assignedSection
-              }
-              className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-none shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Save className="w-4 h-4" />
-              <span>Guardar Ciudadano Promovido</span>
-            </button>
+          {/* PASO 4: BOTONES DE GUARDAR COMO "NO VERIFICADO" Y CANCELAR */}
+          <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span>El registro se guardará con estatus <strong>"No verificado"</strong></span>
+            </div>
+
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={() => onNavigate('escritorio')}
+                className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-none transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  Boolean(duplicateNotice) || 
+                  Boolean(sectionMismatchError) || 
+                  !validation.allowed || 
+                  !name.trim() || 
+                  electorKey.length < 6 ||
+                  cleanPhoneDigits(phone).length < 10 ||
+                  !electoralSection ||
+                  normalizeSectionNumber(electoralSection) !== assignedSection
+                }
+                className="flex-1 sm:flex-none px-6 sm:px-8 py-3 bg-emerald-700 hover:bg-emerald-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black rounded-none shadow-md transition-all flex items-center justify-center gap-2.5 cursor-pointer tracking-wide"
+                title="Paso 4: Guardar promovido con estatus No verificado"
+              >
+                <Save className="w-4 h-4 text-emerald-200" />
+                <span>Guardar como "No verificado"</span>
+                <span className="px-1.5 py-0.5 bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-none">
+                  Paso 4
+                </span>
+              </button>
+            </div>
           </div>
         </form>
       </div>
 
-      {/* Modal de Escáner INE con Guía y Recorte Automático a la Cuadrícula */}
+      {/* MODAL DE CÁMARA (ANVERSO O REVERSO CON GUÍA Y RECORTE AUTOMÁTICO) */}
       <INECameraScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
-        onDataExtracted={handleDataExtracted}
+        side={scannerSide}
+        onCapture={handlePhotoCaptured}
       />
 
-      {/* Modal de Imagen Ampliada de la Credencial */}
-      {isImageModalOpen && inePhotoUrl && (
+      {/* MODAL DE AMPLIACIÓN DE FOTO (ANVERSO O REVERSO) */}
+      {modalImagePreview && (
         <div 
           className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4 backdrop-blur-sm"
-          onClick={() => setIsImageModalOpen(false)}
+          onClick={() => setModalImagePreview(null)}
         >
           <div className="relative max-w-4xl max-h-[85vh] bg-slate-900 border border-slate-700 p-2 shadow-2xl">
-            <button
-              type="button"
-              onClick={() => setIsImageModalOpen(false)}
-              className="absolute -top-10 right-0 p-1.5 bg-slate-800 text-white hover:bg-slate-700 rounded-none cursor-pointer flex items-center gap-1 text-xs font-bold"
-            >
-              <X className="w-4 h-4" />
-              <span>Cerrar</span>
-            </button>
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800 text-white">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                {modalImagePreview.title}
+              </span>
+              <button
+                type="button"
+                onClick={() => setModalImagePreview(null)}
+                className="p-1.5 bg-slate-800 text-white hover:bg-slate-700 rounded-none cursor-pointer flex items-center gap-1 text-xs font-bold"
+              >
+                <X className="w-4 h-4" />
+                <span>Cerrar</span>
+              </button>
+            </div>
             <img
-              src={inePhotoUrl}
-              alt="Credencial INE Ampliada"
-              className="max-h-[80vh] w-auto object-contain block mx-auto"
+              src={modalImagePreview.url}
+              alt={modalImagePreview.title}
+              className="max-h-[75vh] w-auto object-contain block mx-auto"
             />
           </div>
         </div>
