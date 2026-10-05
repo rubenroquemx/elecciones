@@ -50,6 +50,7 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
   );
   const [address, setAddress] = useState(citizen?.address || '');
   const [colonia, setColonia] = useState(citizen?.colonia || '');
+  const [postalCode, setPostalCode] = useState(citizen?.postalCode || '');
   const [notes, setNotes] = useState(citizen?.notes || '');
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -62,6 +63,7 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
       setSelectedSection(citizen.electoralSection ? normalizeSectionNumber(citizen.electoralSection) : '0416');
       setAddress(citizen.address || '');
       setColonia(citizen.colonia || '');
+      setPostalCode(citizen.postalCode || '');
       setNotes(citizen.notes || '');
     }
   }, [citizen]);
@@ -245,6 +247,7 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
       territoryName: `Sección ${normalizedSec} - ${normColonia || 'TERRITORIO'}`,
       address: normAddress,
       colonia: normColonia,
+      postalCode: postalCode.trim() || undefined,
       notes: normNotes,
       updatedAt: nowIso,
       changelog: [changelogEntry, ...(citizen.changelog || [])],
@@ -256,6 +259,7 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
       curp: curp.trim().toUpperCase() || undefined,
       address: address.trim().toUpperCase(),
       colonia: colonia.trim().toUpperCase(),
+      postalCode: postalCode.trim() || undefined,
       electoralSection: normalizedSec,
       phone: updatedLeader.phone,
       structures: [
@@ -498,19 +502,21 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
                 </div>
               </div>
 
-              <div className="p-3.5 bg-white border border-slate-200 rounded-none space-y-1.5 flex flex-col justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-slate-400" />
-                  Estatus Operativo
+              <div className="p-3.5 bg-white border border-slate-200 rounded-none space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                  Código Postal (CP)
+                </label>
+                <input
+                  type="text"
+                  maxLength={5}
+                  value={postalCode}
+                  onChange={e => setPostalCode(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                  placeholder="86000"
+                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                />
+                <span className="text-[10px] text-slate-400 font-mono block">
+                  {postalCode.length}/5 dígitos
                 </span>
-                <div className="py-1">
-                  <span className="text-emerald-700 font-bold text-xs block">
-                    Ciudadano Comprometido 2027
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    Estructura de Promoción
-                  </span>
-                </div>
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import type { UserAccount } from '../types/auth';
 import type { ElectoralSection } from '../types/sections';
-import type { TerritorialLeader, LeaderChangelogEntry } from '../types/territory';
+import type { TerritorialLeader, LeaderChangelogEntry, LeaderNote } from '../types/territory';
 import { 
   findElectorByKey, 
   validateElectorSection, 
@@ -11,6 +11,7 @@ import {
 import { 
   ArrowLeft, 
   Camera, 
+  Upload, 
   AlertTriangle, 
   UserCheck, 
   Save, 
@@ -19,8 +20,7 @@ import {
   RefreshCw,
   CheckCircle2,
   CreditCard,
-  FileCheck2,
-  Info
+  Send
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
 import type { ExtractedINEData } from '../utils/ineScanner';
@@ -35,6 +35,13 @@ interface PromoterCitizenCapturePageProps {
   initialINEData?: ExtractedINEData | null;
 }
 
+interface ChatObservation {
+  id: string;
+  text: string;
+  authorName: string;
+  createdAt: string;
+}
+
 export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProps> = ({
   currentUser,
   availableSections,
@@ -44,12 +51,16 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   defaultSectionNumber,
   initialINEData,
 }) => {
-  // Estado de escáner y fotos
+  // Estado de escáner en vivo y fotos
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannerSide, setScannerSide] = useState<'anverso' | 'reverso'>('anverso');
   const [ineAnversoUrl, setIneAnversoUrl] = useState<string | null>(null);
   const [ineReversoUrl, setIneReversoUrl] = useState<string | null>(null);
   const [modalImagePreview, setModalImagePreview] = useState<{ url: string; title: string } | null>(null);
+
+  // Referencias a inputs de archivos directos en pantalla principal
+  const anversoFileInputRef = useRef<HTMLInputElement | null>(null);
+  const reversoFileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Errores de validación
   const [formError, setFormError] = useState<string | null>(null);
@@ -65,15 +76,35 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     return '0416';
   }, [defaultSectionNumber, currentUser]);
 
-  // Campos de datos complementarios
+  // Lista de secciones para el selector
+  const sectionOptions = useMemo(() => {
+    const set = new Set<string>();
+    if (assignedSection) set.add(assignedSection);
+    if (currentUser?.assignedSections) {
+      currentUser.assignedSections.forEach(s => set.add(normalizeSectionNumber(s)));
+    }
+    availableSections.forEach(s => {
+      if (s.sectionNumber) set.add(normalizeSectionNumber(s.sectionNumber));
+    });
+    const list = Array.from(set).sort();
+    return list.length > 0 ? list : ['0416'];
+  }, [assignedSection, currentUser, availableSections]);
+
+  // Campos de formulario
   const [electoralSection, setElectoralSection] = useState(assignedSection || '0416');
   const [electorKey, setElectorKey] = useState('');
   const [curp, setCurp] = useState('');
-  const [name, setName] = useState('');
+  const [paternalLastName, setPaternalLastName] = useState('');
+  const [maternalLastName, setMaternalLastName] = useState('');
+  const [firstName, setFirstName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [colonia, setColonia] = useState('');
-  const [notes, setNotes] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+
+  // Observaciones estilo chat
+  const [observations, setObservations] = useState<ChatObservation[]>([]);
+  const [newObservationText, setNewObservationText] = useState('');
 
   useEffect(() => {
     if (assignedSection && (!electoralSection || electoralSection === '0416')) {
@@ -88,27 +119,70 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     }
     if (initialINEData?.claveElector) setElectorKey(initialINEData.claveElector.toUpperCase());
     if (initialINEData?.curp) setCurp(initialINEData.curp.toUpperCase());
-    if (initialINEData?.name) setName(initialINEData.name.toUpperCase());
+    if (initialINEData?.name) {
+      const parts = initialINEData.name.trim().split(/\s+/);
+      if (parts.length >= 3) {
+        setPaternalLastName(parts[0].toUpperCase());
+        setMaternalLastName(parts[1].toUpperCase());
+        setFirstName(parts.slice(2).join(' ').toUpperCase());
+      } else if (parts.length === 2) {
+        setPaternalLastName(parts[0].toUpperCase());
+        setFirstName(parts[1].toUpperCase());
+      } else {
+        setFirstName(parts[0].toUpperCase());
+      }
+    }
     if (initialINEData?.address) setAddress(initialINEData.address.toUpperCase());
     if (initialINEData?.colonia) setColonia(initialINEData.colonia.toUpperCase());
   }, [initialINEData]);
 
+  // Procesamiento y recorte automático de archivo seleccionado directamente
+  const processImageFile = (file: File, side: 'anverso' | 'reverso') => {
+    const reader = new FileReader();
+    reader.onload = (loadEvt) => {
+      const dataUrl = loadEvt.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        const nw = img.naturalWidth || img.width;
+        const nh = img.naturalHeight || img.height;
+
+        const ineRatio = 1.586;
+        let targetW = 0.90 * nw;
+        let targetH = targetW / ineRatio;
+        if (targetH > 0.90 * nh) {
+          targetH = 0.90 * nh;
+          targetW = targetH * ineRatio;
+        }
+        const sx = (nw - targetW) / 2;
+        const sy = (nh - targetH) / 2;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(targetW));
+        canvas.height = Math.max(1, Math.round(targetH));
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, sx, sy, targetW, targetH, 0, 0, canvas.width, canvas.height);
+          const croppedDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          if (side === 'anverso') {
+            setIneAnversoUrl(croppedDataUrl);
+          } else {
+            setIneReversoUrl(croppedDataUrl);
+          }
+          setFormError(null);
+        }
+      };
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSectionChange = (val: string) => {
-    const digits = val.replace(/\D/g, '').slice(0, 4);
-    setElectoralSection(digits);
+    const norm = normalizeSectionNumber(val);
+    setElectoralSection(norm);
     setFormError(null);
-    if (digits.length === 4) {
-      const norm = normalizeSectionNumber(digits);
-      if (norm !== assignedSection) {
-        setSectionMismatchError(
-          `La sección ingresada (${norm}) no coincide con tu sección asignada (${assignedSection}). No es posible registrar ciudadanos fuera de tu demarcación.`
-        );
-      } else {
-        setSectionMismatchError(null);
-      }
-    } else if (digits.length > 0 && digits !== assignedSection.slice(0, digits.length)) {
+    if (norm !== assignedSection) {
       setSectionMismatchError(
-        `La sección ingresada (${digits}) no coincide con tu sección asignada (${assignedSection}).`
+        `La sección seleccionada (${norm}) no coincide con tu sección asignada (${assignedSection}). Solo puedes registrar en tu demarcación.`
       );
     } else {
       setSectionMismatchError(null);
@@ -129,29 +203,42 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     setFormError(null);
   };
 
-  // Abrir cámara para un lado específico
+  const handlePostalCodeChange = (val: string) => {
+    const digits = val.replace(/\D/g, '').slice(0, 5);
+    setPostalCode(digits);
+  };
+
+  // Abrir cámara modal
   const openScannerFor = (side: 'anverso' | 'reverso') => {
     setScannerSide(side);
     setIsScannerOpen(true);
   };
 
-  // Callback al capturar foto desde INECameraScannerModal
+  // Callback de cámara
   const handlePhotoCaptured = (photoUrl: string) => {
     if (scannerSide === 'anverso') {
       setIneAnversoUrl(photoUrl);
-      setIsScannerOpen(false);
-      // Si el reverso aún no se ha capturado, sugerir/abrir automáticamente para agilizar el flujo de 4 pasos
-      if (!ineReversoUrl) {
-        setTimeout(() => {
-          setScannerSide('reverso');
-          setIsScannerOpen(true);
-        }, 350);
-      }
     } else {
       setIneReversoUrl(photoUrl);
-      setIsScannerOpen(false);
     }
+    setIsScannerOpen(false);
     setFormError(null);
+  };
+
+  // Agregar observación al chat
+  const handleAddObservation = () => {
+    const trimmed = newObservationText.trim();
+    if (!trimmed) return;
+    const now = new Date();
+    const timeFormatted = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const newNote: ChatObservation = {
+      id: `obs-${Date.now()}`,
+      text: trimmed.toUpperCase(),
+      authorName: currentUser?.name || 'Promotor',
+      createdAt: timeFormatted,
+    };
+    setObservations(prev => [...prev, newNote]);
+    setNewObservationText('');
   };
 
   const existingElector = useMemo(() => {
@@ -178,13 +265,26 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 
   useEffect(() => {
     if (existingElector) {
-      setName(prev => prev || existingElector.name.toUpperCase());
+      const parts = (existingElector.name || '').trim().split(/\s+/);
+      if (parts.length >= 3) {
+        setPaternalLastName(prev => prev || parts[0].toUpperCase());
+        setMaternalLastName(prev => prev || parts[1].toUpperCase());
+        setFirstName(prev => prev || parts.slice(2).join(' ').toUpperCase());
+      } else if (parts.length === 2) {
+        setPaternalLastName(prev => prev || parts[0].toUpperCase());
+        setFirstName(prev => prev || parts[1].toUpperCase());
+      } else if (parts.length === 1) {
+        setFirstName(prev => prev || parts[0].toUpperCase());
+      }
       setCurp(prev => prev || (existingElector.curp ? existingElector.curp.toUpperCase() : ''));
       if (existingElector.phone && !phone) {
         setPhone(cleanPhoneDigits(existingElector.phone));
       }
       setAddress(prev => prev || (existingElector.address ? existingElector.address.toUpperCase() : ''));
       setColonia(prev => prev || (existingElector.colonia ? existingElector.colonia.toUpperCase() : ''));
+      if (existingElector.postalCode) {
+        setPostalCode(prev => prev || existingElector.postalCode || '');
+      }
       if (existingElector.electoralSection) {
         const sec = normalizeSectionNumber(existingElector.electoralSection);
         if (sec !== assignedSection) {
@@ -205,7 +305,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     if (electoralSection && normalizeSectionNumber(electoralSection) !== assignedSection) {
       return { 
         allowed: false, 
-        errorMsg: `La sección electoral capturada (${electoralSection}) no coincide con tu sección asignada (${assignedSection}).` 
+        errorMsg: `La sección electoral seleccionada (${electoralSection}) no coincide con tu sección asignada (${assignedSection}).` 
       };
     }
     if (!electorKey.trim() || electorKey.trim().length < 6) {
@@ -219,26 +319,34 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     );
   }, [electorKey, assignedSection, electoralSection, sectionMismatchError, allLeaders, availableSections]);
 
-  // Paso 4: Guardar como "No verificado"
+  // Guardar ciudadano
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    const trimmedName = name.trim().toUpperCase();
+    const fullFullName = [paternalLastName.trim(), maternalLastName.trim(), firstName.trim()]
+      .filter(Boolean)
+      .join(' ')
+      .toUpperCase();
+
     const trimmedKey = electorKey.trim().toUpperCase();
     const cleanDigits = cleanPhoneDigits(phone);
     const cleanSection = normalizeSectionNumber(electoralSection.trim());
 
     if (!cleanSection) {
-      setFormError('La Sección Electoral (4 dígitos) es obligatoria.');
+      setFormError('La Sección Electoral es obligatoria.');
       return;
     }
     if (cleanSection !== assignedSection) {
       setFormError(`La sección ${cleanSection} no coincide con tu sección asignada (${assignedSection}). Solo puedes registrar ciudadanos de tu sección asignada.`);
       return;
     }
-    if (!trimmedName) {
-      setFormError('El nombre completo del ciudadano es obligatorio.');
+    if (!paternalLastName.trim()) {
+      setFormError('El Apellido Paterno es obligatorio.');
+      return;
+    }
+    if (!firstName.trim()) {
+      setFormError('El Nombre del ciudadano es obligatorio.');
       return;
     }
     if (!trimmedKey || trimmedKey.length < 6) {
@@ -271,16 +379,30 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
         id: `cl-${Date.now()}`,
         timestamp: nowIso,
         action: 'creacion',
-        description: `Registro inicial de promovido en Sección ${cleanSection} por ${currentUser?.name || 'Promotor Territorial'} (Guardado como No verificado)`,
+        description: `Registro inicial de promovido en Sección ${cleanSection} por ${currentUser?.name || 'Promotor Territorial'}`,
         userName: currentUser?.name || 'Promotor Territorial',
       }
     ];
+
+    const notesHistory: LeaderNote[] = observations.map(obs => ({
+      id: obs.id,
+      text: obs.text,
+      authorName: obs.authorName,
+      createdAt: nowIso,
+    }));
+
+    const notesText = observations.length > 0
+      ? observations.map(o => `[${o.createdAt}] ${o.authorName}: ${o.text}`).join('\n')
+      : `REGISTRO DE CAMPO EN SECCIÓN ${cleanSection}.`;
 
     const mainInePhoto = ineAnversoUrl || ineReversoUrl || undefined;
 
     const newLeader: TerritorialLeader = {
       id: newId,
-      name: trimmedName,
+      name: fullFullName,
+      firstName: firstName.trim().toUpperCase(),
+      paternalLastName: paternalLastName.trim().toUpperCase(),
+      maternalLastName: maternalLastName.trim().toUpperCase() || undefined,
       role: 'Ciudadano Promovido',
       level: 'promovido',
       levelIndex: 5,
@@ -288,6 +410,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       territoryName: `Sección ${cleanSection} - ${colonia.trim().toUpperCase() || 'TERRITORIO'}`,
       address: address.trim().toUpperCase(),
       colonia: colonia.trim().toUpperCase(),
+      postalCode: postalCode.trim() || undefined,
       electoralSection: cleanSection,
       electorKey: trimmedKey,
       curp: curp.trim().toUpperCase() || undefined,
@@ -300,8 +423,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       metaGoal: 1,
       currentCount: 1,
       status: 'completado',
-      validationStatus: 'sin_validacion', // Siempre guardado como "No verificado"
-      notes: notes.trim().toUpperCase() || `REGISTRO DE CAMPO EN SECCIÓN ${cleanSection}.`,
+      validationStatus: 'sin_validacion',
+      notes: notesText,
+      notesHistory,
       createdAt: nowIso,
       updatedAt: nowIso,
       changelog: initialChangelog,
@@ -309,10 +433,14 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 
     persistElectorProfile({
       electorKey: trimmedKey,
-      name: trimmedName,
+      name: fullFullName,
+      firstName: firstName.trim().toUpperCase(),
+      paternalLastName: paternalLastName.trim().toUpperCase(),
+      maternalLastName: maternalLastName.trim().toUpperCase() || undefined,
       curp: curp.trim().toUpperCase() || undefined,
       address: address.trim().toUpperCase(),
       colonia: colonia.trim().toUpperCase(),
+      postalCode: postalCode.trim() || undefined,
       electoralSection: cleanSection,
       phone: newLeader.phone,
       inePhotoUrl: mainInePhoto,
@@ -335,7 +463,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 
   return (
     <div className="flex-1 overflow-y-auto bg-white p-0 relative">
-      {/* 1. BARRA SUPERIOR */}
+      {/* 1. BARRA SUPERIOR LIMPIA */}
       <div className="bg-slate-900 text-white px-4 sm:px-8 py-3.5 border-b border-slate-800 flex items-center justify-between gap-3 sticky top-0 z-20">
         <div className="flex items-center gap-3 min-w-0">
           <button
@@ -347,118 +475,26 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             <span className="hidden sm:inline">Volver</span>
           </button>
           <div className="h-5 w-[1px] bg-slate-700 shrink-0" />
-          <div>
-            <h1 className="text-sm sm:text-base font-bold text-white truncate">
-              Capturar Promovido
-            </h1>
-            <p className="text-[11px] text-slate-400 hidden sm:block">
-              Flujo oficial: Anverso → Reverso → Datos complementarios → Guardar "No verificado"
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[10px] font-mono font-bold uppercase tracking-wider hidden sm:inline-flex items-center gap-1">
-            <Info className="w-3 h-3 text-amber-400" />
-            <span>Estatus: No verificado</span>
-          </span>
+          <h1 className="text-sm sm:text-base font-bold text-white truncate">
+            Capturar Promovido
+          </h1>
         </div>
       </div>
 
-      {/* 2. BARRA DE INDICADOR DE 4 PASOS */}
-      <div className="bg-slate-50 border-b border-slate-200 px-4 sm:px-8 py-3">
-        <div className="max-w-4xl mx-auto">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {/* Paso 1 */}
-            <div 
-              onClick={() => openScannerFor('anverso')}
-              className={`p-2.5 border rounded-none cursor-pointer transition-all flex items-center gap-2.5 ${
-                ineAnversoUrl 
-                  ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900' 
-                  : 'bg-white border-slate-300 hover:border-emerald-500 text-slate-800'
-              }`}
-            >
-              <div className={`w-6 h-6 rounded-none flex items-center justify-center font-bold text-xs shrink-0 ${
-                ineAnversoUrl ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
-              }`}>
-                {ineAnversoUrl ? '✓' : '1'}
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-[11px] font-bold block truncate uppercase">1. Anverso INE</span>
-                <span className="text-[10px] text-slate-500 block truncate">
-                  {ineAnversoUrl ? 'Listo' : 'Alinear y capturar'}
-                </span>
-              </div>
-            </div>
-
-            {/* Paso 2 */}
-            <div 
-              onClick={() => openScannerFor('reverso')}
-              className={`p-2.5 border rounded-none cursor-pointer transition-all flex items-center gap-2.5 ${
-                ineReversoUrl 
-                  ? 'bg-emerald-50/80 border-emerald-300 text-emerald-900' 
-                  : 'bg-white border-slate-300 hover:border-emerald-500 text-slate-800'
-              }`}
-            >
-              <div className={`w-6 h-6 rounded-none flex items-center justify-center font-bold text-xs shrink-0 ${
-                ineReversoUrl ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
-              }`}>
-                {ineReversoUrl ? '✓' : '2'}
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-[11px] font-bold block truncate uppercase">2. Reverso INE</span>
-                <span className="text-[10px] text-slate-500 block truncate">
-                  {ineReversoUrl ? 'Listo' : 'Alinear y capturar'}
-                </span>
-              </div>
-            </div>
-
-            {/* Paso 3 */}
-            <div className="p-2.5 bg-white border border-slate-300 rounded-none flex items-center gap-2.5 text-slate-800">
-              <div className="w-6 h-6 rounded-none bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                3
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-[11px] font-bold block truncate uppercase">3. Datos</span>
-                <span className="text-[10px] text-slate-500 block truncate">Formulario</span>
-              </div>
-            </div>
-
-            {/* Paso 4 */}
-            <div className="p-2.5 bg-white border border-slate-300 rounded-none flex items-center gap-2.5 text-slate-800">
-              <div className="w-6 h-6 rounded-none bg-amber-500 text-slate-900 flex items-center justify-center font-bold text-xs shrink-0">
-                4
-              </div>
-              <div className="min-w-0 flex-1">
-                <span className="text-[11px] font-bold block truncate uppercase">4. Guardar</span>
-                <span className="text-[10px] text-amber-700 font-bold block truncate">No verificado</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. CONTENIDO PRINCIPAL */}
+      {/* 2. CONTENIDO PRINCIPAL */}
       <div className="max-w-4xl mx-auto p-4 sm:p-8 space-y-6">
 
-        {/* PASOS 1 Y 2: TARJETAS DE CAPTURA ANVERSO Y REVERSO */}
+        {/* TARJETAS DE CAPTURA ANVERSO Y REVERSO */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Tarjeta Paso 1: Anverso */}
+          {/* Tarjeta Anverso */}
           <div className={`p-4 border rounded-none transition-all ${
-            ineAnversoUrl ? 'bg-slate-50 border-emerald-400' : 'bg-white border-dashed border-2 border-slate-300 hover:border-emerald-500'
+            ineAnversoUrl ? 'bg-slate-50 border-emerald-400' : 'bg-white border-slate-300'
           }`}>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className={`w-5 h-5 flex items-center justify-center text-xs font-black ${
-                  ineAnversoUrl ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-800'
-                }`}>
-                  1
-                </div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                  <CreditCard className="w-4 h-4 text-emerald-600" />
-                  <span>Anverso del INE (Frente)</span>
-                </h3>
-              </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <span>Anverso del INE</span>
+              </h3>
               {ineAnversoUrl && (
                 <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -474,73 +510,87 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                     src={ineAnversoUrl}
                     alt="Anverso del INE"
                     className="w-full h-full object-contain cursor-pointer"
-                    onClick={() => setModalImagePreview({ url: ineAnversoUrl, title: 'Anverso del INE (Frente)' })}
+                    onClick={() => setModalImagePreview({ url: ineAnversoUrl, title: 'Anverso del INE' })}
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setModalImagePreview({ url: ineAnversoUrl, title: 'Anverso del INE (Frente)' })}
+                      onClick={() => setModalImagePreview({ url: ineAnversoUrl, title: 'Anverso del INE' })}
                       className="px-2.5 py-1.5 bg-slate-900/90 text-white text-xs font-bold rounded-none flex items-center gap-1 cursor-pointer hover:bg-black"
                     >
                       <Maximize2 className="w-3 h-3 text-emerald-400" />
                       <span>Ampliar</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => openScannerFor('anverso')}
-                      className="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-none flex items-center gap-1 cursor-pointer hover:bg-emerald-500"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Volver a capturar</span>
-                    </button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-[11px] text-slate-500">Recorte automático a la cuadrícula</span>
+                <div className="flex items-center justify-center gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => openScannerFor('anverso')}
-                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer flex items-center gap-1"
+                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-none flex items-center justify-center gap-1 cursor-pointer"
                   >
                     <RefreshCw className="w-3 h-3" />
-                    <span>Reemplazar Anverso</span>
+                    <span>Cámara</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => anversoFileInputRef.current?.click()}
+                    className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold rounded-none flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Upload className="w-3 h-3" />
+                    <span>Subir archivo</span>
                   </button>
                 </div>
               </div>
             ) : (
               <div className="py-6 text-center space-y-3">
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Alinea el frente de la credencial con la guía para recortar automáticamente.
+                  Toma una foto con la cámara o selecciona una imagen de tu dispositivo.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => openScannerFor('anverso')}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 mx-auto cursor-pointer"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Capturar Anverso</span>
-                </button>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openScannerFor('anverso')}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Cámara</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => anversoFileInputRef.current?.click()}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4 text-slate-600" />
+                    <span>Subir imagen</span>
+                  </button>
+                </div>
               </div>
             )}
+
+            {/* Input oculto para carga directa desde la primera pantalla */}
+            <input
+              ref={anversoFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => {
+                if (e.target.files?.[0]) processImageFile(e.target.files[0], 'anverso');
+                e.target.value = '';
+              }}
+            />
           </div>
 
-          {/* Tarjeta Paso 2: Reverso */}
+          {/* Tarjeta Reverso */}
           <div className={`p-4 border rounded-none transition-all ${
-            ineReversoUrl ? 'bg-slate-50 border-emerald-400' : 'bg-white border-dashed border-2 border-slate-300 hover:border-emerald-500'
+            ineReversoUrl ? 'bg-slate-50 border-emerald-400' : 'bg-white border-slate-300'
           }`}>
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className={`w-5 h-5 flex items-center justify-center text-xs font-black ${
-                  ineReversoUrl ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-800'
-                }`}>
-                  2
-                </div>
-                <h3 className="text-xs font-black uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                  <FileCheck2 className="w-4 h-4 text-emerald-600" />
-                  <span>Reverso del INE (Atrás)</span>
-                </h3>
-              </div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <span>Reverso del INE</span>
+              </h3>
               {ineReversoUrl && (
                 <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
                   <CheckCircle2 className="w-3 h-3 text-emerald-600" />
@@ -556,55 +606,76 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                     src={ineReversoUrl}
                     alt="Reverso del INE"
                     className="w-full h-full object-contain cursor-pointer"
-                    onClick={() => setModalImagePreview({ url: ineReversoUrl, title: 'Reverso del INE (Atrás)' })}
+                    onClick={() => setModalImagePreview({ url: ineReversoUrl, title: 'Reverso del INE' })}
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     <button
                       type="button"
-                      onClick={() => setModalImagePreview({ url: ineReversoUrl, title: 'Reverso del INE (Atrás)' })}
+                      onClick={() => setModalImagePreview({ url: ineReversoUrl, title: 'Reverso del INE' })}
                       className="px-2.5 py-1.5 bg-slate-900/90 text-white text-xs font-bold rounded-none flex items-center gap-1 cursor-pointer hover:bg-black"
                     >
                       <Maximize2 className="w-3 h-3 text-emerald-400" />
                       <span>Ampliar</span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => openScannerFor('reverso')}
-                      className="px-2.5 py-1.5 bg-emerald-600 text-white text-xs font-bold rounded-none flex items-center gap-1 cursor-pointer hover:bg-emerald-500"
-                    >
-                      <RefreshCw className="w-3 h-3" />
-                      <span>Volver a capturar</span>
-                    </button>
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-[11px] text-slate-500">Recorte automático a la cuadrícula</span>
+                <div className="flex items-center justify-center gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => openScannerFor('reverso')}
-                    className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer flex items-center gap-1"
+                    className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-none flex items-center justify-center gap-1 cursor-pointer"
                   >
                     <RefreshCw className="w-3 h-3" />
-                    <span>Reemplazar Reverso</span>
+                    <span>Cámara</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => reversoFileInputRef.current?.click()}
+                    className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold rounded-none flex items-center justify-center gap-1 cursor-pointer"
+                  >
+                    <Upload className="w-3 h-3" />
+                    <span>Subir archivo</span>
                   </button>
                 </div>
               </div>
             ) : (
               <div className="py-6 text-center space-y-3">
                 <p className="text-xs text-slate-500 max-w-xs mx-auto">
-                  Alinea el reverso (código de barras / firma) con la guía para recortar.
+                  Toma una foto con la cámara o selecciona una imagen de tu dispositivo.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => openScannerFor('reverso')}
-                  className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all shadow-sm flex items-center justify-center gap-2 mx-auto cursor-pointer"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>Capturar Reverso</span>
-                </button>
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openScannerFor('reverso')}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Cámara</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => reversoFileInputRef.current?.click()}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Upload className="w-4 h-4 text-slate-600" />
+                    <span>Subir imagen</span>
+                  </button>
+                </div>
               </div>
             )}
+
+            {/* Input oculto para carga directa desde la primera pantalla */}
+            <input
+              ref={reversoFileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => {
+                if (e.target.files?.[0]) processImageFile(e.target.files[0], 'reverso');
+                e.target.value = '';
+              }}
+            />
           </div>
         </div>
 
@@ -614,7 +685,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
             <div className="space-y-1">
               <h4 className="text-xs font-bold uppercase tracking-wider text-rose-900">
-                Captura No Permitida - Demarcación Inválida
+                Demarcación Inválida
               </h4>
               <p className="text-xs text-rose-800 font-medium leading-relaxed">
                 {sectionMismatchError}
@@ -645,13 +716,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           </div>
         )}
 
-        {!validation.allowed && !sectionMismatchError && !duplicateNotice && (
-          <div className="p-3 bg-rose-50 border border-rose-300 rounded-none text-xs text-rose-900 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-            <span><strong>Bloqueo de Directriz:</strong> {validation.errorMsg}</span>
-          </div>
-        )}
-
         {existingElector && validation.allowed && !duplicateNotice && (
           <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-none text-xs text-indigo-900 flex items-center gap-2">
             <UserCheck className="w-4 h-4 text-indigo-600 shrink-0" />
@@ -661,56 +725,66 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           </div>
         )}
 
-        {/* PASO 3: FORMULARIO DE DATOS COMPLEMENTARIOS */}
-        <form onSubmit={handleSubmit} className="space-y-6 border border-slate-200 bg-white p-6 sm:p-8 rounded-none shadow-none">
-          <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-indigo-600 text-white font-bold text-xs flex items-center justify-center">
-                3
-              </div>
-              <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900">
-                Paso 3: Capturar Datos Complementarios
-              </h3>
-            </div>
-            <span className="text-[11px] text-slate-500 font-medium hidden sm:inline">
-              Coteja la información visualizando las fotos superiores
-            </span>
-          </div>
-
-          {/* Fila 1: Sección Electoral, Clave de Elector y CURP */}
+        {/* FORMULARIO DE DATOS */}
+        <form onSubmit={handleSubmit} className="space-y-5 border border-slate-200 bg-white p-6 sm:p-8 rounded-none shadow-none">
+          {/* Fila 1: Nombres y Apellidos Separados */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5 flex items-center justify-between">
-                <span>Sección Electoral*</span>
-                <span className="text-[10px] font-mono text-emerald-800 bg-emerald-50 px-1.5 py-0.5 border border-emerald-200 font-bold">
-                  Asignada: {assignedSection}
-                </span>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                Apellido Paterno*
               </label>
               <input
                 type="text"
                 required
-                maxLength={4}
-                value={electoralSection}
-                onChange={e => handleSectionChange(e.target.value)}
-                placeholder={assignedSection}
-                className={`w-full px-3.5 py-2.5 bg-slate-50 border rounded-none text-xs font-mono font-bold uppercase focus:outline-none tracking-wider ${
-                  electoralSection && normalizeSectionNumber(electoralSection) !== assignedSection
-                    ? 'border-rose-500 text-rose-700 bg-rose-50 focus:ring-1 focus:ring-rose-500'
-                    : 'border-slate-300 text-slate-900 focus:ring-1 focus:ring-slate-900'
-                }`}
+                value={paternalLastName}
+                onChange={e => {
+                  setPaternalLastName(e.target.value.toUpperCase());
+                  setFormError(null);
+                }}
+                placeholder="Paterno"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs font-semibold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
-              <span className="text-[10px] mt-1 block font-mono">
-                {electoralSection && normalizeSectionNumber(electoralSection) !== assignedSection ? (
-                  <span className="text-rose-600 font-bold">⚠ Debe coincidir con sección {assignedSection}</span>
-                ) : (
-                  <span className="text-slate-500">4 dígitos • Demarcación del promotor</span>
-                )}
-              </span>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                Clave de Elector INE (18 caracteres)*
+                Apellido Materno
+              </label>
+              <input
+                type="text"
+                value={maternalLastName}
+                onChange={e => {
+                  setMaternalLastName(e.target.value.toUpperCase());
+                  setFormError(null);
+                }}
+                placeholder="Materno (opcional)"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs font-semibold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                Nombre(s)*
+              </label>
+              <input
+                type="text"
+                required
+                value={firstName}
+                onChange={e => {
+                  setFirstName(e.target.value.toUpperCase());
+                  setFormError(null);
+                }}
+                placeholder="Nombre(s)"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs font-semibold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+              />
+            </div>
+          </div>
+
+          {/* Fila 2: Clave de Elector, CURP y Sección (Selector Dropdown) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                Clave de Elector INE*
               </label>
               <input
                 type="text"
@@ -722,7 +796,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                   setFormError(null);
                 }}
                 placeholder="ABCD123456EFGH7890"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
               />
               <span className="text-[10px] text-slate-500 mt-1 block font-mono">
                 {electorKey.length}/18 caracteres
@@ -731,7 +805,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 
             <div>
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                CURP (18 caracteres)
+                CURP
               </label>
               <input
                 type="text"
@@ -742,55 +816,54 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                   setFormError(null);
                 }}
                 placeholder="ABCD123456HDFRRN01"
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
               />
               <span className="text-[10px] text-slate-500 mt-1 block font-mono">
                 {curp.length}/18 caracteres • Opcional
               </span>
             </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                Sección Electoral*
+              </label>
+              <select
+                value={electoralSection}
+                onChange={e => handleSectionChange(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider cursor-pointer"
+              >
+                {sectionOptions.map(sec => (
+                  <option key={sec} value={sec}>
+                    Sección {sec}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          {/* Fila 2: Nombre Completo */}
-          <div>
-            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-              Nombre Completo del Ciudadano*
-            </label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={e => {
-                setName(e.target.value.toUpperCase());
-                setFormError(null);
-              }}
-              placeholder="Nombre(s) y Apellidos tal como figuran en el INE"
-              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-semibold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
-            />
-          </div>
-
-          {/* Fila 3: Teléfono Celular (WhatsApp) - Obligatorio y tolerante con o sin +52 */}
+          {/* Fila 3: Teléfono Celular (WhatsApp) */}
           <div>
             <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
               Teléfono Celular (WhatsApp)*
             </label>
             <div className="relative">
-              <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-mono font-bold">+52</span>
+              <span className="absolute left-3 top-2 text-xs text-slate-400 font-mono font-bold">+52</span>
               <input
                 type="tel"
                 required
                 value={phone}
                 onChange={e => handlePhoneChange(e.target.value)}
                 placeholder="993 123 4567"
-                className="w-full pl-11 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                className="w-full pl-11 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
             <span className="text-[10px] text-slate-500 mt-1 block font-mono">
-              10 dígitos obligatorios • {phone.length}/10 capturados (válido con o sin prefijo +52)
+              10 dígitos obligatorios • {phone.length}/10 capturados
             </span>
           </div>
 
-          {/* Fila 4: Domicilio y Colonia */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Fila 4: Domicilio, Colonia y Código Postal */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
                 Calle y Número
@@ -799,8 +872,8 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                 type="text"
                 value={address}
                 onChange={e => setAddress(e.target.value.toUpperCase())}
-                placeholder="Calle, No. Exterior e Interior"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                placeholder="Calle y Número exterior"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
 
@@ -812,68 +885,113 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                 type="text"
                 value={colonia}
                 onChange={e => setColonia(e.target.value.toUpperCase())}
-                placeholder="Colonia, Fraccionamiento o Barrio"
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                placeholder="Colonia o Barrio"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
               />
             </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+                Código Postal (CP)
+              </label>
+              <input
+                type="text"
+                maxLength={5}
+                value={postalCode}
+                onChange={e => handlePostalCodeChange(e.target.value)}
+                placeholder="86000"
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+              />
+              <span className="text-[10px] text-slate-500 mt-1 block font-mono">
+                {postalCode.length}/5 dígitos
+              </span>
+            </div>
           </div>
 
-          {/* Fila 5: Observaciones */}
-          <div>
-            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
+          {/* Fila 5: Observaciones como Chat Minimalista que va acumulando */}
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
               Observaciones
             </label>
-            <textarea
-              rows={3}
-              value={notes}
-              onChange={e => setNotes(e.target.value.toUpperCase())}
-              placeholder="Notas de visita, detalles del promovido, etc."
-              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-none text-xs text-slate-800 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 resize-none"
-            />
-          </div>
-
-          {/* PASO 4: BOTONES DE GUARDAR COMO "NO VERIFICADO" Y CANCELAR */}
-          <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <span className="w-2 h-2 rounded-full bg-amber-500" />
-              <span>El registro se guardará con estatus <strong>"No verificado"</strong></span>
+            
+            {/* Historial acumulado tipo chat */}
+            <div className="border border-slate-200 bg-slate-50 p-3 min-h-[90px] max-h-[220px] overflow-y-auto space-y-2">
+              {observations.length === 0 ? (
+                <p className="text-xs text-slate-400 italic text-center py-4">
+                  Sin observaciones registradas aún. Escribe abajo para agregar una nota.
+                </p>
+              ) : (
+                observations.map((obs) => (
+                  <div key={obs.id} className="bg-white border border-slate-200 p-2.5 space-y-1">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
+                      <span className="font-bold text-slate-700">{obs.authorName}</span>
+                      <span>{obs.createdAt}</span>
+                    </div>
+                    <p className="text-xs text-slate-900 leading-relaxed break-words">{obs.text}</p>
+                  </div>
+                ))
+              )}
             </div>
 
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            {/* Entrada para escribir nueva nota */}
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newObservationText}
+                onChange={e => setNewObservationText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleAddObservation();
+                  }
+                }}
+                placeholder="Escribe una observación y presiona Agregar..."
+                className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-none text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              />
               <button
                 type="button"
-                onClick={() => onNavigate('escritorio')}
-                className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-none transition-colors cursor-pointer"
+                onClick={handleAddObservation}
+                disabled={!newObservationText.trim()}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold rounded-none flex items-center gap-1.5 cursor-pointer shrink-0"
               >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={
-                  Boolean(duplicateNotice) || 
-                  Boolean(sectionMismatchError) || 
-                  !validation.allowed || 
-                  !name.trim() || 
-                  electorKey.length < 6 ||
-                  cleanPhoneDigits(phone).length < 10 ||
-                  !electoralSection ||
-                  normalizeSectionNumber(electoralSection) !== assignedSection
-                }
-                className="flex-1 sm:flex-none px-6 sm:px-8 py-3 bg-emerald-700 hover:bg-emerald-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-black rounded-none shadow-md transition-all flex items-center justify-center gap-2.5 cursor-pointer tracking-wide"
-                title="Paso 4: Guardar promovido con estatus No verificado"
-              >
-                <Save className="w-4 h-4 text-emerald-200" />
-                <span>Guardar como "No verificado"</span>
-                <span className="px-1.5 py-0.5 bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-none">
-                  Paso 4
-                </span>
+                <Send className="w-3.5 h-3.5" />
+                <span>Agregar</span>
               </button>
             </div>
+          </div>
+
+          {/* BOTÓN GUARDAR LIMPIO */}
+          <div className="pt-4 border-t border-slate-200 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => onNavigate('escritorio')}
+              className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-none transition-colors cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              disabled={
+                Boolean(duplicateNotice) || 
+                Boolean(sectionMismatchError) || 
+                !validation.allowed || 
+                !paternalLastName.trim() || 
+                !firstName.trim() || 
+                electorKey.length < 6 ||
+                cleanPhoneDigits(phone).length < 10 ||
+                !electoralSection ||
+                normalizeSectionNumber(electoralSection) !== assignedSection
+              }
+              className="px-8 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-none shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Save className="w-4 h-4" />
+              <span>Guardar</span>
+            </button>
           </div>
         </form>
       </div>
 
-      {/* MODAL DE CÁMARA (ANVERSO O REVERSO CON GUÍA Y RECORTE AUTOMÁTICO) */}
+      {/* MODAL DE CÁMARA */}
       <INECameraScannerModal
         isOpen={isScannerOpen}
         onClose={() => setIsScannerOpen(false)}
@@ -881,7 +999,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
         onCapture={handlePhotoCaptured}
       />
 
-      {/* MODAL DE AMPLIACIÓN DE FOTO (ANVERSO O REVERSO) */}
+      {/* MODAL DE AMPLIACIÓN DE FOTO */}
       {modalImagePreview && (
         <div 
           className="fixed inset-0 z-50 bg-black/90 flex flex-col items-center justify-center p-4 backdrop-blur-sm"

@@ -53,9 +53,13 @@ export interface TerritorialLeader {
   // Datos Generales de Registro
   address?: string;
   colonia?: string;
+  postalCode?: string;
   electoralSection?: string;
   curp?: string;
   electorKey?: string;
+  firstName?: string;
+  paternalLastName?: string;
+  maternalLastName?: string;
   inePhotoUrl?: string;
   ineAnversoUrl?: string;
   ineReversoUrl?: string;

@@ -16,9 +16,13 @@ export interface ElectorProfile {
   curp?: string;
   address?: string;
   colonia?: string;
+  postalCode?: string;
   electoralSection: string; // The strictly unique electoral section
   phone?: string;
   email?: string;
+  firstName?: string;
+  paternalLastName?: string;
+  maternalLastName?: string;
   inePhotoUrl?: string;
   ineAnversoUrl?: string;
   ineReversoUrl?: string;
