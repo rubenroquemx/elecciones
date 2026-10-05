@@ -53,9 +53,22 @@ export function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const savedIds = new Set(parsed.map((l: TerritorialLeader) => l.id));
-          const missingBase = INITIAL_TERRITORY_DATA.filter(l => !savedIds.has(l.id));
-          return calculateHierarchyAggregates([...parsed, ...missingBase]);
+          const map = new Map<string, TerritorialLeader>(parsed.map((l: TerritorialLeader) => [l.id, l]));
+          // Garantizar que la jerarquía base de INITIAL_TERRITORY_DATA nunca falte
+          INITIAL_TERRITORY_DATA.forEach(b => {
+            if (!map.has(b.id)) map.set(b.id, b);
+          });
+          // Vincular promovidos huérfanos a prom-ruben-roque
+          map.forEach(l => {
+            if (
+              l.level === 'promovido' &&
+              (!l.parentId || l.parentId === 'null') &&
+              (l.electoralSection === '0416' || l.id.startsWith('promovido-ruben-') || l.id.startsWith('field-promovido-'))
+            ) {
+              l.parentId = 'prom-ruben-roque';
+            }
+          });
+          return calculateHierarchyAggregates(Array.from(map.values()));
         }
       }
     } catch (e) {
@@ -71,24 +84,50 @@ export function App() {
       if (!serverLeaders || serverLeaders.length === 0) return;
 
       setLeadersData(prev => {
+        const combinedMap = new Map<string, TerritorialLeader>();
+
+        // 1. Jerarquía territorial base garantizada
+        INITIAL_TERRITORY_DATA.forEach(b => combinedMap.set(b.id, b));
+
+        // 2. Líderes del servidor (con normalización de promovidos de sección 0416)
+        for (const s of serverLeaders) {
+          const item = { ...s };
+          if (
+            item.level === 'promovido' &&
+            (!item.parentId || item.parentId === 'null') &&
+            (item.electoralSection === '0416' || item.id.startsWith('promovido-ruben-') || item.id.startsWith('field-promovido-'))
+          ) {
+            item.parentId = 'prom-ruben-roque';
+          }
+          combinedMap.set(item.id, item);
+        }
+
+        // 3. Registros locales pendientes (capturas recientes que aún no subieron)
         const serverIds = new Set(serverLeaders.map(l => l.id));
-        // Registros creados en este dispositivo que aún no están en el backend
-        const localPending = prev.filter(l => !serverIds.has(l.id) && (l.level === 'promovido' || l.id.startsWith('cit-') || l.id.startsWith('prom-cit-')));
+        const localPending = prev.filter(l => 
+          !serverIds.has(l.id) && 
+          (l.level === 'promovido' || l.id.startsWith('cit-') || l.id.startsWith('prom-cit-') || l.id.startsWith('field-promovido-'))
+        );
 
         if (localPending.length > 0) {
           localPending.forEach(localLeader => {
-            saveLeaderApi(localLeader, false).catch(e => console.warn('Sync pending record error:', e));
+            const safeLeader = {
+              ...localLeader,
+              parentId: localLeader.parentId || 'prom-ruben-roque',
+            };
+            combinedMap.set(safeLeader.id, safeLeader);
+            saveLeaderApi(safeLeader, false).catch(e => console.warn('Sync pending record error:', e));
           });
         }
 
-        const combined = [...serverLeaders, ...localPending];
+        const combined = Array.from(combinedMap.values());
 
         const prevMap = new Map(prev.map(p => [p.id, p]));
         let hasChanges = combined.length !== prev.length;
         if (!hasChanges) {
           for (const item of combined) {
             const ex = prevMap.get(item.id);
-            if (!ex || ex.name !== item.name || ex.phone !== item.phone || ex.updatedAt !== item.updatedAt) {
+            if (!ex || ex.name !== item.name || ex.phone !== item.phone || ex.parentId !== item.parentId || ex.updatedAt !== item.updatedAt) {
               hasChanges = true;
               break;
             }
@@ -526,30 +565,35 @@ export function App() {
   }, []);
 
   const handleSaveLeader = useCallback((savedLeader: TerritorialLeader) => {
+    const leaderToSave = { ...savedLeader };
+    if (leaderToSave.level === 'promovido' && (!leaderToSave.parentId || leaderToSave.parentId === 'null')) {
+      leaderToSave.parentId = currentUser?.leaderId || 'prom-ruben-roque';
+    }
+
     setLeadersData(prev => {
-      const exists = prev.some(l => l.id === savedLeader.id);
+      const exists = prev.some(l => l.id === leaderToSave.id);
       let updated: TerritorialLeader[];
       if (exists) {
-        updated = prev.map(l => (l.id === savedLeader.id ? savedLeader : l));
+        updated = prev.map(l => (l.id === leaderToSave.id ? leaderToSave : l));
       } else {
-        updated = [...prev, savedLeader];
+        updated = [...prev, leaderToSave];
       }
       try {
         localStorage.setItem('territorial_leaders_data', JSON.stringify(updated));
       } catch (e) {
         console.warn('Error saving leaders to localStorage', e);
       }
-      saveLeaderApi(savedLeader, exists)
+      saveLeaderApi(leaderToSave, exists)
         .then(() => syncLeadersWithServer())
         .catch(e => console.warn('Sync API error:', e));
       return calculateHierarchyAggregates(updated);
     });
-    if (savedLeader.level !== 'promovido') {
-      setSelectedLeaderId(savedLeader.id);
+    if (leaderToSave.level !== 'promovido') {
+      setSelectedLeaderId(leaderToSave.id);
     } else {
       setSelectedLeaderId(null);
     }
-  }, [syncLeadersWithServer]);
+  }, [currentUser, syncLeadersWithServer]);
 
   const handleDeleteLeader = useCallback((id: string) => {
     if (window.confirm('¿Seguro que deseas eliminar este nodo de la estructura?')) {

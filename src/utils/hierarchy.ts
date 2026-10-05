@@ -1,4 +1,5 @@
 import type { TerritorialLeader, HierarchyStats, TerritorialLevel, FilterOptions } from '../types/territory';
+import { INITIAL_TERRITORY_DATA } from '../data/mockTerritoryData';
 
 export const ORDERED_LEVELS: TerritorialLevel[] = [
   'campana',        // Nivel 1: Coordinador de Campaña
@@ -164,8 +165,16 @@ export function getVisibleSubtree(rootId: string | null, nodes: TerritorialLeade
   }
 
   const nodeMap = new Map<string, TerritorialLeader>(nodes.map(n => [n.id, n]));
-  const rootNode = nodeMap.get(rootId);
-  if (!rootNode) return [];
+  let rootNode = nodeMap.get(rootId);
+  if (!rootNode) {
+    const baseNode = INITIAL_TERRITORY_DATA.find(b => b.id === rootId);
+    if (baseNode) {
+      rootNode = baseNode;
+      nodeMap.set(baseNode.id, baseNode);
+    } else {
+      return [];
+    }
+  }
 
   const childrenMap = new Map<string, string[]>();
   for (const node of nodes) {
@@ -177,19 +186,46 @@ export function getVisibleSubtree(rootId: string | null, nodes: TerritorialLeade
   }
 
   const visibleList: TerritorialLeader[] = [rootNode];
+  const addedIds = new Set<string>([rootNode.id]);
 
   function collectDescendants(parentId: string) {
     const kids = childrenMap.get(parentId) || [];
     for (const kidId of kids) {
+      if (addedIds.has(kidId)) continue;
       const kid = nodeMap.get(kidId);
       if (kid) {
         visibleList.push(kid);
+        addedIds.add(kid.id);
         collectDescendants(kidId);
       }
     }
   }
 
   collectDescendants(rootId);
+
+  // Resiliencia para promotores territoriales (ej. Ruben Roque):
+  // Si existen promovidos registrados en su sección electoral o capturados en campo que hayan
+  // quedado con parentId nulo por sincronización de base de datos, incluirlos en su expediente.
+  if (rootNode.level === 'promotor') {
+    const assignedSec = rootNode.electoralSection || (rootNode.assignedSections && rootNode.assignedSections[0]) || '0416';
+    for (const node of nodes) {
+      if (
+        node.level === 'promovido' &&
+        !addedIds.has(node.id) &&
+        (node.parentId === rootId ||
+         node.electoralSection === assignedSec ||
+         node.id.startsWith('promovido-ruben-') ||
+         node.id.startsWith('field-promovido-'))
+      ) {
+        visibleList.push({
+          ...node,
+          parentId: rootId,
+        });
+        addedIds.add(node.id);
+      }
+    }
+  }
+
   return visibleList;
 }
 

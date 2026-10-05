@@ -18,41 +18,82 @@ async function main() {
   const leaderCount = await prisma.leader.count();
   console.log(`Líderes en base de datos: ${leaderCount}`);
 
-  if (leaderCount === 0) {
-    console.log(`Sembrando ${INITIAL_TERRITORY_DATA.length} líderes territoriales en Tabasco...`);
+  console.log(`Sembrando y verificando ${INITIAL_TERRITORY_DATA.length} líderes territoriales base...`);
 
-    // Insert level by level to respect foreign keys (0: distrital, 1: territorial, 2: seccional, 3: promotor, 4: promovido)
-    for (let levelIdx = 0; levelIdx <= 4; levelIdx++) {
-      const nodesAtLevel = INITIAL_TERRITORY_DATA.filter((n) => (n.levelIndex ?? 0) === levelIdx);
-      console.log(`Insertando nivel ${levelIdx} (${nodesAtLevel.length} registros)...`);
+  // Insert level by level to respect foreign keys (0: distrital, 1: territorial, 2: promotor, 3: promovido)
+  for (let levelIdx = 0; levelIdx <= 4; levelIdx++) {
+    const nodesAtLevel = INITIAL_TERRITORY_DATA.filter((n) => (n.levelIndex ?? 0) === levelIdx);
+    console.log(`Verificando nivel ${levelIdx} (${nodesAtLevel.length} registros)...`);
 
-      for (const node of nodesAtLevel) {
-        await prisma.leader.create({
-          data: {
-            id: node.id,
-            name: node.name,
-            role: node.role,
-            level: node.level,
-            levelIndex: node.levelIndex ?? levelIdx,
-            parentId: node.parentId,
-            territoryName: node.territoryName,
-            code: node.code || null,
-            phone: node.phone || null,
-            email: node.email || null,
-            username: node.username || null,
-            hasAccount: node.hasAccount ?? (node.level !== 'promovido'),
-            metaGoal: node.metaGoal ?? 0,
-            currentCount: node.currentCount ?? 0,
-            status: node.status || 'en_progreso',
-            validationStatus: node.validationStatus || 'validado',
-            notes: node.notes || null,
-            avatarBg: node.avatarBg || 'bg-indigo-600',
-          },
-        });
+    for (const node of nodesAtLevel) {
+      let safeParentId = node.parentId || null;
+      if (safeParentId) {
+        const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+        if (!parentExists) safeParentId = null;
       }
+
+      await prisma.leader.upsert({
+        where: { id: node.id },
+        update: {
+          name: node.name,
+          role: node.role,
+          level: node.level,
+          levelIndex: node.levelIndex ?? levelIdx,
+          parentId: safeParentId,
+          territoryName: node.territoryName,
+        },
+        create: {
+          id: node.id,
+          name: node.name,
+          role: node.role,
+          level: node.level,
+          levelIndex: node.levelIndex ?? levelIdx,
+          parentId: safeParentId,
+          territoryName: node.territoryName,
+          code: node.code || null,
+          phone: node.phone || null,
+          email: node.email || null,
+          username: node.username || null,
+          hasAccount: node.hasAccount ?? (node.level !== 'promovido'),
+          metaGoal: node.metaGoal ?? 0,
+          currentCount: node.currentCount ?? 0,
+          status: node.status || 'en_progreso',
+          validationStatus: node.validationStatus || 'validado',
+          notes: node.notes || null,
+          avatarBg: node.avatarBg || 'bg-indigo-600',
+          address: node.address || null,
+          colonia: node.colonia || null,
+          electoralSection: node.electoralSection || null,
+          curp: node.curp || null,
+          electorKey: node.electorKey || null,
+          inePhotoUrl: node.inePhotoUrl || null,
+          vigencia: node.vigencia || null,
+          changelog: node.changelog ? JSON.parse(JSON.stringify(node.changelog)) : null,
+        },
+      });
     }
-    console.log('✓ Líderes territoriales sembrados correctamente.');
   }
+
+  // Vincular promovidos huérfanos a prom-ruben-roque
+  try {
+    await prisma.leader.updateMany({
+      where: {
+        parentId: null,
+        level: 'promovido',
+        OR: [
+          { id: { startsWith: 'promovido-ruben-' } },
+          { id: { startsWith: 'field-promovido-' } },
+          { electoralSection: '0416' },
+        ],
+      },
+      data: {
+        parentId: 'prom-ruben-roque',
+      },
+    });
+  } catch (e: any) {
+    console.warn('Aviso vinculando promovidos huérfanos:', e.message);
+  }
+  console.log('✓ Líderes territoriales base y promovidos sincronizados.');
 
   // 2. Seed Electoral Sections & Structures
   const sectionCount = await prisma.electoralSection.count();

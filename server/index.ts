@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { PrismaClient } from '@prisma/client';
+import { INITIAL_TERRITORY_DATA } from '../src/data/mockTerritoryData';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -169,12 +170,26 @@ app.get('/api/leaders', async (req, res) => {
     
     // Combinar registros asegurando que no se pierda ninguno
     const mergedMap = new Map<string, any>();
+    for (const b of INITIAL_TERRITORY_DATA) {
+      mergedMap.set(b.id, b);
+    }
     for (const l of fileLeaders) {
       mergedMap.set(l.id, l);
     }
     for (const l of dbLeaders) {
       const existing = mergedMap.get(l.id) || {};
       mergedMap.set(l.id, { ...existing, ...l });
+    }
+
+    // Vincular promovidos de sección 0416 a prom-ruben-roque si no tienen padre asignado
+    for (const [id, item] of mergedMap.entries()) {
+      if (
+        item.level === 'promovido' &&
+        (!item.parentId || item.parentId === 'null') &&
+        (item.electoralSection === '0416' || item.id.startsWith('promovido-ruben-') || item.id.startsWith('field-promovido-'))
+      ) {
+        mergedMap.set(id, { ...item, parentId: 'prom-ruben-roque' });
+      }
     }
 
     const result = Array.from(mergedMap.values());
@@ -186,7 +201,7 @@ app.get('/api/leaders', async (req, res) => {
   } catch (err: any) {
     console.warn('Aviso general en /api/leaders:', err.message);
     const fallback = readBackupStore();
-    res.json(fallback);
+    res.json(fallback.length > 0 ? fallback : INITIAL_TERRITORY_DATA);
   }
 });
 
@@ -195,6 +210,10 @@ app.post('/api/leaders', async (req, res) => {
     const data = req.body;
     if (!data.id) {
       data.id = `node-${Date.now()}`;
+    }
+
+    if (data.level === 'promovido' && (!data.parentId || data.parentId === 'null') && data.electoralSection === '0416') {
+      data.parentId = 'prom-ruben-roque';
     }
 
     // 1. Guardar de inmediato en almacenamiento resiliente central
@@ -213,7 +232,44 @@ app.post('/api/leaders', async (req, res) => {
       // Validar si el padre existe antes de asignar parentId para evitar violación de FK
       let safeParentId = data.parentId || null;
       if (safeParentId) {
-        const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+        let parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+        if (!parentExists) {
+          const baseParent = INITIAL_TERRITORY_DATA.find(b => b.id === safeParentId);
+          if (baseParent) {
+            try {
+              await prisma.leader.upsert({
+                where: { id: baseParent.id },
+                update: {},
+                create: {
+                  id: baseParent.id,
+                  name: baseParent.name,
+                  role: baseParent.role,
+                  level: baseParent.level,
+                  levelIndex: baseParent.levelIndex ?? 2,
+                  parentId: baseParent.parentId,
+                  territoryName: baseParent.territoryName,
+                  code: baseParent.code || null,
+                  phone: baseParent.phone || null,
+                  email: baseParent.email || null,
+                  username: baseParent.username || null,
+                  hasAccount: true,
+                  status: 'en_progreso',
+                  validationStatus: 'validado',
+                  notes: baseParent.notes || null,
+                  avatarBg: baseParent.avatarBg || 'bg-emerald-600',
+                  address: baseParent.address || null,
+                  colonia: baseParent.colonia || null,
+                  electoralSection: baseParent.electoralSection || null,
+                  curp: baseParent.curp || null,
+                  electorKey: baseParent.electorKey || null,
+                },
+              });
+              parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+            } catch (err: any) {
+              console.warn('Aviso auto-creando padre base:', err.message);
+            }
+          }
+        }
         if (!parentExists) safeParentId = null;
       }
 
@@ -305,8 +361,48 @@ app.put('/api/leaders/:id', async (req, res) => {
     let updatedInDb = null;
     try {
       let safeParentId = data.parentId || null;
+      if ((!safeParentId || safeParentId === 'null') && data.level === 'promovido' && data.electoralSection === '0416') {
+        safeParentId = 'prom-ruben-roque';
+      }
       if (safeParentId) {
-        const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+        let parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+        if (!parentExists) {
+          const baseParent = INITIAL_TERRITORY_DATA.find(b => b.id === safeParentId);
+          if (baseParent) {
+            try {
+              await prisma.leader.upsert({
+                where: { id: baseParent.id },
+                update: {},
+                create: {
+                  id: baseParent.id,
+                  name: baseParent.name,
+                  role: baseParent.role,
+                  level: baseParent.level,
+                  levelIndex: baseParent.levelIndex ?? 2,
+                  parentId: baseParent.parentId,
+                  territoryName: baseParent.territoryName,
+                  code: baseParent.code || null,
+                  phone: baseParent.phone || null,
+                  email: baseParent.email || null,
+                  username: baseParent.username || null,
+                  hasAccount: true,
+                  status: 'en_progreso',
+                  validationStatus: 'validado',
+                  notes: baseParent.notes || null,
+                  avatarBg: baseParent.avatarBg || 'bg-emerald-600',
+                  address: baseParent.address || null,
+                  colonia: baseParent.colonia || null,
+                  electoralSection: baseParent.electoralSection || null,
+                  curp: baseParent.curp || null,
+                  electorKey: baseParent.electorKey || null,
+                },
+              });
+              parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+            } catch (err: any) {
+              console.warn('Aviso auto-creando padre base en PUT:', err.message);
+            }
+          }
+        }
         if (!parentExists) safeParentId = null;
       }
 
@@ -575,6 +671,81 @@ async function ensureDbSchema() {
   }
 }
 
+async function ensureCoreHierarchyAndLinkages() {
+  try {
+    for (let levelIdx = 0; levelIdx <= 4; levelIdx++) {
+      const nodesAtLevel = INITIAL_TERRITORY_DATA.filter((n) => (n.levelIndex ?? 0) === levelIdx);
+      for (const node of nodesAtLevel) {
+        let safeParentId = node.parentId || null;
+        if (safeParentId) {
+          const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
+          if (!parentExists) safeParentId = null;
+        }
+
+        await prisma.leader.upsert({
+          where: { id: node.id },
+          update: {
+            name: node.name,
+            role: node.role,
+            level: node.level,
+            levelIndex: node.levelIndex ?? levelIdx,
+            parentId: safeParentId,
+            territoryName: node.territoryName,
+          },
+          create: {
+            id: node.id,
+            name: node.name,
+            role: node.role,
+            level: node.level,
+            levelIndex: node.levelIndex ?? levelIdx,
+            parentId: safeParentId,
+            territoryName: node.territoryName,
+            code: node.code || null,
+            phone: node.phone || null,
+            email: node.email || null,
+            username: node.username || null,
+            hasAccount: node.hasAccount ?? (node.level !== 'promovido'),
+            metaGoal: Number(node.metaGoal) || 0,
+            currentCount: Number(node.currentCount) || 0,
+            status: node.status || 'en_progreso',
+            validationStatus: node.validationStatus || 'validado',
+            notes: node.notes || null,
+            avatarBg: node.avatarBg || 'bg-indigo-600',
+            address: node.address || null,
+            colonia: node.colonia || null,
+            electoralSection: node.electoralSection || null,
+            curp: node.curp || null,
+            electorKey: node.electorKey || null,
+            inePhotoUrl: node.inePhotoUrl || null,
+            vigencia: node.vigencia || null,
+            changelog: node.changelog ? JSON.parse(JSON.stringify(node.changelog)) : null,
+          },
+        });
+      }
+    }
+
+    // Vincular todos los promovidos de la sección 0416 o de Ruben Roque a prom-ruben-roque
+    await prisma.leader.updateMany({
+      where: {
+        parentId: null,
+        level: 'promovido',
+        OR: [
+          { id: { startsWith: 'promovido-ruben-' } },
+          { id: { startsWith: 'field-promovido-' } },
+          { electoralSection: '0416' },
+        ],
+      },
+      data: {
+        parentId: 'prom-ruben-roque',
+      },
+    });
+
+    console.log('✓ Jerarquía base garantizada y promovidos vinculados a prom-ruben-roque.');
+  } catch (err: any) {
+    console.warn('Aviso en ensureCoreHierarchyAndLinkages:', err.message);
+  }
+}
+
 async function syncDatabase() {
   if (!process.env.DATABASE_URL) {
     console.log('DATABASE_URL no configurada; operando con dataset inicial.');
@@ -589,6 +760,8 @@ async function syncDatabase() {
     console.log('Verificando siembra inicial...');
     const seedResult = await execAsync('npx tsx prisma/seed.ts');
     console.log(seedResult.stdout);
+    
+    await ensureCoreHierarchyAndLinkages();
     console.log('✓ Base de datos PostgreSQL lista y conectada.');
   } catch (error: any) {
     console.warn('Aviso en inicialización de BD:', error.message);
