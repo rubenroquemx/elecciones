@@ -450,18 +450,29 @@ app.put('/api/leaders/:id', async (req, res) => {
 app.delete('/api/leaders/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const target = await prisma.leader.findUnique({ where: { id } });
-    if (!target) {
-      return res.status(404).json({ error: 'Líder no encontrado' });
+
+    // 1. Eliminar de almacenamiento central resiliente
+    const currentStore = readBackupStore();
+    const filteredStore = currentStore.filter((l: any) => l.id !== id);
+    if (filteredStore.length !== currentStore.length) {
+      writeBackupStore(filteredStore);
     }
 
-    const newParentId = target.parentId || null;
-    await prisma.leader.updateMany({
-      where: { parentId: id },
-      data: { parentId: newParentId },
-    });
+    // 2. Eliminar de PostgreSQL si existe
+    try {
+      const target = await prisma.leader.findUnique({ where: { id } });
+      if (target) {
+        const newParentId = target.parentId || null;
+        await prisma.leader.updateMany({
+          where: { parentId: id },
+          data: { parentId: newParentId },
+        });
+        await prisma.leader.delete({ where: { id } });
+      }
+    } catch (dbErr: any) {
+      console.warn('Aviso eliminando en PostgreSQL:', dbErr.message);
+    }
 
-    await prisma.leader.delete({ where: { id } });
     res.json({ success: true, deletedId: id });
   } catch (err: any) {
     console.error('Error deleting leader:', err);
