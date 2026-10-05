@@ -32,14 +32,12 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-// Estado de disponibilidad de Inteligencia Artificial / OCR
+// Estado de disponibilidad de OCR (Servicio Autohospedado en Servidor Propio)
 app.get('/api/gemini-status', (req, res) => {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-  const localOcrUrl = process.env.LOCAL_OCR_URL || 'https://legislab-paddle-ocr.ewar01.easypanel.host';
-  res.json({ available: Boolean(apiKey || localOcrUrl), mode: localOcrUrl ? 'local_paddleocr' : 'gemini' });
+  res.json({ available: true, mode: 'local_paddleocr' });
 });
 
-// Endpoint de Extracción de Datos de INE con Inteligencia Artificial / PaddleOCR Autohospedado
+// Endpoint de Extracción de Datos de INE con PaddleOCR Autohospedado ($0 costo)
 app.post('/api/scan-ine-ai', async (req, res) => {
   try {
     const { imageBase64 } = req.body;
@@ -51,119 +49,43 @@ app.post('/api/scan-ine-ai', async (req, res) => {
     const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
     const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
 
-    // 1. INTENTO CON MICROSERVICIO LOCAL PADDLEOCR (Costo $0)
     const ocrServerUrl = process.env.LOCAL_OCR_URL || 'https://legislab-paddle-ocr.ewar01.easypanel.host';
-    try {
-      const buffer = Buffer.from(cleanBase64, 'base64');
-      const blob = new Blob([buffer], { type: mimeType });
-      const formData = new FormData();
-      formData.append('file', blob, 'ine.jpg');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+    const blob = new Blob([buffer], { type: mimeType });
+    const formData = new FormData();
+    formData.append('file', blob, 'ine.jpg');
 
-      const ocrRes = await fetch(`${ocrServerUrl.replace(/\/$/, '')}/scan-ine`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (ocrRes.ok) {
-        const ocrData: any = await ocrRes.json();
-        if (ocrData && (ocrData.isValidINE || (ocrData.rawTexts && ocrData.rawTexts.length > 0))) {
-          return res.json({
-            isValidINE: Boolean(ocrData.isValidINE),
-            isReadable: Boolean(ocrData.isReadable ?? (ocrData.rawTexts?.length > 1)),
-            name: ocrData.name || ocrData.fullName || '',
-            claveElector: ocrData.claveElector || '',
-            curp: ocrData.curp || '',
-            electoralSection: ocrData.electoralSection || '',
-            address: ocrData.address || '',
-            colonia: ocrData.colonia || '',
-            municipio: ocrData.municipio || '',
-            vigencia: ocrData.vigencia || '',
-            sexo: ocrData.sexo || '',
-            detectedSide: ocrData.detectedSide || 'anverso',
-            confidenceScore: 95,
-            source: 'paddleocr-local-free'
-          });
-        }
-      }
-    } catch (localOcrErr) {
-      console.warn('Microservicio local PaddleOCR no respondió o error, intentando fallback:', localOcrErr);
-    }
-
-    // 2. FALLBACK A GEMINI VISION SI ESTÁ CONFIGURADO
-    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(503).json({ error: 'OCR local no disponible y API Key de Gemini no configurada' });
-    }
-
-    const promptText = `Eres un asistente experto en reconocimiento y validación oficial de credenciales de elector del INE (Instituto Nacional Electoral) de México.
-Analiza con máxima precisión esta credencial (puede ser anverso, reverso o ambas).
-
-Evalúa con rigor:
-1. ¿La imagen corresponde efectivamente a una credencial para votar del INE o IFE mexicana válida? (isValidINE: true/false). Si es una foto de una persona, selfie, paisaje, recibo, licencia de conducir u otro documento ajeno, marca isValidINE: false.
-2. ¿La credencial es legible para extraer datos? (isReadable: true/false). Si la foto está totalmente borrosa, oscura, desenfocada o cortada imposibilitando la lectura, marca isReadable: false.
-
-Extrae exactamente los datos oficiales y responde ÚNICAMENTE un objeto JSON válido con estos campos:
-{
-  "isValidINE": true | false,
-  "isReadable": true | false,
-  "name": "NOMBRE COMPLETO (Nombres y apellidos completos ordenados)",
-  "claveElector": "CLAVE DE ELECTOR (18 caracteres alfanuméricos oficiales)",
-  "curp": "CURP (18 caracteres)",
-  "electoralSection": "SECCIÓN ELECTORAL (4 dígitos numéricos, ej. 0416)",
-  "address": "CALLE Y NÚMERO EXTERIOR/INTERIOR",
-  "colonia": "COLONIA O LOCALIDAD",
-  "municipio": "MUNICIPIO O ALCALDÍA",
-  "vigencia": "AÑO O RANGO DE VIGENCIA (ej. 2024-2034 o 2030)",
-  "sexo": "Hombre" | "Mujer",
-  "detectedSide": "anverso" | "reverso" | "ambos",
-  "confidenceScore": 99
-}
-
-Reglas:
-1. Si un campo no es visible en esta cara, déjalo como null o cadena vacía.
-2. Si es el reverso, extrae el nombre y la sección electoral de las 3 líneas MRZ al pie (IDMEX...) o códigos QR/barras.
-3. Responde únicamente con el JSON sin bloques de código ni texto adicional.`;
-
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-    const response = await fetch(geminiUrl, {
+    const ocrRes = await fetch(`${ocrServerUrl.replace(/\/$/, '')}/scan-ine`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [
-            { text: promptText },
-            {
-              inlineData: {
-                mimeType,
-                data: cleanBase64
-              }
-            }
-          ]
-        }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.1
-        }
-      })
+      body: formData,
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('Error de Gemini API en servidor:', errText);
-      return res.status(502).json({ error: 'Error del motor de IA', details: errText });
+    if (!ocrRes.ok) {
+      const errText = await ocrRes.text();
+      console.error('Error al conectar con el servidor OCR:', errText);
+      return res.status(502).json({ error: 'Error en el servidor de OCR', details: errText });
     }
 
-    const data = await response.json();
-    const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!replyText) {
-      return res.status(500).json({ error: 'No se obtuvo respuesta de la IA' });
-    }
-
-    const parsed = JSON.parse(replyText);
-    res.json(parsed);
+    const ocrData: any = await ocrRes.json();
+    return res.json({
+      isValidINE: Boolean(ocrData.isValidINE),
+      isReadable: Boolean(ocrData.isReadable ?? (ocrData.rawTexts && ocrData.rawTexts.length > 1)),
+      name: ocrData.name || ocrData.fullName || '',
+      claveElector: ocrData.claveElector || '',
+      curp: ocrData.curp || '',
+      electoralSection: ocrData.electoralSection || '',
+      address: ocrData.address || '',
+      colonia: ocrData.colonia || '',
+      municipio: ocrData.municipio || '',
+      vigencia: ocrData.vigencia || '',
+      sexo: ocrData.sexo || '',
+      detectedSide: ocrData.detectedSide || 'anverso',
+      confidenceScore: 95,
+      source: 'paddleocr-selfhosted'
+    });
   } catch (err: any) {
     console.error('Error en /api/scan-ine-ai:', err);
-    res.status(500).json({ error: 'Error al procesar con IA', message: err.message });
+    res.status(500).json({ error: 'Error al procesar la imagen con OCR', message: err.message });
   }
 });
 

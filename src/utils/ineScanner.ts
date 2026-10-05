@@ -564,7 +564,7 @@ async function getOrCreateTesseractWorker(onProgress?: (progress: number, status
 }
 
 /**
- * Verifica de manera rápida si el dispositivo tiene acceso a internet y disponibilidad de Gemini AI
+ * Verifica de manera rápida si el backend y el servicio de OCR están disponibles
  */
 export async function checkGeminiAvailable(): Promise<boolean> {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -582,19 +582,15 @@ export async function checkGeminiAvailable(): Promise<boolean> {
       }
     }
   } catch (_e) {
-    // Si falla el backend, verificar API Key directa en cliente
+    // Error de red
   }
-  const clientKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  return Boolean(clientKey && (typeof navigator === 'undefined' || navigator.onLine));
+  return false;
 }
 
 /**
- * Processes an INE card image with Gemini 2.5 Flash Vision AI.
- * First tries backend endpoint /api/scan-ine-ai, then direct client Gemini API,
- * and returns null if offline or no network response.
+ * Procesa la imagen del INE exclusivamente con el servidor autohospedado de OCR (PaddleOCR - Costo $0)
  */
 export async function scanINEWithAI(imageBase64: string): Promise<ExtractedINEData | null> {
-  // 1. Try server endpoint
   try {
     const res = await fetch('/api/scan-ine-ai', {
       method: 'POST',
@@ -616,8 +612,8 @@ export async function scanINEWithAI(imageBase64: string): Promise<ExtractedINEDa
           municipio: data.municipio || undefined,
           vigencia: data.vigencia || undefined,
           sexo: data.sexo || undefined,
-          confidenceScore: data.confidenceScore ?? 99,
-          detectedSide: data.detectedSide || 'ambos',
+          confidenceScore: data.confidenceScore ?? 95,
+          detectedSide: data.detectedSide || 'anverso',
           photoUrl: imageBase64,
           isValidINE: data.isValidINE !== false,
           isReadable: data.isReadable !== false,
@@ -626,86 +622,7 @@ export async function scanINEWithAI(imageBase64: string): Promise<ExtractedINEDa
       }
     }
   } catch (_e) {
-    // Network or server error, continue
-  }
-
-  // 2. Client-side fallback if VITE_GEMINI_API_KEY is defined in environment
-  const clientKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-  if (clientKey) {
-    try {
-      const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z+]+;base64,/, '');
-      const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
-      const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-
-      const promptText = `Eres un asistente experto en reconocimiento y validación oficial de credenciales del INE de México.
-Analiza con máxima precisión esta credencial (anverso o reverso).
-Evalúa:
-1. ¿Es una credencial de elector oficial de México válida? ("isValidINE": true/false)
-2. ¿Es legible para leer datos? ("isReadable": true/false)
-
-Extrae exactamente los datos y responde ÚNICAMENTE un JSON válido:
-{
-  "isValidINE": true | false,
-  "isReadable": true | false,
-  "name": "NOMBRE COMPLETO",
-  "claveElector": "CLAVE DE ELECTOR (18 chars)",
-  "curp": "CURP (18 chars)",
-  "electoralSection": "SECCIÓN (4 dígitos)",
-  "address": "CALLE Y NÚMERO",
-  "colonia": "COLONIA",
-  "municipio": "MUNICIPIO",
-  "vigencia": "VIGENCIA",
-  "sexo": "Hombre" | "Mujer",
-  "detectedSide": "anverso" | "reverso" | "ambos",
-  "confidenceScore": 99
-}`;
-
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${clientKey}`;
-      const response = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{
-            parts: [
-              { text: promptText },
-              { inlineData: { mimeType, data: cleanBase64 } }
-            ]
-          }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.1
-          }
-        })
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (replyText) {
-          const parsed = JSON.parse(replyText);
-          return {
-            rawText: replyText,
-            name: parsed.name || undefined,
-            claveElector: parsed.claveElector || undefined,
-            curp: parsed.curp || undefined,
-            electoralSection: parsed.electoralSection ? String(parsed.electoralSection).padStart(4, '0') : undefined,
-            address: parsed.address || undefined,
-            colonia: parsed.colonia || undefined,
-            municipio: parsed.municipio || undefined,
-            vigencia: parsed.vigencia || undefined,
-            sexo: parsed.sexo || undefined,
-            confidenceScore: parsed.confidenceScore ?? 99,
-            detectedSide: parsed.detectedSide || 'ambos',
-            photoUrl: imageBase64,
-            isValidINE: parsed.isValidINE !== false,
-            isReadable: parsed.isReadable !== false,
-            validationStatus: (parsed.isValidINE === false || parsed.isReadable === false) ? 'sin_validacion' : 'validado',
-          };
-        }
-      }
-    } catch (_e) {
-      // Offline fallback
-    }
+    // Error de conexión con el servidor
   }
 
   return null;
@@ -733,14 +650,14 @@ export async function scanINEImage(
     ctx.drawImage(imageSource, 0, 0);
   }
 
-  // 1. Prioridad: Si hay conectividad, procesar con IA Gemini 2.5 Vision
+  // 1. Prioridad: Si hay conectividad, procesar con OCR en servidor (PaddleOCR - Costo $0)
   if (typeof navigator !== 'undefined' && navigator.onLine) {
-    onProgress?.(15, 'Analizando credencial con Inteligencia Artificial (Gemini Vision)...');
+    onProgress?.(15, 'Analizando credencial con servidor de OCR...');
     try {
       const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
       const aiResult = await scanINEWithAI(dataUrl);
       if (aiResult && (aiResult.name || aiResult.claveElector || aiResult.electoralSection)) {
-        onProgress?.(100, 'Datos del INE extraídos con éxito mediante Inteligencia Artificial');
+        onProgress?.(100, 'Datos del INE extraídos con éxito mediante OCR');
         return aiResult;
       }
     } catch (_e) {

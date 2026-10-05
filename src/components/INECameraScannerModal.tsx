@@ -328,7 +328,7 @@ export const INECameraScannerModal: React.FC<INECameraScannerModalProps> = ({
           return;
         }
       } catch (err) {
-        console.warn('Error en Gemini AI:', err);
+        console.warn('Error en OCR:', err);
         setIsProcessing(false);
         setInvalidPromptData({
           result: { rawText: '', confidenceScore: 0, isValidINE: false, isReadable: false },
