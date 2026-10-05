@@ -124,7 +124,7 @@ export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
     hasAccount: true,
     avatarBg: "bg-emerald-600",
     metaGoal: 150,
-    currentCount: 3,
+    currentCount: 0,
     status: "en_progreso",
     validationStatus: "validado",
     notes: "Promotor Territorial en Sección 0416 - Captación de promovidos y brigadas directas de campo."
@@ -151,125 +151,9 @@ export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
     hasAccount: true,
     avatarBg: "bg-teal-600",
     metaGoal: 100,
-    currentCount: 2,
+    currentCount: 0,
     status: "en_progreso",
     validationStatus: "validado",
     notes: "Promotora Territorial en Sección 0417 - Trabajo de contacto vecinal y promoción del voto."
-  },
-
-  // 4. Promovidos (Ciudadanos capturados por Ruben Roque)
-  {
-    id: "promovido-ruben-1",
-    name: "María Elena Gómez Morales",
-    role: "Ciudadano Promovido",
-    level: "promovido",
-    levelIndex: 3,
-    parentId: "prom-ruben-roque",
-    territoryName: "Sección 0416",
-    electoralSection: "0416",
-    phone: "+52 993 555 1122",
-    address: "Calle Libertad #102",
-    colonia: "Tamulté de las Barrancas",
-    curp: "GOMM900412MTBMNR08",
-    electorKey: "GOMM90041227M003",
-    metaGoal: 1,
-    currentCount: 1,
-    status: "completado",
-    validationStatus: "validado",
-    createdAt: "2026-10-02T10:15:00Z",
-    updatedAt: "2026-10-03T18:30:00Z",
-    changelog: [
-      {
-        id: "cl-1-2",
-        timestamp: "2026-10-03T18:30:00Z",
-        action: "edicion",
-        description: "Modificó: Teléfono Celular, Calle y Número",
-        userName: "Ruben Roque",
-        changes: [
-          {
-            field: "phone",
-            label: "Teléfono Celular",
-            oldValue: "+52 993 555 1100",
-            newValue: "+52 993 555 1122"
-          },
-          {
-            field: "address",
-            label: "Calle y Número",
-            oldValue: "Calle Libertad #100",
-            newValue: "Calle Libertad #102"
-          }
-        ]
-      },
-      {
-        id: "cl-1-1",
-        timestamp: "2026-10-02T10:15:00Z",
-        action: "creacion",
-        description: "Registro inicial de promovido por Ruben Roque",
-        userName: "Ruben Roque"
-      }
-    ],
-    notes: "Promovida comprometida en Sección 0416."
-  },
-  {
-    id: "promovido-ruben-2",
-    name: "José Luis Hernández Torres",
-    role: "Ciudadano Promovido",
-    level: "promovido",
-    levelIndex: 3,
-    parentId: "prom-ruben-roque",
-    territoryName: "Sección 0416",
-    electoralSection: "0416",
-    phone: "+52 993 555 3344",
-    address: "Calle Allende #215",
-    colonia: "Tamulté de las Barrancas",
-    curp: "HETJ880923HTBMNX04",
-    electorKey: "HETJ88092327H004",
-    metaGoal: 1,
-    currentCount: 1,
-    status: "completado",
-    validationStatus: "validado",
-    createdAt: "2026-10-02T12:40:00Z",
-    updatedAt: "2026-10-02T12:40:00Z",
-    changelog: [
-      {
-        id: "cl-2-1",
-        timestamp: "2026-10-02T12:40:00Z",
-        action: "creacion",
-        description: "Registro en brigada de campo por Ruben Roque",
-        userName: "Ruben Roque"
-      }
-    ],
-    notes: "Promovido registrado en brigada de campo."
-  },
-  {
-    id: "promovido-ruben-3",
-    name: "Ana Patricia Peralta Rueda",
-    role: "Ciudadano Promovido",
-    level: "promovido",
-    levelIndex: 3,
-    parentId: "prom-ruben-roque",
-    territoryName: "Sección 0416",
-    electoralSection: "0416",
-    phone: "+52 993 555 7788",
-    address: "Calle Cuauhtémoc #410",
-    colonia: "Tamulté de las Barrancas",
-    curp: "PERA920715MTBMNR09",
-    electorKey: "PERA92071527M005",
-    metaGoal: 1,
-    currentCount: 1,
-    status: "completado",
-    validationStatus: "validado",
-    createdAt: "2026-10-03T09:20:00Z",
-    updatedAt: "2026-10-03T09:20:00Z",
-    changelog: [
-      {
-        id: "cl-3-1",
-        timestamp: "2026-10-03T09:20:00Z",
-        action: "creacion",
-        description: "Registro inicial de promovida por Ruben Roque",
-        userName: "Ruben Roque"
-      }
-    ],
-    notes: "Promovida registrada en Sección 0416."
   }
 ];

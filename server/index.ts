@@ -131,6 +131,42 @@ Reglas:
 
 const STORE_DIR = path.join(__dirname, '../data');
 const STORE_FILE = path.join(STORE_DIR, 'leaders_store.json');
+const DELETED_FILE = path.join(STORE_DIR, 'deleted_leaders_store.json');
+
+function readDeletedStore(): Set<string> {
+  try {
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    if (fs.existsSync(DELETED_FILE)) {
+      const content = fs.readFileSync(DELETED_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) return new Set(parsed);
+    }
+  } catch (e) {
+    console.warn('Error reading deleted store:', e);
+  }
+  return new Set();
+}
+
+function addDeletedId(id: string) {
+  try {
+    const deletedSet = readDeletedStore();
+    deletedSet.add(id);
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    fs.writeFileSync(DELETED_FILE, JSON.stringify(Array.from(deletedSet), null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Error writing deleted store:', e);
+  }
+}
+
+function removeDeletedId(id: string) {
+  try {
+    const deletedSet = readDeletedStore();
+    if (deletedSet.has(id)) {
+      deletedSet.delete(id);
+      fs.writeFileSync(DELETED_FILE, JSON.stringify(Array.from(deletedSet), null, 2), 'utf-8');
+    }
+  } catch (e) {}
+}
 
 function readBackupStore(): any[] {
   try {
@@ -167,18 +203,25 @@ app.get('/api/leaders', async (req, res) => {
     }
 
     const fileLeaders = readBackupStore();
+    const deletedSet = readDeletedStore();
     
-    // Combinar registros asegurando que no se pierda ninguno
+    // Combinar registros asegurando que no se pierda ninguno y omitir eliminados
     const mergedMap = new Map<string, any>();
     for (const b of INITIAL_TERRITORY_DATA) {
-      mergedMap.set(b.id, b);
+      if (!deletedSet.has(b.id)) {
+        mergedMap.set(b.id, b);
+      }
     }
     for (const l of fileLeaders) {
-      mergedMap.set(l.id, l);
+      if (!deletedSet.has(l.id)) {
+        mergedMap.set(l.id, l);
+      }
     }
     for (const l of dbLeaders) {
-      const existing = mergedMap.get(l.id) || {};
-      mergedMap.set(l.id, { ...existing, ...l });
+      if (!deletedSet.has(l.id)) {
+        const existing = mergedMap.get(l.id) || {};
+        mergedMap.set(l.id, { ...existing, ...l });
+      }
     }
 
     // Vincular promovidos de sección 0416 a prom-ruben-roque si no tienen padre asignado
@@ -192,7 +235,7 @@ app.get('/api/leaders', async (req, res) => {
       }
     }
 
-    const result = Array.from(mergedMap.values());
+    const result = Array.from(mergedMap.values()).filter(l => !deletedSet.has(l.id));
     if (result.length > fileLeaders.length) {
       writeBackupStore(result);
     }
@@ -201,7 +244,9 @@ app.get('/api/leaders', async (req, res) => {
   } catch (err: any) {
     console.warn('Aviso general en /api/leaders:', err.message);
     const fallback = readBackupStore();
-    res.json(fallback.length > 0 ? fallback : INITIAL_TERRITORY_DATA);
+    const deletedSet = readDeletedStore();
+    const safeFallback = fallback.filter(l => !deletedSet.has(l.id));
+    res.json(safeFallback.length > 0 ? safeFallback : INITIAL_TERRITORY_DATA);
   }
 });
 
@@ -211,6 +256,9 @@ app.post('/api/leaders', async (req, res) => {
     if (!data.id) {
       data.id = `node-${Date.now()}`;
     }
+
+    // Quitar del registro de eliminados en caso de re-registro
+    removeDeletedId(data.id);
 
     if (data.level === 'promovido' && (!data.parentId || data.parentId === 'null') && data.electoralSection === '0416') {
       data.parentId = 'prom-ruben-roque';
@@ -451,14 +499,15 @@ app.delete('/api/leaders/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    // 1. Eliminar de almacenamiento central resiliente
+    // 1. Marcar como borrado definitivo (tombstone)
+    addDeletedId(id);
+
+    // 2. Eliminar de almacenamiento central resiliente
     const currentStore = readBackupStore();
     const filteredStore = currentStore.filter((l: any) => l.id !== id);
-    if (filteredStore.length !== currentStore.length) {
-      writeBackupStore(filteredStore);
-    }
+    writeBackupStore(filteredStore);
 
-    // 2. Eliminar de PostgreSQL si existe
+    // 3. Eliminar de PostgreSQL si existe
     try {
       const target = await prisma.leader.findUnique({ where: { id } });
       if (target) {
@@ -684,8 +733,9 @@ async function ensureDbSchema() {
 
 async function ensureCoreHierarchyAndLinkages() {
   try {
+    const deletedSet = readDeletedStore();
     for (let levelIdx = 0; levelIdx <= 4; levelIdx++) {
-      const nodesAtLevel = INITIAL_TERRITORY_DATA.filter((n) => (n.levelIndex ?? 0) === levelIdx);
+      const nodesAtLevel = INITIAL_TERRITORY_DATA.filter((n) => (n.levelIndex ?? 0) === levelIdx && !deletedSet.has(n.id));
       for (const node of nodesAtLevel) {
         let safeParentId = node.parentId || null;
         if (safeParentId) {

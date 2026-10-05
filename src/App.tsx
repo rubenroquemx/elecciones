@@ -45,18 +45,52 @@ import {
   addStructureApi,
 } from './services/api';
 
+const DELETED_LEADERS_KEY = 'territorial_deleted_leader_ids';
+
+function getLocalDeletedIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(DELETED_LEADERS_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch (e) {}
+  return new Set();
+}
+
+function saveLocalDeletedId(id: string) {
+  try {
+    const set = getLocalDeletedIds();
+    set.add(id);
+    localStorage.setItem(DELETED_LEADERS_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
+
+function unmarkLocalDeletedId(id: string) {
+  try {
+    const set = getLocalDeletedIds();
+    if (set.has(id)) {
+      set.delete(id);
+      localStorage.setItem(DELETED_LEADERS_KEY, JSON.stringify(Array.from(set)));
+    }
+  } catch (e) {}
+}
+
 export function App() {
   // Master raw and computed territorial dataset
   const [leadersData, setLeadersData] = useState<TerritorialLeader[]>(() => {
+    const deletedSet = getLocalDeletedIds();
     try {
       const saved = localStorage.getItem('territorial_leaders_data');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const map = new Map<string, TerritorialLeader>(parsed.map((l: TerritorialLeader) => [l.id, l]));
-          // Garantizar que la jerarquía base de INITIAL_TERRITORY_DATA nunca falte
+          const map = new Map<string, TerritorialLeader>(
+            parsed.filter((l: TerritorialLeader) => !deletedSet.has(l.id)).map((l: TerritorialLeader) => [l.id, l])
+          );
+          // Garantizar que la jerarquía base de INITIAL_TERRITORY_DATA nunca falte si no ha sido eliminada
           INITIAL_TERRITORY_DATA.forEach(b => {
-            if (!map.has(b.id)) map.set(b.id, b);
+            if (!map.has(b.id) && !deletedSet.has(b.id)) map.set(b.id, b);
           });
           // Vincular promovidos huérfanos a prom-ruben-roque
           map.forEach(l => {
@@ -74,7 +108,7 @@ export function App() {
     } catch (e) {
       console.warn('Error reading saved leaders', e);
     }
-    return calculateHierarchyAggregates(INITIAL_TERRITORY_DATA);
+    return calculateHierarchyAggregates(INITIAL_TERRITORY_DATA.filter(b => !deletedSet.has(b.id)));
   });
 
   // Sincronización bidireccional continua en tiempo real (móvil <-> servidor central <-> PC)
@@ -84,13 +118,17 @@ export function App() {
       if (!serverLeaders || serverLeaders.length === 0) return;
 
       setLeadersData(prev => {
+        const deletedSet = getLocalDeletedIds();
         const combinedMap = new Map<string, TerritorialLeader>();
 
-        // 1. Jerarquía territorial base garantizada
-        INITIAL_TERRITORY_DATA.forEach(b => combinedMap.set(b.id, b));
+        // 1. Jerarquía territorial base garantizada (sin eliminados)
+        INITIAL_TERRITORY_DATA.forEach(b => {
+          if (!deletedSet.has(b.id)) combinedMap.set(b.id, b);
+        });
 
-        // 2. Líderes del servidor (con normalización de promovidos de sección 0416)
+        // 2. Líderes del servidor (con normalización de promovidos de sección 0416 y omitiendo eliminados)
         for (const s of serverLeaders) {
+          if (deletedSet.has(s.id)) continue;
           const item = { ...s };
           if (
             item.level === 'promovido' &&
@@ -102,9 +140,10 @@ export function App() {
           combinedMap.set(item.id, item);
         }
 
-        // 3. Registros locales pendientes (capturas recientes que aún no subieron)
+        // 3. Registros locales pendientes (capturas recientes que aún no subieron y no han sido eliminadas)
         const serverIds = new Set(serverLeaders.map(l => l.id));
         const localPending = prev.filter(l => 
+          !deletedSet.has(l.id) &&
           !serverIds.has(l.id) && 
           (l.level === 'promovido' || l.id.startsWith('cit-') || l.id.startsWith('prom-cit-') || l.id.startsWith('field-promovido-'))
         );
@@ -120,7 +159,7 @@ export function App() {
           });
         }
 
-        const combined = Array.from(combinedMap.values());
+        const combined = Array.from(combinedMap.values()).filter(l => !deletedSet.has(l.id));
 
         const prevMap = new Map(prev.map(p => [p.id, p]));
         let hasChanges = combined.length !== prev.length;
@@ -566,6 +605,7 @@ export function App() {
 
   const handleSaveLeader = useCallback((savedLeader: TerritorialLeader) => {
     const leaderToSave = { ...savedLeader };
+    unmarkLocalDeletedId(leaderToSave.id);
     if (leaderToSave.level === 'promovido' && (!leaderToSave.parentId || leaderToSave.parentId === 'null')) {
       leaderToSave.parentId = currentUser?.leaderId || 'prom-ruben-roque';
     }
@@ -595,8 +635,9 @@ export function App() {
     }
   }, [currentUser, syncLeadersWithServer]);
 
-  const handleDeleteLeader = useCallback((id: string) => {
-    if (window.confirm('¿Seguro que deseas eliminar este nodo de la estructura?')) {
+  const handleDeleteLeader = useCallback((id: string, skipConfirm = false) => {
+    if (skipConfirm || window.confirm('¿Seguro que deseas eliminar este registro de la estructura territorial?')) {
+      saveLocalDeletedId(id);
       setLeadersData(prev => {
         const target = prev.find(l => l.id === id);
         const newParentId = target?.parentId || null;
@@ -613,6 +654,9 @@ export function App() {
       if (selectedLeaderId === id) {
         setSelectedLeaderId(null);
       }
+      if (selectedPromovidoId === id) {
+        setSelectedPromovidoId(null);
+      }
       if (filters.focusNodeId === id) {
         setFilters(f => ({ ...f, focusNodeId: null }));
       }
@@ -620,7 +664,7 @@ export function App() {
         .then(() => syncLeadersWithServer())
         .catch(e => console.warn('Delete API error:', e));
     }
-  }, [selectedLeaderId, filters.focusNodeId, syncLeadersWithServer]);
+  }, [selectedLeaderId, selectedPromovidoId, filters.focusNodeId, syncLeadersWithServer]);
 
   // Sections handlers
   const handleSaveSection = useCallback((savedSection: ElectoralSection) => {
@@ -922,6 +966,7 @@ export function App() {
                     setSelectedPromovidoId(id);
                     setActiveNav('editar-promovido');
                   }}
+                  onDeleteCitizen={(id) => handleDeleteLeader(id, true)}
                   onViewSectionDetail={(secNum) => {
                     const padded = secNum.padStart(4, '0');
                     const inScope = scopedSections.some(s => s.sectionNumber === secNum || s.sectionNumber === padded);
@@ -1041,6 +1086,10 @@ export function App() {
                     setSelectedPromovidoId(id);
                     setActiveNav('editar-promovido');
                   }}
+                  onDeleteCitizen={(id) => {
+                    handleDeleteLeader(id, true);
+                    setActiveNav('escritorio');
+                  }}
                 />
               )}
 
@@ -1057,7 +1106,7 @@ export function App() {
                     setActiveNav('escritorio');
                   }}
                   onDeleteCitizen={(id) => {
-                    handleDeleteLeader(id);
+                    handleDeleteLeader(id, true);
                     setActiveNav('escritorio');
                   }}
                   onNavigate={setActiveNav}

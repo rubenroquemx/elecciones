@@ -28,6 +28,7 @@ import {
   Plus,
   Phone,
   Clock,
+  Trash2,
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
 import type { ExtractedINEData } from '../utils/ineScanner';
@@ -45,6 +46,7 @@ interface ExecutiveKpiDesktopProps {
   onViewSectionDetail?: (sectionNumber: string) => void;
   onViewCitizen?: (citizenId: string) => void;
   onEditCitizen?: (citizenId: string) => void;
+  onDeleteCitizen?: (citizenId: string) => void;
   activeStateId?: number;
   onStateChange?: (stateId: number) => void;
 }
@@ -62,6 +64,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   onViewSectionDetail,
   onViewCitizen,
   onEditCitizen: _onEditCitizen,
+  onDeleteCitizen,
   activeStateId,
 }) => {
   // Filtros de navegación geográfica y estado activo
@@ -910,6 +913,23 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                             >
                               <Smartphone className="w-4 h-4 text-emerald-600" />
                             </a>
+                          )}
+
+                          {onDeleteCitizen && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`¿Estás seguro de eliminar a ${promovido.name} de tus promovidos registrados?`)) {
+                                  onDeleteCitizen(promovido.id);
+                                }
+                              }}
+                              className="w-8 h-8 bg-slate-100 hover:bg-rose-100 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-300 rounded-none flex items-center justify-center transition-all cursor-pointer"
+                              title="Eliminar promovido"
+                              aria-label="Eliminar"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           )}
                         </div>
                       </div>

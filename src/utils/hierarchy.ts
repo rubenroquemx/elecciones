@@ -213,9 +213,7 @@ export function getVisibleSubtree(rootId: string | null, nodes: TerritorialLeade
         node.level === 'promovido' &&
         !addedIds.has(node.id) &&
         (node.parentId === rootId ||
-         node.electoralSection === assignedSec ||
-         node.id.startsWith('promovido-ruben-') ||
-         node.id.startsWith('field-promovido-'))
+         (node.electoralSection === assignedSec && (!node.parentId || node.parentId === 'null')))
       ) {
         visibleList.push({
           ...node,

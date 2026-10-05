@@ -6,6 +6,7 @@ import {
   Phone, 
   Smartphone, 
   Edit3, 
+  Trash2,
   MapPin, 
   CheckCircle2, 
   CreditCard, 
@@ -18,6 +19,7 @@ interface PromoterCitizenDetailPageProps {
   allLeaders: TerritorialLeader[];
   onNavigate: (nav: MainNavSection) => void;
   onEdit: (citizenId: string) => void;
+  onDeleteCitizen?: (citizenId: string) => void;
 }
 
 export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps> = ({
@@ -25,6 +27,7 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
   allLeaders,
   onNavigate,
   onEdit,
+  onDeleteCitizen,
 }) => {
   const citizen = allLeaders.find(l => l.id === citizenId);
 
@@ -99,6 +102,22 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
           >
             <Edit3 className="w-4 h-4 text-indigo-600" />
           </button>
+
+          {onDeleteCitizen && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm(`¿Estás seguro de eliminar a ${citizen.name} de tus promovidos registrados?`)) {
+                  onDeleteCitizen(citizen.id);
+                }
+              }}
+              className="w-9 h-9 flex items-center justify-center bg-rose-900/60 hover:bg-rose-800 text-rose-200 border border-rose-700/60 rounded-none transition-colors cursor-pointer"
+              title="Eliminar Expediente"
+              aria-label="Eliminar Expediente"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
