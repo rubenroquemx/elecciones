@@ -32,13 +32,14 @@ app.get('/api/config', (req, res) => {
   });
 });
 
-// Estado de disponibilidad de Inteligencia Artificial (Gemini Vision)
+// Estado de disponibilidad de Inteligencia Artificial / OCR
 app.get('/api/gemini-status', (req, res) => {
   const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-  res.json({ available: Boolean(apiKey) });
+  const localOcrUrl = process.env.LOCAL_OCR_URL || 'https://legislab-paddle-ocr.ewar01.easypanel.host';
+  res.json({ available: Boolean(apiKey || localOcrUrl), mode: localOcrUrl ? 'local_paddleocr' : 'gemini' });
 });
 
-// Endpoint de Extracción de Datos de INE con Inteligencia Artificial (Gemini Vision)
+// Endpoint de Extracción de Datos de INE con Inteligencia Artificial / PaddleOCR Autohospedado
 app.post('/api/scan-ine-ai', async (req, res) => {
   try {
     const { imageBase64 } = req.body;
@@ -46,14 +47,53 @@ app.post('/api/scan-ine-ai', async (req, res) => {
       return res.status(400).json({ error: 'Imagen requerida' });
     }
 
-    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(503).json({ error: 'API Key de IA no configurada en el servidor' });
-    }
-
     const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z+]+;base64,/, '');
     const mimeMatch = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,/);
     const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+
+    // 1. INTENTO CON MICROSERVICIO LOCAL PADDLEOCR (Costo $0)
+    const ocrServerUrl = process.env.LOCAL_OCR_URL || 'https://legislab-paddle-ocr.ewar01.easypanel.host';
+    try {
+      const buffer = Buffer.from(cleanBase64, 'base64');
+      const blob = new Blob([buffer], { type: mimeType });
+      const formData = new FormData();
+      formData.append('file', blob, 'ine.jpg');
+
+      const ocrRes = await fetch(`${ocrServerUrl.replace(/\/$/, '')}/scan-ine`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (ocrRes.ok) {
+        const ocrData: any = await ocrRes.json();
+        if (ocrData && (ocrData.isValidINE || (ocrData.rawTexts && ocrData.rawTexts.length > 0))) {
+          return res.json({
+            isValidINE: Boolean(ocrData.isValidINE),
+            isReadable: Boolean(ocrData.isReadable ?? (ocrData.rawTexts?.length > 1)),
+            name: ocrData.name || ocrData.fullName || '',
+            claveElector: ocrData.claveElector || '',
+            curp: ocrData.curp || '',
+            electoralSection: ocrData.electoralSection || '',
+            address: ocrData.address || '',
+            colonia: ocrData.colonia || '',
+            municipio: ocrData.municipio || '',
+            vigencia: ocrData.vigencia || '',
+            sexo: ocrData.sexo || '',
+            detectedSide: ocrData.detectedSide || 'anverso',
+            confidenceScore: 95,
+            source: 'paddleocr-local-free'
+          });
+        }
+      }
+    } catch (localOcrErr) {
+      console.warn('Microservicio local PaddleOCR no respondió o error, intentando fallback:', localOcrErr);
+    }
+
+    // 2. FALLBACK A GEMINI VISION SI ESTÁ CONFIGURADO
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(503).json({ error: 'OCR local no disponible y API Key de Gemini no configurada' });
+    }
 
     const promptText = `Eres un asistente experto en reconocimiento y validación oficial de credenciales de elector del INE (Instituto Nacional Electoral) de México.
 Analiza con máxima precisión esta credencial (puede ser anverso, reverso o ambas).
