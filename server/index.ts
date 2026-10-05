@@ -212,6 +212,16 @@ app.get('/api/leaders', async (req, res) => {
   }
 });
 
+// Endpoint para sincronizar registros eliminados entre dispositivos (Tombstones)
+app.get('/api/deleted-leaders', (req, res) => {
+  try {
+    const deletedSet = readDeletedStore();
+    res.json(Array.from(deletedSet));
+  } catch (err: any) {
+    res.json([]);
+  }
+});
+
 app.post('/api/leaders', async (req, res) => {
   try {
     const data = req.body;
@@ -219,8 +229,16 @@ app.post('/api/leaders', async (req, res) => {
       data.id = `node-${Date.now()}`;
     }
 
-    // Quitar del registro de eliminados en caso de re-registro
-    removeDeletedId(data.id);
+    const deletedSet = readDeletedStore();
+    // Bloquear resurrección de registros eliminados desde clientes desactualizados
+    if (deletedSet.has(data.id) && !data.reRegister) {
+      console.warn(`Resurrección bloqueada para registro eliminado: ${data.id}`);
+      return res.status(409).json({ error: 'Registro eliminado previamente', id: data.id, deleted: true });
+    }
+
+    if (data.reRegister) {
+      removeDeletedId(data.id);
+    }
 
     if (data.level === 'promovido' && (!data.parentId || data.parentId === 'null') && data.electoralSection === '0416') {
       data.parentId = 'prom-ruben-roque';
@@ -356,6 +374,16 @@ app.put('/api/leaders/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const data = req.body;
+
+    const deletedSet = readDeletedStore();
+    if (deletedSet.has(id) && !data.reRegister) {
+      console.warn(`Intento de actualización bloqueado para registro eliminado: ${id}`);
+      return res.status(409).json({ error: 'Registro eliminado previamente', id, deleted: true });
+    }
+
+    if (data.reRegister) {
+      removeDeletedId(id);
+    }
 
     // 1. Actualizar en respaldo central
     const currentStore = readBackupStore();

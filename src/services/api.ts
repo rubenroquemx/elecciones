@@ -47,6 +47,17 @@ export async function deleteLeaderApi(id: string): Promise<boolean> {
   }
 }
 
+export async function fetchDeletedLeaderIdsApi(): Promise<string[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/deleted-leaders`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    return [];
+  }
+}
+
 export async function fetchSectionsApi(): Promise<ElectoralSection[]> {
   try {
     const res = await fetch(`${API_BASE}/api/sections`);

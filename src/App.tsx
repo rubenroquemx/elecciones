@@ -40,6 +40,7 @@ import {
   fetchLeadersApi,
   saveLeaderApi,
   deleteLeaderApi,
+  fetchDeletedLeaderIdsApi,
   fetchSectionsApi,
   saveSectionApi,
   addStructureApi,
@@ -63,6 +64,22 @@ function saveLocalDeletedId(id: string) {
     const set = getLocalDeletedIds();
     set.add(id);
     localStorage.setItem(DELETED_LEADERS_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
+
+function saveLocalDeletedIds(ids: string[]) {
+  try {
+    const set = getLocalDeletedIds();
+    let changed = false;
+    ids.forEach(id => {
+      if (!set.has(id)) {
+        set.add(id);
+        changed = true;
+      }
+    });
+    if (changed) {
+      localStorage.setItem(DELETED_LEADERS_KEY, JSON.stringify(Array.from(set)));
+    }
   } catch (e) {}
 }
 
@@ -114,8 +131,30 @@ export function App() {
   // Sincronización bidireccional continua en tiempo real (móvil <-> servidor central <-> PC)
   const syncLeadersWithServer = useCallback(async () => {
     try {
-      const serverLeaders = await fetchLeadersApi();
-      if (!serverLeaders || serverLeaders.length === 0) return;
+      const [serverLeaders, serverDeletedIds] = await Promise.all([
+        fetchLeadersApi(),
+        fetchDeletedLeaderIdsApi(),
+      ]);
+
+      if (serverDeletedIds && serverDeletedIds.length > 0) {
+        saveLocalDeletedIds(serverDeletedIds);
+      }
+
+      const currentDeletedSet = getLocalDeletedIds();
+
+      if (!serverLeaders || serverLeaders.length === 0) {
+        setLeadersData(prev => {
+          const filtered = prev.filter(l => !currentDeletedSet.has(l.id));
+          if (filtered.length !== prev.length) {
+            try {
+              localStorage.setItem('territorial_leaders_data', JSON.stringify(filtered));
+            } catch (e) {}
+            return calculateHierarchyAggregates(filtered);
+          }
+          return prev;
+        });
+        return;
+      }
 
       setLeadersData(prev => {
         const deletedSet = getLocalDeletedIds();
@@ -140,7 +179,7 @@ export function App() {
           combinedMap.set(item.id, item);
         }
 
-        // 3. Registros locales pendientes (capturas recientes que aún no subieron y no han sido eliminadas)
+        // 3. Registros locales pendientes (capturas recientes que aún no subieron y NO han sido eliminadas)
         const serverIds = new Set(serverLeaders.map(l => l.id));
         const localPending = prev.filter(l => 
           !deletedSet.has(l.id) &&
