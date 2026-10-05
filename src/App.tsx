@@ -47,6 +47,7 @@ import {
 } from './services/api';
 
 const DELETED_LEADERS_KEY = 'territorial_deleted_leader_ids';
+const PENDING_OFFLINE_KEY = 'territorial_pending_offline_sync_ids';
 
 function getLocalDeletedIds(): Set<string> {
   try {
@@ -89,6 +90,35 @@ function unmarkLocalDeletedId(id: string) {
     if (set.has(id)) {
       set.delete(id);
       localStorage.setItem(DELETED_LEADERS_KEY, JSON.stringify(Array.from(set)));
+    }
+  } catch (e) {}
+}
+
+function getPendingOfflineIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(PENDING_OFFLINE_KEY);
+    if (raw) {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) return new Set(arr);
+    }
+  } catch (e) {}
+  return new Set();
+}
+
+function markPendingOfflineId(id: string) {
+  try {
+    const set = getPendingOfflineIds();
+    set.add(id);
+    localStorage.setItem(PENDING_OFFLINE_KEY, JSON.stringify(Array.from(set)));
+  } catch (e) {}
+}
+
+function clearPendingOfflineId(id: string) {
+  try {
+    const set = getPendingOfflineIds();
+    if (set.has(id)) {
+      set.delete(id);
+      localStorage.setItem(PENDING_OFFLINE_KEY, JSON.stringify(Array.from(set)));
     }
   } catch (e) {}
 }
@@ -136,8 +166,19 @@ export function App() {
         fetchDeletedLeaderIdsApi(),
       ]);
 
+      // 1. Guardar bajas provenientes del servidor
       if (serverDeletedIds && serverDeletedIds.length > 0) {
         saveLocalDeletedIds(serverDeletedIds);
+      }
+
+      // 2. Si este cliente tiene IDs eliminados localmente que el servidor no tiene, avisar al servidor
+      const serverDeletedSet = new Set(serverDeletedIds || []);
+      const localDeletedIds = Array.from(getLocalDeletedIds());
+      const missingOnServer = localDeletedIds.filter(id => !serverDeletedSet.has(id));
+      if (missingOnServer.length > 0) {
+        missingOnServer.forEach(id => {
+          deleteLeaderApi(id).catch(() => {});
+        });
       }
 
       const currentDeletedSet = getLocalDeletedIds();
@@ -179,12 +220,13 @@ export function App() {
           combinedMap.set(item.id, item);
         }
 
-        // 3. Registros locales pendientes (capturas recientes que aún no subieron y NO han sido eliminadas)
+        // 3. Registros locales pendientes (ÚNICAMENTE capturas creadas localmente offline que aún no han subido)
+        const pendingOfflineIds = getPendingOfflineIds();
         const serverIds = new Set(serverLeaders.map(l => l.id));
         const localPending = prev.filter(l => 
           !deletedSet.has(l.id) &&
           !serverIds.has(l.id) && 
-          (l.level === 'promovido' || l.id.startsWith('cit-') || l.id.startsWith('prom-cit-') || l.id.startsWith('field-promovido-'))
+          pendingOfflineIds.has(l.id)
         );
 
         if (localPending.length > 0) {
@@ -194,7 +236,9 @@ export function App() {
               parentId: localLeader.parentId || 'prom-ruben-roque',
             };
             combinedMap.set(safeLeader.id, safeLeader);
-            saveLeaderApi(safeLeader, false).catch(e => console.warn('Sync pending record error:', e));
+            saveLeaderApi(safeLeader, false)
+              .then(() => clearPendingOfflineId(safeLeader.id))
+              .catch(e => console.warn('Sync pending record error:', e));
           });
         }
 
@@ -663,8 +707,14 @@ export function App() {
         console.warn('Error saving leaders to localStorage', e);
       }
       saveLeaderApi(leaderToSave, exists)
-        .then(() => syncLeadersWithServer())
-        .catch(e => console.warn('Sync API error:', e));
+        .then(() => {
+          clearPendingOfflineId(leaderToSave.id);
+          syncLeadersWithServer();
+        })
+        .catch(e => {
+          console.warn('Sync API error, encolado para reintento offline:', e);
+          markPendingOfflineId(leaderToSave.id);
+        });
       return calculateHierarchyAggregates(updated);
     });
     if (leaderToSave.level !== 'promovido') {
@@ -677,6 +727,7 @@ export function App() {
   const handleDeleteLeader = useCallback((id: string, skipConfirm = false) => {
     if (skipConfirm || window.confirm('¿Seguro que deseas eliminar este registro de la estructura territorial?')) {
       saveLocalDeletedId(id);
+      clearPendingOfflineId(id);
       setLeadersData(prev => {
         const target = prev.find(l => l.id === id);
         const newParentId = target?.parentId || null;
