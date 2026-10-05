@@ -11,6 +11,18 @@ app = FastAPI(title="INE OCR Service")
 # Initialize PaddleOCR with Spanish language support and angle classifier
 ocr = PaddleOCR(use_angle_cls=True, lang="es", show_log=False)
 
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "service": "Servicio Local de OCR para INE (PaddleOCR)",
+        "endpoints": {
+            "health": "/health",
+            "docs": "/docs",
+            "scan": "/scan-ine (POST)"
+        }
+    }
+
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "paddleocr-ine"}
