@@ -54,6 +54,7 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
   const [roleType, setRoleType] = useState<'promovido' | 'promotor' | 'representante'>('promovido');
   const [isSubmittedSuccess, setIsSubmittedSuccess] = useState(false);
   const [registeredContact, setRegisteredContact] = useState<{ name: string; phone: string; section: string } | null>(null);
+  const [inePhotoUrl, setInePhotoUrl] = useState<string>('');
   const [formError, setFormError] = useState<string | null>(null);
 
   const sectionOptions = useMemo(() => {
@@ -69,6 +70,9 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
   }, [availableSections, selectedSection, defaultSectionNumber]);
 
   const handleDataExtracted = (data: ExtractedINEData) => {
+    if (data.photoUrl) {
+      setInePhotoUrl(data.photoUrl);
+    }
     if (data.claveElector) {
       setElectorKey(data.claveElector.toUpperCase());
     }
@@ -89,7 +93,7 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
       setSelectedSection(norm);
     }
     setFormError(null);
-    setOcrDetectionNotice(`Datos del INE detectados localmente (${data.confidenceScore}% de confianza)`);
+    setOcrDetectionNotice('Fotografía del INE capturada y recortada');
   };
 
   // Set default section when opening
@@ -216,6 +220,7 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
       currentCount: roleType === 'promovido' ? 1 : 0,
       status: 'completado',
       validationStatus: 'validado',
+      inePhotoUrl: inePhotoUrl || undefined,
       notes: `Registro ágil de campo (Captura Móvil) en Sección ${normalizedSec}.`,
     };
 

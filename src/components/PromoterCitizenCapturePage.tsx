@@ -19,7 +19,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
-import { checkGeminiAvailable, type ExtractedINEData } from '../utils/ineScanner';
+import type { ExtractedINEData } from '../utils/ineScanner';
 
 interface PromoterCitizenCapturePageProps {
   currentUser: UserAccount;
@@ -41,34 +41,11 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   initialINEData,
 }) => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
-  const [isGeminiAvailable, setIsGeminiAvailable] = useState<boolean>(true);
   const [hasExtractedData, setHasExtractedData] = useState<boolean>(false);
   const [extractionValidationStatus, setExtractionValidationStatus] = useState<'validado' | 'sin_validacion' | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [sectionMismatchError, setSectionMismatchError] = useState<string | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-
-  // Verificar reactivamente si el sistema tiene acceso a Gemini IA
-  useEffect(() => {
-    let mounted = true;
-    const verifyAccess = async () => {
-      const available = await checkGeminiAvailable();
-      if (mounted) setIsGeminiAvailable(available);
-    };
-    verifyAccess();
-
-    const handleOnline = () => verifyAccess();
-    const handleOffline = () => { if (mounted) setIsGeminiAvailable(false); };
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      mounted = false;
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
 
   const assignedSection = useMemo(() => {
     if (defaultSectionNumber) return normalizeSectionNumber(defaultSectionNumber);
@@ -173,7 +150,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     setFormError(null);
     const gotData = Boolean(data.name || data.claveElector || data.electoralSection || data.curp);
     setHasExtractedData(gotData);
-    setExtractionValidationStatus(data.validationStatus || (gotData && isGeminiAvailable ? 'validado' : 'sin_validacion'));
+    setExtractionValidationStatus(data.validationStatus || 'sin_validacion');
   };
 
   useEffect(() => {
@@ -329,8 +306,8 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       metaGoal: 1,
       currentCount: 1,
       status: 'completado',
-      validationStatus: extractionValidationStatus || (isGeminiAvailable && hasExtractedData ? 'validado' : 'sin_validacion'),
-      notes: notes.trim().toUpperCase() || (isGeminiAvailable ? `REGISTRO DE CAMPO EN SECCIÓN ${cleanSection}.` : `REGISTRO OFFLINE (SECCIÓN ${cleanSection}) - PENDIENTE DE VALIDACIÓN AL SINCRONIZAR.`),
+      validationStatus: extractionValidationStatus || 'sin_validacion',
+      notes: notes.trim().toUpperCase() || `REGISTRO DE CAMPO EN SECCIÓN ${cleanSection}.`,
       createdAt: nowIso,
       updatedAt: nowIso,
       changelog: initialChangelog,
@@ -380,30 +357,16 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
           </h1>
         </div>
 
-        {/* Botón único condicionado según disponibilidad de Gemini */}
-        {isGeminiAvailable ? (
-          <button
-            type="button"
-            onClick={() => setIsScannerOpen(true)}
-            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border border-emerald-500"
-            title="Escanear INE con cámara en vivo e Inteligencia Artificial"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Escanear INE (IA)</span>
-            <span className="sm:hidden">Escanear INE</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsScannerOpen(true)}
-            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border border-indigo-500"
-            title="Tomar fotografía de la credencial en modo fuera de línea"
-          >
-            <Camera className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Tomar Foto de Credencial</span>
-            <span className="sm:hidden">Tomar Foto</span>
-          </button>
-        )}
+        {/* Botón único para fotografiar credencial INE */}
+        <button
+          type="button"
+          onClick={() => setIsScannerOpen(true)}
+          className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs border border-emerald-500"
+          title="Tomar fotografía de la credencial con guía de cuadrícula"
+        >
+          <Camera className="w-3.5 h-3.5" />
+          <span>Fotografiar INE</span>
+        </button>
       </div>
 
       {/* Formulario en Página Limpia */}
@@ -723,10 +686,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
         </form>
       </div>
 
-      {/* Modal de Escáner INE con Cámara, Recorte Interactivo y Soporte Offline */}
+      {/* Modal de Escáner INE con Guía y Recorte Automático a la Cuadrícula */}
       <INECameraScannerModal
         isOpen={isScannerOpen}
-        isGeminiAvailable={isGeminiAvailable}
         onClose={() => setIsScannerOpen(false)}
         onDataExtracted={handleDataExtracted}
       />
