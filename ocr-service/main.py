@@ -1,8 +1,11 @@
 from fastapi import FastAPI, UploadFile, File
+from pydantic import BaseModel
+from typing import Optional
 from paddleocr import PaddleOCR
 import uvicorn
 import re
 import io
+import base64
 from PIL import Image
 import numpy as np
 
@@ -10,6 +13,9 @@ app = FastAPI(title="INE OCR Service")
 
 # Initialize PaddleOCR with Spanish language support and angle classifier
 ocr = PaddleOCR(use_angle_cls=True, lang="es", show_log=False)
+
+class ScanRequest(BaseModel):
+    imageBase64: Optional[str] = None
 
 @app.get("/")
 def root():
@@ -28,9 +34,18 @@ def health():
     return {"status": "ok", "service": "paddleocr-ine"}
 
 @app.post("/scan-ine")
-async def scan_ine(file: UploadFile = File(...)):
+async def scan_ine(req: Optional[ScanRequest] = None, file: Optional[UploadFile] = File(None)):
     try:
-        contents = await file.read()
+        contents = None
+        if file is not None:
+            contents = await file.read()
+        elif req and req.imageBase64:
+            clean_b64 = re.sub(r'^data:image\/[a-zA-Z+]+;base64,', '', req.imageBase64)
+            contents = base64.b64decode(clean_b64)
+            
+        if not contents:
+            return {"isValidINE": False, "isReadable": False, "error": "No image provided"}
+
         image = Image.open(io.BytesIO(contents)).convert("RGB")
         img_np = np.array(image)
         
@@ -69,9 +84,11 @@ async def scan_ine(file: UploadFile = File(...)):
                 break
                 
         is_valid = bool(clave or curp or seccion or "INSTITUTO NACIONAL ELECTORAL" in full_text.upper() or "CREDENCIAL PARA VOTAR" in full_text.upper())
+        is_readable = bool(len(texts) > 2)
         
         return {
             "isValidINE": is_valid,
+            "isReadable": is_readable,
             "name": nombre,
             "fullName": nombre,
             "claveElector": clave,
@@ -82,6 +99,7 @@ async def scan_ine(file: UploadFile = File(...)):
     except Exception as e:
         return {
             "isValidINE": False,
+            "isReadable": False,
             "error": str(e),
             "claveElector": "",
             "curp": "",
