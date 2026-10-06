@@ -39,9 +39,40 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
 }) => {
   const citizen = allLeaders.find(l => l.id === citizenId);
 
-  const [name, setName] = useState(citizen?.name || '');
+  const parsedNames = useMemo(() => {
+    if (!citizen) return { paternal: '', maternal: '', first: '' };
+    if (citizen.paternalLastName || citizen.firstName) {
+      return {
+        paternal: citizen.paternalLastName || '',
+        maternal: citizen.maternalLastName || '',
+        first: citizen.firstName || '',
+      };
+    }
+    const parts = (citizen.name || '').trim().split(/\s+/);
+    if (parts.length >= 3) {
+      return {
+        paternal: parts[0],
+        maternal: parts[1],
+        first: parts.slice(2).join(' '),
+      };
+    } else if (parts.length === 2) {
+      return {
+        paternal: parts[0],
+        maternal: '',
+        first: parts[1],
+      };
+    }
+    return {
+      paternal: '',
+      maternal: '',
+      first: parts[0] || '',
+    };
+  }, [citizen]);
+
+  const [paternalLastName, setPaternalLastName] = useState(parsedNames.paternal);
+  const [maternalLastName, setMaternalLastName] = useState(parsedNames.maternal);
+  const [firstName, setFirstName] = useState(parsedNames.first);
   const [electorKey, setElectorKey] = useState(citizen?.electorKey || '');
-  const [curp, setCurp] = useState(citizen?.curp || '');
   const [phone, setPhone] = useState(
     citizen?.phone ? citizen.phone.replace(/\D/g, '').slice(-10) : ''
   );
@@ -56,9 +87,10 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
 
   useEffect(() => {
     if (citizen) {
-      setName(citizen.name || '');
+      setPaternalLastName(parsedNames.paternal);
+      setMaternalLastName(parsedNames.maternal);
+      setFirstName(parsedNames.first);
       setElectorKey(citizen.electorKey || '');
-      setCurp(citizen.curp || '');
       setPhone(citizen.phone ? citizen.phone.replace(/\D/g, '').slice(-10) : '');
       setSelectedSection(citizen.electoralSection ? normalizeSectionNumber(citizen.electoralSection) : '0416');
       setAddress(citizen.address || '');
@@ -66,7 +98,7 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
       setPostalCode(citizen.postalCode || '');
       setNotes(citizen.notes || '');
     }
-  }, [citizen]);
+  }, [citizen, parsedNames]);
 
   const sectionOptions = useMemo(() => {
     const norm = normalizeSectionNumber(selectedSection);
@@ -115,12 +147,18 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
     e.preventDefault();
     setFormError(null);
 
-    const trimmedName = name.trim();
+    const trimmedPaternal = paternalLastName.trim().toUpperCase();
+    const trimmedMaternal = maternalLastName.trim().toUpperCase();
+    const trimmedFirst = firstName.trim().toUpperCase();
     const trimmedKey = electorKey.trim().toUpperCase();
     const normalizedSec = normalizeSectionNumber(selectedSection);
 
-    if (!trimmedName) {
-      setFormError('El nombre completo es obligatorio.');
+    if (!trimmedPaternal) {
+      setFormError('El Apellido Paterno es obligatorio.');
+      return;
+    }
+    if (!trimmedFirst) {
+      setFormError('El Nombre del ciudadano es obligatorio.');
       return;
     }
     if (!trimmedKey || trimmedKey.length < 6) {
@@ -136,16 +174,16 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
       return;
     }
 
+    const fullFullName = [trimmedPaternal, trimmedMaternal, trimmedFirst].filter(Boolean).join(' ');
     const nowIso = new Date().toISOString();
     const changes: LeaderFieldChange[] = [];
 
-    const normName = trimmedName.toUpperCase();
-    if (normName !== (citizen.name || '').trim().toUpperCase()) {
+    if (fullFullName !== (citizen.name || '').trim().toUpperCase()) {
       changes.push({
         field: 'name',
         label: 'Nombre Completo',
         oldValue: citizen.name || '(Sin dato)',
-        newValue: normName,
+        newValue: fullFullName,
       });
     }
 
@@ -156,17 +194,6 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
         label: 'Clave de Elector',
         oldValue: citizen.electorKey || '(Sin dato)',
         newValue: normKey,
-      });
-    }
-
-    const normCurp = curp.trim().toUpperCase();
-    const oldCurp = (citizen.curp || '').trim().toUpperCase();
-    if (normCurp !== oldCurp) {
-      changes.push({
-        field: 'curp',
-        label: 'CURP',
-        oldValue: oldCurp || '(Sin dato)',
-        newValue: normCurp || '(Sin dato)',
       });
     }
 
@@ -239,9 +266,11 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
 
     const updatedLeader: TerritorialLeader = {
       ...citizen,
-      name: normName,
+      name: fullFullName,
+      firstName: trimmedFirst,
+      paternalLastName: trimmedPaternal,
+      maternalLastName: trimmedMaternal || undefined,
       electorKey: normKey,
-      curp: normCurp || undefined,
       phone: newPhoneDigits ? `+52 ${newPhoneDigits.slice(0, 3)} ${newPhoneDigits.slice(3, 6)} ${newPhoneDigits.slice(6)}` : undefined,
       electoralSection: normalizedSec,
       territoryName: `Sección ${normalizedSec} - ${normColonia || 'TERRITORIO'}`,
@@ -255,8 +284,10 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
 
     persistElectorProfile({
       electorKey: trimmedKey.toUpperCase(),
-      name: trimmedName.toUpperCase(),
-      curp: curp.trim().toUpperCase() || undefined,
+      name: fullFullName,
+      firstName: trimmedFirst,
+      paternalLastName: trimmedPaternal,
+      maternalLastName: trimmedMaternal || undefined,
       address: address.trim().toUpperCase(),
       colonia: colonia.trim().toUpperCase(),
       postalCode: postalCode.trim() || undefined,
@@ -315,7 +346,7 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
           <button
             type="submit"
             form="edit-promovido-form"
-            disabled={!validation.allowed || !name.trim() || electorKey.length < 6}
+            disabled={!validation.allowed || !paternalLastName.trim() || !firstName.trim() || electorKey.length < 6}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-none"
             title="Guardar Cambios"
           >
@@ -345,21 +376,56 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
           {/* Tarjeta de Identificación Principal */}
           <div className="border border-slate-200 bg-slate-50/50 p-6 rounded-none space-y-4">
             <div className="pb-4 border-b border-slate-200 space-y-3">
-              <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-                  Nombre Completo del Ciudadano*
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={e => {
-                    setName(e.target.value.toUpperCase());
-                    setFormError(null);
-                  }}
-                  placeholder="NOMBRE COMPLETO TAL COMO FIGURA EN EL INE"
-                  className="w-full px-3 py-2 bg-white border border-slate-300 rounded-none text-lg sm:text-xl font-black text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-tight"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Apellido Paterno*
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={paternalLastName}
+                    onChange={e => {
+                      setPaternalLastName(e.target.value.toUpperCase());
+                      setFormError(null);
+                    }}
+                    placeholder="APELLIDO PATERNO"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-none text-base font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Apellido Materno
+                  </label>
+                  <input
+                    type="text"
+                    value={maternalLastName}
+                    onChange={e => {
+                      setMaternalLastName(e.target.value.toUpperCase());
+                      setFormError(null);
+                    }}
+                    placeholder="APELLIDO MATERNO"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-none text-base font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    Nombre(s)*
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={firstName}
+                    onChange={e => {
+                      setFirstName(e.target.value.toUpperCase());
+                      setFormError(null);
+                    }}
+                    placeholder="NOMBRE(S)"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-none text-base font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
@@ -677,7 +743,7 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
             </button>
             <button
               type="submit"
-              disabled={!validation.allowed || !name.trim() || electorKey.length < 6}
+              disabled={!validation.allowed || !paternalLastName.trim() || !firstName.trim() || electorKey.length < 6}
               className="w-full sm:w-auto px-8 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-none shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Save className="w-4 h-4" />

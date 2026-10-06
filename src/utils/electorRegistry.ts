@@ -125,6 +125,13 @@ export function buildElectorRegistry(
         if (!existing.email && leader.email) existing.email = leader.email;
         if (!existing.address && leader.address) existing.address = leader.address;
         if (!existing.colonia && leader.colonia) existing.colonia = leader.colonia;
+        if (!existing.postalCode && leader.postalCode) existing.postalCode = leader.postalCode;
+        if (!existing.firstName && leader.firstName) existing.firstName = leader.firstName;
+        if (!existing.paternalLastName && leader.paternalLastName) existing.paternalLastName = leader.paternalLastName;
+        if (!existing.maternalLastName && leader.maternalLastName) existing.maternalLastName = leader.maternalLastName;
+        if (!existing.ineAnversoUrl && leader.ineAnversoUrl) existing.ineAnversoUrl = leader.ineAnversoUrl;
+        if (!existing.ineReversoUrl && leader.ineReversoUrl) existing.ineReversoUrl = leader.ineReversoUrl;
+        if (!existing.inePhotoUrl && (leader.inePhotoUrl || leader.photoUrl)) existing.inePhotoUrl = leader.inePhotoUrl || leader.photoUrl;
         if (!existing.curp && leader.curp) existing.curp = leader.curp;
         
         if (!existing.structures.some(s => s.id === leader.id)) {
@@ -134,12 +141,19 @@ export function buildElectorRegistry(
         map.set(key, {
           electorKey: key,
           name: leader.name,
+          firstName: leader.firstName,
+          paternalLastName: leader.paternalLastName,
+          maternalLastName: leader.maternalLastName,
           curp: leader.curp,
           address: leader.address,
           colonia: leader.colonia,
+          postalCode: leader.postalCode,
           electoralSection: leaderSec,
           phone: leader.phone,
           email: leader.email,
+          inePhotoUrl: leader.inePhotoUrl || leader.photoUrl,
+          ineAnversoUrl: leader.ineAnversoUrl,
+          ineReversoUrl: leader.ineReversoUrl,
           structures: [structItem],
         });
       }

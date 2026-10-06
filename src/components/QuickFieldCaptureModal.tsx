@@ -423,48 +423,26 @@ export const QuickFieldCaptureModal: React.FC<QuickFieldCaptureModalProps> = ({
               </div>
             )}
 
-            {/* 1. Clave de Elector y CURP */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Clave de Elector INE (18 car.)*
-                </label>
-                <input
-                  type="text"
-                  required
-                  maxLength={18}
-                  value={electorKey}
-                  onChange={e => {
-                    setElectorKey(e.target.value.toUpperCase());
-                    setFormError(null);
-                  }}
-                  placeholder="ABCD123456EFGH7890"
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500 tracking-wider"
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  {electorKey.length}/18 caracteres • Llave INE
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  CURP (18 caracteres)
-                </label>
-                <input
-                  type="text"
-                  maxLength={18}
-                  value={curp}
-                  onChange={e => {
-                    setCurp(e.target.value.toUpperCase());
-                    setFormError(null);
-                  }}
-                  placeholder="ABCD123456HDFRRN01"
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500 tracking-wider"
-                />
-                <span className="text-[10px] text-slate-400 mt-0.5 block">
-                  {curp.length}/18 caracteres • Opcional
-                </span>
-              </div>
+            {/* 1. Clave de Elector */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1">
+                Clave de Elector INE (18 car.)*
+              </label>
+              <input
+                type="text"
+                required
+                maxLength={18}
+                value={electorKey}
+                onChange={e => {
+                  setElectorKey(e.target.value.toUpperCase());
+                  setFormError(null);
+                }}
+                placeholder="ABCD123456EFGH7890"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500 tracking-wider"
+              />
+              <span className="text-[10px] text-slate-400 mt-0.5 block">
+                {electorKey.length}/18 caracteres • Llave INE
+              </span>
             </div>
 
             {/* 2. Nombre Completo */}

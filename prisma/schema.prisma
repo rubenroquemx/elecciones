@@ -25,15 +25,23 @@ model Leader {
   metaGoal         Int      @default(0)
   currentCount     Int      @default(0)
   status           String   @default("en_progreso") // 'completado' | 'en_progreso' | 'critico' | 'vacante'
-  validationStatus String   @default("validado")   // 'validado' | 'pendiente' | 'rechazado'
+  validationStatus String   @default("validado")   // 'validado' | 'pendiente' | 'rechazado' | 'sin_validacion'
   notes            String?  @db.Text
+  notesHistory     Json?
   avatarBg         String?  @default("bg-indigo-600")
   address          String?
   colonia          String?
+  postalCode       String?
   electoralSection String?
   curp             String?
   electorKey       String?
+  firstName        String?
+  paternalLastName String?
+  maternalLastName String?
   inePhotoUrl      String?  @db.Text
+  ineAnversoUrl    String?  @db.Text
+  ineReversoUrl    String?  @db.Text
+  photoUrl         String?  @db.Text
   vigencia         String?
   changelog        Json?
   createdAt        DateTime @default(now())

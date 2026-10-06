@@ -133,7 +133,9 @@ export function App() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const map = new Map<string, TerritorialLeader>(
-            parsed.filter((l: TerritorialLeader) => !deletedSet.has(l.id)).map((l: TerritorialLeader) => [l.id, l])
+            parsed
+              .filter((l: TerritorialLeader) => !deletedSet.has(l.id) && !l.id?.startsWith('pmv-'))
+              .map((l: TerritorialLeader) => [l.id, l])
           );
           // Garantizar que la jerarquía base de INITIAL_TERRITORY_DATA nunca falte si no ha sido eliminada
           INITIAL_TERRITORY_DATA.forEach(b => {
@@ -208,7 +210,7 @@ export function App() {
 
         // 2. Líderes del servidor (con normalización de promovidos de sección 0416 y omitiendo eliminados)
         for (const s of serverLeaders) {
-          if (deletedSet.has(s.id)) continue;
+          if (deletedSet.has(s.id) || s.id?.startsWith('pmv-')) continue;
           const item = { ...s };
           if (
             item.level === 'promovido' &&
@@ -311,12 +313,20 @@ export function App() {
       window.history.replaceState(null, '', '/');
     }
     try {
+      const savedLeaders = localStorage.getItem('territorial_leaders_data');
+      if (savedLeaders && savedLeaders.includes('"pmv-')) {
+        const parsed = JSON.parse(savedLeaders);
+        if (Array.isArray(parsed)) {
+          const cleaned = parsed.filter((l: any) => !l.id?.startsWith('pmv-'));
+          localStorage.setItem('territorial_leaders_data', JSON.stringify(cleaned));
+        }
+      }
       const reg = localStorage.getItem('territorial_elector_registry');
-      if (reg && (reg.includes('Elena Ramos') || reg.includes('Fernando May') || reg.includes('Carlos Eduardo'))) {
+      if (reg && (reg.includes('Elena Ramos') || reg.includes('Fernando May') || reg.includes('Carlos Eduardo') || reg.includes('pmv-'))) {
         localStorage.removeItem('territorial_elector_registry');
       }
     } catch (e) {
-      console.warn('Error purging legacy elector registry', e);
+      console.warn('Error purging legacy cache', e);
     }
   }, []);
 
