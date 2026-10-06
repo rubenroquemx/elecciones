@@ -33,7 +33,8 @@ import { PromoterCitizenCapturePage } from './components/PromoterCitizenCaptureP
 import { PromoterCitizenDetailPage } from './components/PromoterCitizenDetailPage';
 import { PromoterCitizenEditPage } from './components/PromoterCitizenEditPage';
 import { PromoterNotificationsModal } from './components/PromoterNotificationsModal';
-import { Users, Bell, CheckCircle2, X } from 'lucide-react';
+import { PromoterSectionsMapView } from './components/PromoterSectionsMapView';
+import { Users, Bell, CheckCircle2, X, MapPin } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -549,7 +550,7 @@ export function App() {
   // Coordinador Territorial only sees lista de promotores -> lock mode to 'lista'
   useEffect(() => {
     if (!currentUser) return;
-    const allowedPromotorPages: MainNavSection[] = ['escritorio', 'capturar-promovido', 'ver-promovido', 'editar-promovido'];
+    const allowedPromotorPages: MainNavSection[] = ['escritorio', 'mis-secciones', 'capturar-promovido', 'ver-promovido', 'editar-promovido'];
     if (currentUser.level === 'promotor' && !allowedPromotorPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
@@ -1074,6 +1075,8 @@ export function App() {
                       setActiveNav('secciones');
                     } else if (view === 'capturar-promovido') {
                       setActiveNav('capturar-promovido');
+                    } else if (view === 'mis-secciones') {
+                      setActiveNav('mis-secciones');
                     }
                   }}
                   onOpenAddModal={handleOpenAddModal}
@@ -1095,6 +1098,15 @@ export function App() {
                       setDetailSectionNumber(secNum);
                     }
                   }}
+                />
+              )}
+
+              {/* 1b. MIS SECCIONES (MAPA EN PANTALLA COMPLETA PARA PROMOTOR TERRITORIAL) */}
+              {activeNav === 'mis-secciones' && currentUser?.level === 'promotor' && (
+                <PromoterSectionsMapView
+                  currentUser={currentUser}
+                  allSections={captureAvailableSections}
+                  assignedSections={currentUser.assignedSections}
                 />
               )}
 
@@ -1319,6 +1331,24 @@ export function App() {
           >
             <Users className="w-5 h-5 mb-0.5" />
             <span className="text-[11px] tracking-tight">Promovidos</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setIsNotificationsOpen(false);
+              if (activeNav !== 'mis-secciones') {
+                setActiveNav('mis-secciones');
+              }
+            }}
+            className={`flex flex-col items-center justify-center flex-1 py-1 cursor-pointer transition-colors ${
+              activeNav === 'mis-secciones' && !isNotificationsOpen
+                ? 'text-emerald-600 font-bold'
+                : 'text-slate-500 hover:text-slate-800 font-medium'
+            }`}
+          >
+            <MapPin className="w-5 h-5 mb-0.5" />
+            <span className="text-[11px] tracking-tight">Mis Secciones</span>
           </button>
 
           <button

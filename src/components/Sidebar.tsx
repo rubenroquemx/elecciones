@@ -15,6 +15,7 @@ import type { UserAccount } from '../types/auth';
 
 export type MainNavSection = 
   | 'escritorio' 
+  | 'mis-secciones'
   | 'estructura' 
   | 'secciones' 
   | 'promotores' 
@@ -140,6 +141,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 {isPromotor ? 'Avance' : 'KPIs'}
               </span>
             </button>
+
+            {/* 1b. MIS SECCIONES (Mapa Pantalla Completa para Promotor Territorial) */}
+            {isPromotor && (
+              <button
+                type="button"
+                onClick={() => {
+                  onNavChange('mis-secciones');
+                  onCloseMobile?.();
+                }}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 ${
+                  activeNav === 'mis-secciones'
+                    ? 'bg-emerald-500/25 text-white font-bold border border-emerald-400/40 shadow-xs'
+                    : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <MapPin className={`w-4 h-4 ${activeNav === 'mis-secciones' ? 'text-emerald-300' : 'text-emerald-400'}`} />
+                  <span>Mis Secciones</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-emerald-500/20 text-emerald-300">
+                  {currentUser.assignedSections?.length || 1}
+                </span>
+              </button>
+            )}
 
             {/* 2. ESTRUCTURA (Oculto para Promotor; Coordinador Territorial ve Lista de promotores; Campaña/Admin ven todo) */}
             {!isPromotor && (

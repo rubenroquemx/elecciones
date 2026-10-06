@@ -39,7 +39,7 @@ interface ExecutiveKpiDesktopProps {
   visibleLeaders: TerritorialLeader[];
   sections?: ElectoralSection[];
   onSelectLeader: (leader: TerritorialLeader) => void;
-  onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections' | 'capturar-promovido') => void;
+  onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections' | 'capturar-promovido' | 'mis-secciones') => void;
   onOpenAddModal: () => void;
   onOpenQuickCapture?: (initialData?: ExtractedINEData) => void;
   onOpenCreateUser?: () => void;
@@ -601,13 +601,25 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                   {currentUser.name}
                 </h1>
 
-                <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" />
-                  <span>
-                    Sección <strong className="text-white font-bold">{promotorSection}</strong>
-                    {promotorNode?.colonia ? ` • ${promotorNode.colonia}` : ''}
-                  </span>
-                </p>
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <p className="text-xs sm:text-sm text-slate-300 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                    <span>
+                      {promotorNode?.assignedSections && promotorNode.assignedSections.length > 1 ? 'Secciones ' : 'Sección '}
+                      <strong className="text-white font-bold">{promotorSection}</strong>
+                      {promotorNode?.colonia ? ` • ${promotorNode.colonia}` : ''}
+                    </span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onNavigateView('mis-secciones')}
+                    className="text-[11px] font-bold text-emerald-300 hover:text-white bg-emerald-500/20 hover:bg-emerald-500/30 px-2 py-0.5 rounded border border-emerald-400/30 flex items-center gap-1 transition-colors cursor-pointer"
+                    title="Ver mapa de mis secciones en pantalla completa"
+                  >
+                    <span>Ver mapa</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
 
               {/* Métrica de Meta y Avance Unificada (Sin duplicidades, ángulos rectos) */}

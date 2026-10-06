@@ -97,6 +97,13 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   </>
                 )}
 
+                {activeNav === 'mis-secciones' && (
+                  <>
+                    <MapPin className="w-5 h-5 text-emerald-600" />
+                    <span>Mis Secciones</span>
+                  </>
+                )}
+
                 {activeNav === 'estructura' && (
                   <>
                     <Network className="w-5 h-5 text-sky-600" />
