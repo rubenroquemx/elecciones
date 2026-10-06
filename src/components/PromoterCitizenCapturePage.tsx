@@ -93,7 +93,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   // Campos de formulario
   const [electoralSection, setElectoralSection] = useState(assignedSection || '0416');
   const [electorKey, setElectorKey] = useState('');
-  const [curp, setCurp] = useState('');
   const [paternalLastName, setPaternalLastName] = useState('');
   const [maternalLastName, setMaternalLastName] = useState('');
   const [firstName, setFirstName] = useState('');
@@ -118,7 +117,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       setIneAnversoUrl(initialINEData.photoUrl);
     }
     if (initialINEData?.claveElector) setElectorKey(initialINEData.claveElector.toUpperCase());
-    if (initialINEData?.curp) setCurp(initialINEData.curp.toUpperCase());
     if (initialINEData?.name) {
       const parts = initialINEData.name.trim().split(/\s+/);
       if (parts.length >= 3) {
@@ -276,7 +274,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       } else if (parts.length === 1) {
         setFirstName(prev => prev || parts[0].toUpperCase());
       }
-      setCurp(prev => prev || (existingElector.curp ? existingElector.curp.toUpperCase() : ''));
       if (existingElector.phone && !phone) {
         setPhone(cleanPhoneDigits(existingElector.phone));
       }
@@ -413,7 +410,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       postalCode: postalCode.trim() || undefined,
       electoralSection: cleanSection,
       electorKey: trimmedKey,
-      curp: curp.trim().toUpperCase() || undefined,
       phone: formattedPhone,
       inePhotoUrl: mainInePhoto,
       ineAnversoUrl: ineAnversoUrl || undefined,
@@ -437,7 +433,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       firstName: firstName.trim().toUpperCase(),
       paternalLastName: paternalLastName.trim().toUpperCase(),
       maternalLastName: maternalLastName.trim().toUpperCase() || undefined,
-      curp: curp.trim().toUpperCase() || undefined,
       address: address.trim().toUpperCase(),
       colonia: colonia.trim().toUpperCase(),
       postalCode: postalCode.trim() || undefined,
@@ -780,8 +775,8 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
             </div>
           </div>
 
-          {/* Fila 2: Clave de Elector, CURP y Sección (Selector Dropdown) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {/* Fila 2: Clave de Elector y Sección (Selector Dropdown) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
                 Clave de Elector INE*
@@ -800,26 +795,6 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
               />
               <span className="text-[10px] text-slate-500 mt-1 block font-mono">
                 {electorKey.length}/18 caracteres
-              </span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider mb-1.5">
-                CURP
-              </label>
-              <input
-                type="text"
-                maxLength={18}
-                value={curp}
-                onChange={e => {
-                  setCurp(e.target.value.toUpperCase());
-                  setFormError(null);
-                }}
-                placeholder="ABCD123456HDFRRN01"
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
-              />
-              <span className="text-[10px] text-slate-500 mt-1 block font-mono">
-                {curp.length}/18 caracteres • Opcional
               </span>
             </div>
 

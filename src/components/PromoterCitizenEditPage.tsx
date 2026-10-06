@@ -402,26 +402,6 @@ export const PromoterCitizenEditPage: React.FC<PromoterCitizenEditPageProps> = (
 
             {/* Grilla de Datos Detallados */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2 text-xs">
-              <div className="p-3.5 bg-white border border-slate-200 rounded-none space-y-1.5">
-                <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">
-                  <CreditCard className="w-3 h-3 text-slate-400" />
-                  CURP
-                </label>
-                <input
-                  type="text"
-                  maxLength={18}
-                  value={curp}
-                  onChange={e => {
-                    setCurp(e.target.value.toUpperCase());
-                    setFormError(null);
-                  }}
-                  placeholder="ABCD123456HDFRRN01"
-                  className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-none text-xs font-mono font-bold text-slate-900 uppercase focus:outline-none focus:ring-1 focus:ring-slate-900 tracking-wider"
-                />
-                <span className="text-[10px] text-slate-400 font-mono block">
-                  {curp.length}/18 caracteres • Opcional
-                </span>
-              </div>
 
               <div className="p-3.5 bg-white border border-slate-200 rounded-none space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block flex items-center gap-1">

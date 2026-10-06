@@ -165,30 +165,10 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
 
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
-              CURP
-            </span>
-            <span className="font-mono font-bold text-slate-900 text-sm">
-              {citizen.curp || 'No capturada'}
-            </span>
-          </div>
-
-          <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
               Teléfono Celular
             </span>
             <span className="font-mono font-bold text-slate-900 text-sm">
               {citizen.phone || 'No registrado'}
-            </span>
-          </div>
-
-          <div className="sm:col-span-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
-              Domicilio
-            </span>
-            <span className="text-slate-900 font-medium text-xs block">
-              {citizen.address || 'Domicilio en la sección'}
-              {citizen.colonia ? `, Col. ${citizen.colonia}` : ''}
-              {citizen.postalCode ? `, C.P. ${citizen.postalCode}` : ''}
             </span>
           </div>
 
@@ -202,6 +182,17 @@ export const PromoterCitizenDetailPage: React.FC<PromoterCitizenDetailPageProps>
               </span>
             </div>
           )}
+
+          <div className="sm:col-span-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+              Domicilio
+            </span>
+            <span className="text-slate-900 font-medium text-xs block">
+              {citizen.address || 'Domicilio en la sección'}
+              {citizen.colonia ? `, Col. ${citizen.colonia}` : ''}
+              {citizen.postalCode ? `, C.P. ${citizen.postalCode}` : ''}
+            </span>
+          </div>
         </div>
 
         {/* Fotografía de Credencial INE (Anverso y Reverso en plano limpio) */}
