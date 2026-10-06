@@ -6,7 +6,6 @@ import { fileURLToPath } from 'url';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { PrismaClient } from '@prisma/client';
-import { INITIAL_TERRITORY_DATA } from '../src/data/mockTerritoryData';
 
 const execAsync = promisify(exec);
 const __filename = fileURLToPath(import.meta.url);
@@ -167,13 +166,8 @@ app.get('/api/leaders', async (req, res) => {
     const fileLeaders = readBackupStore();
     const deletedSet = readDeletedStore();
     
-    // Combinar registros asegurando que no se pierda ninguno y omitir eliminados
+    // Combinar registros reales asegurando que no se pierda ninguno y omitir eliminados
     const mergedMap = new Map<string, any>();
-    for (const b of INITIAL_TERRITORY_DATA) {
-      if (!deletedSet.has(b.id)) {
-        mergedMap.set(b.id, b);
-      }
-    }
     for (const l of fileLeaders) {
       if (!deletedSet.has(l.id)) {
         mergedMap.set(l.id, l);
@@ -213,7 +207,7 @@ app.get('/api/leaders', async (req, res) => {
     const fallback = readBackupStore();
     const deletedSet = readDeletedStore();
     const safeFallback = fallback.filter(l => !deletedSet.has(l.id));
-    res.json(safeFallback.length > 0 ? safeFallback : INITIAL_TERRITORY_DATA);
+    res.json(safeFallback);
   }
 });
 
@@ -274,44 +268,7 @@ app.post('/api/leaders', async (req, res) => {
       // Validar si el padre existe antes de asignar parentId para evitar violación de FK
       let safeParentId = data.parentId || null;
       if (safeParentId) {
-        let parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
-        if (!parentExists) {
-          const baseParent = INITIAL_TERRITORY_DATA.find(b => b.id === safeParentId);
-          if (baseParent) {
-            try {
-              await prisma.leader.upsert({
-                where: { id: baseParent.id },
-                update: {},
-                create: {
-                  id: baseParent.id,
-                  name: baseParent.name,
-                  role: baseParent.role,
-                  level: baseParent.level,
-                  levelIndex: baseParent.levelIndex ?? 2,
-                  parentId: baseParent.parentId,
-                  territoryName: baseParent.territoryName,
-                  code: baseParent.code || null,
-                  phone: baseParent.phone || null,
-                  email: baseParent.email || null,
-                  username: baseParent.username || null,
-                  hasAccount: true,
-                  status: 'en_progreso',
-                  validationStatus: 'validado',
-                  notes: baseParent.notes || null,
-                  avatarBg: baseParent.avatarBg || 'bg-emerald-600',
-                  address: baseParent.address || null,
-                  colonia: baseParent.colonia || null,
-                  electoralSection: baseParent.electoralSection || null,
-                  curp: baseParent.curp || null,
-                  electorKey: baseParent.electorKey || null,
-                },
-              });
-              parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
-            } catch (err: any) {
-              console.warn('Aviso auto-creando padre base:', err.message);
-            }
-          }
-        }
+        const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
         if (!parentExists) safeParentId = null;
       }
 
@@ -444,45 +401,7 @@ app.put('/api/leaders/:id', async (req, res) => {
         }
       }
       if (safeParentId) {
-        let parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
-        if (!parentExists) {
-          const baseParent = INITIAL_TERRITORY_DATA.find(b => b.id === safeParentId);
-          if (baseParent) {
-            try {
-              await prisma.leader.upsert({
-                where: { id: baseParent.id },
-                update: {},
-                create: {
-                  id: baseParent.id,
-                  name: baseParent.name,
-                  role: baseParent.role,
-                  level: baseParent.level,
-                  levelIndex: baseParent.levelIndex ?? 2,
-                  parentId: baseParent.parentId,
-                  territoryName: baseParent.territoryName,
-                  code: baseParent.code || null,
-                  phone: baseParent.phone || null,
-                  email: baseParent.email || null,
-                  username: baseParent.username || null,
-                  hasAccount: true,
-                  status: 'en_progreso',
-                  validationStatus: 'validado',
-                  notes: baseParent.notes || null,
-                  avatarBg: baseParent.avatarBg || 'bg-emerald-600',
-                  address: baseParent.address || null,
-                  colonia: baseParent.colonia || null,
-                  electoralSection: baseParent.electoralSection || null,
-                  assignedSections: Array.isArray(baseParent.assignedSections) ? baseParent.assignedSections : [],
-                  curp: baseParent.curp || null,
-                  electorKey: baseParent.electorKey || null,
-                },
-              });
-              parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
-            } catch (err: any) {
-              console.warn('Aviso auto-creando padre base en PUT:', err.message);
-            }
-          }
-        }
+        const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
         if (!parentExists) safeParentId = null;
       }
 
@@ -774,66 +693,13 @@ async function ensureDbSchema() {
 
 async function ensureCoreHierarchyAndLinkages() {
   try {
-    const deletedSet = readDeletedStore();
-    for (let levelIdx = 0; levelIdx <= 4; levelIdx++) {
-      const nodesAtLevel = INITIAL_TERRITORY_DATA.filter((n) => (n.levelIndex ?? 0) === levelIdx && !deletedSet.has(n.id));
-      for (const node of nodesAtLevel) {
-        let safeParentId = node.parentId || null;
-        if (safeParentId) {
-          const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
-          if (!parentExists) safeParentId = null;
-        }
-
-        await prisma.leader.upsert({
-          where: { id: node.id },
-          update: {
-            name: node.name,
-            role: node.role,
-            level: node.level,
-            levelIndex: node.levelIndex ?? levelIdx,
-            parentId: safeParentId,
-            territoryName: node.territoryName,
-            assignedSections: Array.isArray(node.assignedSections) ? node.assignedSections : [],
-          },
-          create: {
-            id: node.id,
-            name: node.name,
-            role: node.role,
-            level: node.level,
-            levelIndex: node.levelIndex ?? levelIdx,
-            parentId: safeParentId,
-            territoryName: node.territoryName,
-            code: node.code || null,
-            phone: node.phone || null,
-            email: node.email || null,
-            username: node.username || null,
-            hasAccount: node.hasAccount ?? (node.level !== 'promovido'),
-            metaGoal: Number(node.metaGoal) || 0,
-            currentCount: Number(node.currentCount) || 0,
-            status: node.status || 'en_progreso',
-            validationStatus: node.validationStatus || 'validado',
-            notes: node.notes || null,
-            avatarBg: node.avatarBg || 'bg-indigo-600',
-            address: node.address || null,
-            colonia: node.colonia || null,
-            electoralSection: node.electoralSection || null,
-            assignedSections: Array.isArray(node.assignedSections) ? node.assignedSections : [],
-            curp: node.curp || null,
-            electorKey: node.electorKey || null,
-            inePhotoUrl: node.inePhotoUrl || null,
-            vigencia: node.vigencia || null,
-            changelog: node.changelog ? JSON.parse(JSON.stringify(node.changelog)) : null,
-          },
-        });
-      }
-    }
-
-    // Vincular todos los promovidos de la sección 0416 o de Ruben Roque a prom-ruben-roque
+    // Vincular todos los promovidos de la sección 0416 y 0417 al promotor Ruben Roque
     await prisma.leader.updateMany({
       where: {
         parentId: null,
         level: 'promovido',
         OR: [
+          { id: { startsWith: 'pmv-rr-' } },
           { id: { startsWith: 'promovido-ruben-' } },
           { id: { startsWith: 'field-promovido-' } },
           { electoralSection: '0416' },
@@ -845,7 +711,7 @@ async function ensureCoreHierarchyAndLinkages() {
       },
     });
 
-    console.log('✓ Jerarquía base garantizada y promovidos vinculados a prom-ruben-roque.');
+    console.log('✓ Promovidos territoriales vinculados en base de datos real.');
   } catch (err: any) {
     console.warn('Aviso en ensureCoreHierarchyAndLinkages:', err.message);
   }

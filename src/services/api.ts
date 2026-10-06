@@ -1,6 +1,5 @@
 import type { TerritorialLeader } from '../types/territory';
 import type { ElectoralSection, SectionStructure } from '../types/sections';
-import { INITIAL_TERRITORY_DATA } from '../data/mockTerritoryData';
 import { INITIAL_SECTIONS } from '../data/mockSectionsData';
 
 const API_BASE = ''; // Relative to origin in production or proxy
@@ -10,13 +9,13 @@ export async function fetchLeadersApi(): Promise<TerritorialLeader[]> {
     const res = await fetch(`${API_BASE}/api/leaders`);
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const data = await res.json();
-    if (Array.isArray(data) && data.length > 0) {
+    if (Array.isArray(data)) {
       return data;
     }
-    return INITIAL_TERRITORY_DATA;
+    return [];
   } catch (err) {
-    console.warn('API backend no disponible o falló, usando datos base:', err);
-    return INITIAL_TERRITORY_DATA;
+    console.warn('API backend no disponible o falló:', err);
+    return [];
   }
 }
 

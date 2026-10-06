@@ -2,7 +2,6 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import type { TerritorialLeader, FilterOptions } from './types/territory';
 import type { ElectoralSection, SectionStructure } from './types/sections';
 import type { UserAccount } from './types/auth';
-import { INITIAL_TERRITORY_DATA } from './data/mockTerritoryData';
 import { INITIAL_SECTIONS, CATALOG_BY_SECTION } from './data/mockSectionsData';
 import { MOCK_ACCOUNTS } from './data/mockAuthData';
 import { 
@@ -135,13 +134,9 @@ export function App() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           const map = new Map<string, TerritorialLeader>(
             parsed
-              .filter((l: TerritorialLeader) => !deletedSet.has(l.id) && !l.id?.startsWith('pmv-'))
+              .filter((l: TerritorialLeader) => !deletedSet.has(l.id))
               .map((l: TerritorialLeader) => [l.id, l])
           );
-          // Garantizar que la jerarquía base de INITIAL_TERRITORY_DATA nunca falte si no ha sido eliminada
-          INITIAL_TERRITORY_DATA.forEach(b => {
-            if (!map.has(b.id) && !deletedSet.has(b.id)) map.set(b.id, b);
-          });
           // Vincular promovidos huérfanos dinámicamente al promotor responsable de su sección
           map.forEach(l => {
             if (l.level === 'promovido' && (!l.parentId || l.parentId === 'null')) {
@@ -163,7 +158,7 @@ export function App() {
     } catch (e) {
       console.warn('Error reading saved leaders', e);
     }
-    return calculateHierarchyAggregates(INITIAL_TERRITORY_DATA.filter(b => !deletedSet.has(b.id)));
+    return [];
   });
 
   // Sincronización bidireccional continua en tiempo real (móvil <-> servidor central <-> PC)
@@ -209,14 +204,9 @@ export function App() {
         const deletedSet = getLocalDeletedIds();
         const combinedMap = new Map<string, TerritorialLeader>();
 
-        // 1. Jerarquía territorial base garantizada (sin eliminados)
-        INITIAL_TERRITORY_DATA.forEach(b => {
-          if (!deletedSet.has(b.id)) combinedMap.set(b.id, b);
-        });
-
-        // 2. Líderes del servidor (con normalización de promovidos de sección 0416 y omitiendo eliminados)
+        // 1. Líderes de la base de datos real del servidor (con normalización de promovidos y omitiendo eliminados)
         for (const s of serverLeaders) {
-          if (deletedSet.has(s.id) || s.id?.startsWith('pmv-')) continue;
+          if (deletedSet.has(s.id)) continue;
           const item = { ...s };
           if (item.level === 'promovido' && (!item.parentId || item.parentId === 'null')) {
             const matchingPromoter = Array.from(combinedMap.values()).find(p =>
@@ -515,11 +505,7 @@ export function App() {
   }, [scopedSections, currentUser, leadersData, sectionsData]);
 
   // Collapsed branches state
-  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
-    const set = new Set<string>();
-    INITIAL_TERRITORY_DATA.filter(l => l.level === 'seccional').forEach(l => set.add(l.id));
-    return set;
-  });
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set<string>());
 
   // Selected leader for drawer inspection
   const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);

@@ -1,6 +1,33 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
 
+@theme {
+  --color-primary: #9d2449;
+  --color-primary-50: #fdf2f4;
+  --color-primary-100: #fce4e8;
+  --color-primary-200: #f8c8d2;
+  --color-primary-300: #f09bb0;
+  --color-primary-400: #e06584;
+  --color-primary-500: #be2951;
+  --color-primary-600: #9d2449;
+  --color-primary-700: #821838;
+  --color-primary-800: #6c1731;
+  --color-primary-900: #5a172c;
+  --color-primary-950: #360816;
+
+  --color-emerald-50: #fdf2f4;
+  --color-emerald-100: #fce4e8;
+  --color-emerald-200: #f8c8d2;
+  --color-emerald-300: #f09bb0;
+  --color-emerald-400: #e06584;
+  --color-emerald-500: #be2951;
+  --color-emerald-600: #9d2449;
+  --color-emerald-700: #821838;
+  --color-emerald-800: #6c1731;
+  --color-emerald-900: #5a172c;
+  --color-emerald-950: #360816;
+}
+
 :root {
   /* Apple Design Springs & Physical Easings */
   --ease-apple-spring: cubic-bezier(0.25, 1, 0.35, 1);

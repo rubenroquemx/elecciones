@@ -7,7 +7,6 @@ import { StateVectorMap } from './StateVectorMap';
 import { SectionCard } from './SectionCard';
 import { CARTOGRAPHY_BY_SECTION } from '../data/mockSectionsData';
 import { getStateById, DEFAULT_STATE } from '../data/statesData';
-import { INITIAL_TERRITORY_DATA } from '../data/mockTerritoryData';
 import tabascoCatalog from '../data/tabascoCatalog.json';
 import {
   Users,
@@ -525,16 +524,16 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   const assignedByLabel = useMemo(() => {
     if (currentUser.assignedBy) return currentUser.assignedBy;
     if (currentUser.leaderId) {
-      const leaderNode = INITIAL_TERRITORY_DATA.find(l => l.id === currentUser.leaderId);
+      const leaderNode = visibleLeaders.find(l => l.id === currentUser.leaderId);
       if (leaderNode && leaderNode.parentId) {
-        const parent = INITIAL_TERRITORY_DATA.find(l => l.id === leaderNode.parentId);
+        const parent = visibleLeaders.find(l => l.id === leaderNode.parentId);
         if (parent) return parent.name;
       }
     }
     return currentUser.level === 'admin'
-      ? 'Comité Ejecutivo Nacional'
-      : 'Dirección General de Operación';
-  }, [currentUser]);
+      ? 'Comité Ejecutivo'
+      : 'Coordinación Territorial';
+  }, [currentUser, visibleLeaders]);
 
   // Cálculos específicos y vinculación estricta de metas para Promotor Territorial
   const promotorNode = useMemo(() => {
@@ -650,7 +649,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                 {/* Barra de avance dinámica */}
                 <div className="w-full bg-white/10 h-2 rounded-none overflow-hidden mt-2 p-[1px]">
                   <div
-                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-none transition-all duration-700 ease-out"
+                    className="bg-gradient-to-r from-emerald-600 to-rose-700 h-full rounded-none transition-all duration-700 ease-out"
                     style={{ width: `${Math.max(promotorProgressPct === 0 ? 2 : promotorProgressPct, 2)}%` }}
                   />
                 </div>
@@ -1012,7 +1011,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                   <button
                     type="button"
                     onClick={() => onOpenQuickCapture()}
-                    className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer"
+                    className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-rose-900 hover:from-emerald-500 hover:to-rose-800 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow transition-all flex items-center gap-2 cursor-pointer"
                   >
                     <Smartphone className="w-4 h-4 text-emerald-100" />
                     <span>Captura Rápida de Campo</span>

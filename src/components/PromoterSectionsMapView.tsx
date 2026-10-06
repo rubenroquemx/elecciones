@@ -101,7 +101,7 @@ export const PromoterSectionsMapView: React.FC<PromoterSectionsMapViewProps> = (
 
       // Colores vivos para diferenciar secciones si son varias
       const colors = [
-        { stroke: '#059669', fill: '#10b981', badge: 'bg-emerald-600' },
+        { stroke: '#821838', fill: '#9d2449', badge: 'bg-emerald-600' },
         { stroke: '#2563eb', fill: '#3b82f6', badge: 'bg-blue-600' },
         { stroke: '#7c3aed', fill: '#8b5cf6', badge: 'bg-purple-600' },
         { stroke: '#d97706', fill: '#f59e0b', badge: 'bg-amber-600' },

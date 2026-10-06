@@ -1,5 +1,4 @@
 import type { TerritorialLeader, HierarchyStats, TerritorialLevel, FilterOptions } from '../types/territory';
-import { INITIAL_TERRITORY_DATA } from '../data/mockTerritoryData';
 
 export const ORDERED_LEVELS: TerritorialLevel[] = [
   'campana',        // Nivel 1: Coordinador de Campaña
@@ -165,15 +164,9 @@ export function getVisibleSubtree(rootId: string | null, nodes: TerritorialLeade
   }
 
   const nodeMap = new Map<string, TerritorialLeader>(nodes.map(n => [n.id, n]));
-  let rootNode = nodeMap.get(rootId);
+  const rootNode = nodeMap.get(rootId);
   if (!rootNode) {
-    const baseNode = INITIAL_TERRITORY_DATA.find(b => b.id === rootId);
-    if (baseNode) {
-      rootNode = baseNode;
-      nodeMap.set(baseNode.id, baseNode);
-    } else {
-      return [];
-    }
+    return [];
   }
 
   const childrenMap = new Map<string, string[]>();

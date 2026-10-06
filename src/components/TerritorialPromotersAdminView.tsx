@@ -181,7 +181,7 @@ Inicia sesión aquí: https://elecciones.legislab.app`);
           <button
             type="button"
             onClick={() => onNavigate('crear-promotor')}
-            className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/20 transition-all flex items-center gap-2 cursor-pointer active:scale-98"
+            className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-rose-900 hover:from-emerald-500 hover:to-rose-800 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-950/20 transition-all flex items-center gap-2 cursor-pointer active:scale-98"
           >
             <UserPlus className="w-4 h-4 text-emerald-100" />
             <span>Crear Promotor Territorial</span>

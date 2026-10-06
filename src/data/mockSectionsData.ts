@@ -26,33 +26,8 @@ export const CATALOG_BY_SECTION = new Map<string, typeof tabascoCatalog[0]>(
   tabascoCatalog.map(c => [c.section, c])
 );
 
-// Catálogo oficial de estructuras dadas de alta en base de datos
-export const REGISTERED_STRUCTURES: Record<string, { structures: SectionStructure[]; notes?: string }> = {
-  "0416": {
-    structures: [
-      {
-        id: "struct-0416-rr",
-        name: "Brigada Territorial de Promoción",
-        type: "promocion",
-        leaderName: "Ruben Roque",
-        leaderRole: "Promotor Territorial",
-        leaderPhone: "+52 993 123 4567",
-        curp: "ROQR850614HTBMNX01",
-        electorKey: "ROQRRU85061427H101",
-        address: "Av. Gregorio Méndez Magaña #1205",
-        colonia: "Tamulté de las Barrancas",
-        electoralSection: "0416",
-        email: "ruben.roque@organizacion-tabasco.mx",
-        metaGoal: 150,
-        currentCount: 0,
-        status: "en_progreso",
-        rootLeaderId: "prom-ruben-roque",
-        notes: "Brigada principal de promoción territorial encabezada por Ruben Roque."
-      }
-    ],
-    notes: "Sección 0416 - Tamulté de las Barrancas"
-  }
-};
+// Catálogo oficial de estructuras dadas de alta en base de datos (se alimenta de la base de datos real)
+export const REGISTERED_STRUCTURES: Record<string, { structures: SectionStructure[]; notes?: string }> = {};
 
 // FULL list of all 1,144 Electoral Sections in Tabasco from the official INE shapefile
 export const INITIAL_SECTIONS: ElectoralSection[] = TABASCO_CARTOGRAPHY.map(carto => {

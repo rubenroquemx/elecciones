@@ -99,7 +99,7 @@ const FlowInner: React.FC<TerritoryFlowCanvasProps> = ({
             if (l.level === 'distrital') return '#6366f1';
             if (l.level === 'territorial') return '#06b6d4';
             if (l.level === 'seccional') return '#f59e0b';
-            if (l.level === 'promotor') return '#10b981';
+            if (l.level === 'promotor') return '#9d2449';
             if (l.level === 'promovido') return '#64748b';
             return '#64748b';
           }}

@@ -328,7 +328,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }
                   onCloseMobile?.();
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-md shadow-emerald-950/30 transition-all active:scale-98 cursor-pointer ${
+                className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-rose-900 hover:from-emerald-500 hover:to-rose-800 text-white text-xs font-bold shadow-md shadow-emerald-950/30 transition-all active:scale-98 cursor-pointer ${
                   isPromotor ? 'rounded-none' : 'rounded-xl'
                 }`}
                 title="Capturar Ciudadano Promovido"

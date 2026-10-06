@@ -302,7 +302,7 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
 
             count++;
             const isSelected = selectedSection?.id === sec.id;
-            const color = isSelected ? '#f59e0b' : hasStructure ? '#10b981' : '#0284c7';
+            const color = isSelected ? '#f59e0b' : hasStructure ? '#9d2449' : '#0284c7';
             const latLngs: L.LatLngExpression[] = sec.polygon.map(([lon, lat]) => [lat, lon]);
 
             const poly = L.polygon(latLngs, {
