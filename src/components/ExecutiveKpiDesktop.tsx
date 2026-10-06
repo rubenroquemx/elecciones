@@ -153,33 +153,44 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     return 6;
   }, [currentUser, isSuperAdmin, isTerritorial, isPromotor]);
 
+  const userAssignedSections = useMemo(() => {
+    if (currentUser?.assignedSections && currentUser.assignedSections.length > 0) {
+      return currentUser.assignedSections;
+    }
+    const match = currentUser?.territoryName?.match(/\b\d{3,4}\b/g);
+    if (match && match.length > 0) {
+      return match;
+    }
+    return ['0416', '0417'];
+  }, [currentUser]);
+
   const userDistrictLabel = useMemo(() => {
     if (isTerritorial) {
-      return `Zona Territorial Tamulté (Secciones 0416 y 0417)`;
+      return `${currentUser?.territoryName || 'Zona Territorial'} (Secciones ${userAssignedSections.join(', ')})`;
     }
     if (userDistrictNumber) {
       return isFederal ? `Distrito Federal 0${userDistrictNumber}` : `Distrito Local 0${userDistrictNumber}`;
     }
     return undefined;
-  }, [isTerritorial, userDistrictNumber, isFederal]);
+  }, [isTerritorial, userDistrictNumber, isFederal, currentUser, userAssignedSections]);
 
   const userDistrictSections = useMemo(() => {
     if (isTerritorial) {
-      return stateCatalogSections.filter((s) => ['0416', '0417'].includes(s.section));
+      return stateCatalogSections.filter((s) => userAssignedSections.includes(s.section));
     }
     if (!userDistrictNumber) return [];
     return stateCatalogSections.filter((s) => {
       if (isFederal) return s.federalDistrict === userDistrictNumber;
       return s.localDistrict === userDistrictNumber;
     });
-  }, [stateCatalogSections, userDistrictNumber, isFederal, isTerritorial]);
+  }, [stateCatalogSections, userDistrictNumber, isFederal, isTerritorial, userAssignedSections]);
 
   const userDistrictSectionNumbers = useMemo(() => {
     if (isTerritorial) {
-      return ['0416', '0417'];
+      return userAssignedSections;
     }
     return userDistrictSections.map((s) => s.section);
-  }, [isTerritorial, userDistrictSections]);
+  }, [isTerritorial, userDistrictSections, userAssignedSections]);
 
   // Base list of sections scoped to district, assigned sections, or state
   const baseCatalogSections = useMemo(() => {
@@ -187,13 +198,13 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
       return [];
     }
     if (isTerritorial) {
-      return stateCatalogSections.filter((s) => ['0416', '0417'].includes(s.section));
+      return stateCatalogSections.filter((s) => userAssignedSections.includes(s.section));
     }
     if (userDistrictNumber && userDistrictSections.length > 0) {
       return userDistrictSections;
     }
     return stateCatalogSections;
-  }, [isPromotor, isTerritorial, userDistrictNumber, userDistrictSections, stateCatalogSections]);
+  }, [isPromotor, isTerritorial, userDistrictNumber, userDistrictSections, stateCatalogSections, userAssignedSections]);
 
   // Lista de municipios únicos del catálogo scoped
   const municipalitiesList = useMemo(() => {
@@ -388,7 +399,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     }
 
     if (isTerritorial) {
-      const assigned = ['0416', '0417'];
+      const assigned = userAssignedSections;
       const matches = stateCatalogSections.filter(s => assigned.includes(s.section));
       if (matches.length > 0) {
         return {
@@ -1095,7 +1106,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
                   <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
                     Directorio de Promotores Territoriales y Referidos
                     <span className="text-[10px] bg-sky-100 text-sky-800 font-bold px-2 py-0.5 rounded-full border border-sky-200">
-                      Zona Tamulté (0416 - 0417)
+                      {currentUser?.territoryName || `Zona (Secc. ${userAssignedSections.join(', ')})`}
                     </span>
                   </h3>
                   <p className="text-xs text-slate-500">

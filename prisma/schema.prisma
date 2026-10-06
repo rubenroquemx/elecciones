@@ -33,6 +33,7 @@ model Leader {
   colonia          String?
   postalCode       String?
   electoralSection String?
+  assignedSections String[] @default([])
   curp             String?
   electorKey       String?
   firstName        String?

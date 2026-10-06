@@ -186,14 +186,19 @@ app.get('/api/leaders', async (req, res) => {
       }
     }
 
-    // Vincular promovidos de sección 0416 o 0417 a prom-ruben-roque si no tienen padre asignado
+    // Vincular promovidos sin padre asignado al promotor responsable de su sección
     for (const [id, item] of mergedMap.entries()) {
-      if (
-        item.level === 'promovido' &&
-        (!item.parentId || item.parentId === 'null') &&
-        (item.electoralSection === '0416' || item.electoralSection === '0417' || item.id.startsWith('promovido-ruben-') || item.id.startsWith('field-promovido-'))
-      ) {
-        mergedMap.set(id, { ...item, parentId: 'prom-ruben-roque' });
+      if (item.level === 'promovido' && (!item.parentId || item.parentId === 'null')) {
+        const promoter = Array.from(mergedMap.values()).find(l => 
+          l.level === 'promotor' && 
+          (
+            (Array.isArray(l.assignedSections) && l.assignedSections.includes(item.electoralSection)) ||
+            l.electoralSection === item.electoralSection
+          )
+        );
+        if (promoter) {
+          mergedMap.set(id, { ...item, parentId: promoter.id });
+        }
       }
     }
 
@@ -240,12 +245,21 @@ app.post('/api/leaders', async (req, res) => {
       removeDeletedId(data.id);
     }
 
-    if (data.level === 'promovido' && (!data.parentId || data.parentId === 'null') && (data.electoralSection === '0416' || data.electoralSection === '0417')) {
-      data.parentId = 'prom-ruben-roque';
-    }
-
     // 1. Guardar de inmediato en almacenamiento resiliente central
     const currentStore = readBackupStore();
+
+    if (data.level === 'promovido' && (!data.parentId || data.parentId === 'null')) {
+      const matchPromoter = currentStore.find((l: any) => 
+        l.level === 'promotor' && 
+        (
+          (Array.isArray(l.assignedSections) && l.assignedSections.includes(data.electoralSection)) ||
+          l.electoralSection === data.electoralSection
+        )
+      );
+      if (matchPromoter) {
+        data.parentId = matchPromoter.id;
+      }
+    }
     const existingIndex = currentStore.findIndex((l: any) => l.id === data.id);
     if (existingIndex >= 0) {
       currentStore[existingIndex] = { ...currentStore[existingIndex], ...data };
@@ -329,6 +343,7 @@ app.post('/api/leaders', async (req, res) => {
           colonia: data.colonia || null,
           postalCode: data.postalCode || null,
           electoralSection: data.electoralSection || null,
+          assignedSections: Array.isArray(data.assignedSections) ? data.assignedSections : [],
           curp: data.curp || null,
           electorKey: data.electorKey || null,
           inePhotoUrl: data.inePhotoUrl || null,
@@ -365,6 +380,7 @@ app.post('/api/leaders', async (req, res) => {
           colonia: data.colonia || null,
           postalCode: data.postalCode || null,
           electoralSection: data.electoralSection || null,
+          assignedSections: Array.isArray(data.assignedSections) ? data.assignedSections : [],
           curp: data.curp || null,
           electorKey: data.electorKey || null,
           inePhotoUrl: data.inePhotoUrl || null,
@@ -415,8 +431,17 @@ app.put('/api/leaders/:id', async (req, res) => {
     let updatedInDb = null;
     try {
       let safeParentId = data.parentId || null;
-      if ((!safeParentId || safeParentId === 'null') && data.level === 'promovido' && (data.electoralSection === '0416' || data.electoralSection === '0417')) {
-        safeParentId = 'prom-ruben-roque';
+      if ((!safeParentId || safeParentId === 'null') && data.level === 'promovido') {
+        const matchPromoter = currentStore.find((l: any) => 
+          l.level === 'promotor' && 
+          (
+            (Array.isArray(l.assignedSections) && l.assignedSections.includes(data.electoralSection)) ||
+            l.electoralSection === data.electoralSection
+          )
+        );
+        if (matchPromoter) {
+          safeParentId = matchPromoter.id;
+        }
       }
       if (safeParentId) {
         let parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
@@ -447,6 +472,7 @@ app.put('/api/leaders/:id', async (req, res) => {
                   address: baseParent.address || null,
                   colonia: baseParent.colonia || null,
                   electoralSection: baseParent.electoralSection || null,
+                  assignedSections: Array.isArray(baseParent.assignedSections) ? baseParent.assignedSections : [],
                   curp: baseParent.curp || null,
                   electorKey: baseParent.electorKey || null,
                 },
@@ -488,6 +514,7 @@ app.put('/api/leaders/:id', async (req, res) => {
           colonia: data.colonia || null,
           postalCode: data.postalCode || null,
           electoralSection: data.electoralSection || null,
+          assignedSections: Array.isArray(data.assignedSections) ? data.assignedSections : [],
           curp: data.curp || null,
           electorKey: data.electorKey || null,
           inePhotoUrl: data.inePhotoUrl || null,
@@ -766,6 +793,7 @@ async function ensureCoreHierarchyAndLinkages() {
             levelIndex: node.levelIndex ?? levelIdx,
             parentId: safeParentId,
             territoryName: node.territoryName,
+            assignedSections: Array.isArray(node.assignedSections) ? node.assignedSections : [],
           },
           create: {
             id: node.id,
@@ -789,6 +817,7 @@ async function ensureCoreHierarchyAndLinkages() {
             address: node.address || null,
             colonia: node.colonia || null,
             electoralSection: node.electoralSection || null,
+            assignedSections: Array.isArray(node.assignedSections) ? node.assignedSections : [],
             curp: node.curp || null,
             electorKey: node.electorKey || null,
             inePhotoUrl: node.inePhotoUrl || null,

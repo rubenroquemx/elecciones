@@ -71,7 +71,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     const set = new Set<string>();
 
     // 1. Asignaciones directas del currentUser
-    if (currentUser?.assignedSections && Array.isArray(currentUser.assignedSections)) {
+    if (currentUser?.assignedSections && Array.isArray(currentUser.assignedSections) && currentUser.assignedSections.length > 0) {
       currentUser.assignedSections.forEach(s => {
         if (s) set.add(normalizeSectionNumber(s));
       });
@@ -79,54 +79,52 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
 
     // 2. Asignaciones en el nodo de líder del usuario
     const userLeader = allLeaders.find(l => l.id === currentUser?.leaderId);
-    if (userLeader?.assignedSections && Array.isArray(userLeader.assignedSections)) {
+    if (userLeader?.assignedSections && Array.isArray(userLeader.assignedSections) && userLeader.assignedSections.length > 0) {
       userLeader.assignedSections.forEach(s => {
         if (s) set.add(normalizeSectionNumber(s));
       });
     }
 
-    // 3. Del líder padre territorial (ej. Ing. Mariana Garza Domínguez)
-    const parentId = userLeader?.parentId || (currentUser?.leaderId === 'prom-ruben-roque' ? 'coord-territorial-mariana' : null);
+    // Si ya tiene secciones explícitamente asignadas por su coordinador territorial, usar esas exclusivamente
+    if (set.size > 0) {
+      return Array.from(set).sort();
+    }
+
+    // 3. Del territoryName ("Zona Tamulté (Secciones 0416 y 0417)", etc.)
+    const territoryStr = `${currentUser?.territoryName || ''} ${userLeader?.territoryName || ''}`;
+    const matches = territoryStr.match(/\b\d{3,4}\b/g);
+    if (matches && matches.length > 0) {
+      matches.forEach(m => set.add(normalizeSectionNumber(m)));
+      return Array.from(set).sort();
+    }
+
+    // 4. defaultSectionNumber
+    if (defaultSectionNumber) {
+      set.add(normalizeSectionNumber(defaultSectionNumber));
+      return Array.from(set).sort();
+    }
+
+    // 5. Del líder padre territorial (coordinador asignador) solo si el promotor no tiene ninguna sección
+    const parentId = userLeader?.parentId;
     if (parentId) {
       const parentLeader = allLeaders.find(l => l.id === parentId);
       if (parentLeader?.assignedSections && Array.isArray(parentLeader.assignedSections)) {
         parentLeader.assignedSections.forEach(s => {
           if (s) set.add(normalizeSectionNumber(s));
         });
+        if (set.size > 0) return Array.from(set).sort();
       }
     }
 
-    // 4. Si es Ruben Roque (depende de Mariana Garza con 0416 y 0417)
-    if (currentUser?.username === 'ruben.roque' || currentUser?.leaderId === 'prom-ruben-roque') {
-      set.add('0416');
-      set.add('0417');
-    }
-
-    // 5. Del territoryName ("Zona Tamulté (Secciones 0416 y 0417)")
-    const territoryStr = `${currentUser?.territoryName || ''} ${userLeader?.territoryName || ''}`;
-    const matches = territoryStr.match(/\b\d{3,4}\b/g);
-    if (matches) {
-      matches.forEach(m => set.add(normalizeSectionNumber(m)));
-    }
-
-    // 6. defaultSectionNumber
-    if (defaultSectionNumber) {
-      set.add(normalizeSectionNumber(defaultSectionNumber));
-    }
-
-    // 7. availableSections
-    if (set.size === 0 && availableSections && availableSections.length > 0) {
+    // 6. availableSections
+    if (availableSections && availableSections.length > 0) {
       availableSections.forEach(s => {
         if (s.sectionNumber) set.add(normalizeSectionNumber(s.sectionNumber));
       });
+      return Array.from(set).sort();
     }
 
-    if (set.size === 0) {
-      set.add('0416');
-      set.add('0417');
-    }
-
-    return Array.from(set).sort();
+    return ['0416'];
   }, [currentUser, allLeaders, defaultSectionNumber, availableSections]);
 
   // Lista de secciones para el selector

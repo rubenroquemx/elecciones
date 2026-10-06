@@ -176,9 +176,9 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
                         <h4 className="font-bold text-slate-900 truncate text-xs">
                           {acc.name}
                         </h4>
-                        {acc.username === 'ruben.roque' && (
+                        {isSelected && (
                           <span className="text-[9px] font-black px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
-                            ⭐ Tu Cuenta
+                            Activo
                           </span>
                         )}
                       </div>
