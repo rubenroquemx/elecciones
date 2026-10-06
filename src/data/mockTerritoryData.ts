@@ -130,34 +130,6 @@ export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
     notes: "Promotor Territorial en Secciones 0416 y 0417 - Supervisado por Ing. Mariana Garza Domínguez."
   },
 
-  {
-    id: "prom-patricia-lara",
-    name: "Lic. Patricia Lara Domínguez",
-    role: "Promotor Territorial",
-    level: "promotor",
-    levelIndex: 2,
-    parentId: "coord-territorial-mariana",
-    territoryName: "Sección 0417 - Tamulté Sur",
-    code: "PROM-0417-PL",
-    assignedSections: ["0417"],
-    address: "Calle Hidalgo #305",
-    colonia: "Tamulté Sur",
-    electoralSection: "0417",
-    curp: "LADP890210MTBMNR05",
-    electorKey: "LADPPA89021027M002",
-    phone: "+52 993 456 7890",
-    email: "patricia.lara@estrategia-territorial.mx",
-    username: "patricia.lara",
-    hasAccount: true,
-    avatarBg: "bg-teal-600",
-    metaGoal: 100,
-    currentCount: 0,
-    status: "en_progreso",
-    validationStatus: "validado",
-    notes: "Promotora Territorial en Sección 0417 - Trabajo de contacto vecinal y promoción del voto."
-  }
-,
-
   // 4. Promovidos asignados a Ruben Roque (Secciones 0416 y 0417)
   {
     id: "pmv-rr-0416-01",

@@ -62,19 +62,4 @@ export const MOCK_ACCOUNTS: UserAccount[] = [
     avatarBg: 'bg-emerald-600',
     assignedBy: 'Ing. Mariana Garza Domínguez',
   },
-
-  // 4b. Promotor Territorial 2 (Sección 0417)
-  {
-    id: 'usr-prom-patricia-lara',
-    username: 'patricia.lara',
-    name: 'Lic. Patricia Lara Domínguez',
-    email: 'patricia.lara@estrategia-territorial.mx',
-    password: 'promotor2026',
-    leaderId: 'prom-patricia-lara',
-    level: 'promotor',
-    territoryName: 'Sección Electoral 0417 (Tamulté Sur)',
-    accountRoleLabel: 'Promotor Territorial',
-    avatarBg: 'bg-teal-600',
-    assignedBy: 'Ing. Mariana Garza Domínguez',
-  },
 ];
