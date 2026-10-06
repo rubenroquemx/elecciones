@@ -110,9 +110,9 @@ export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
     level: "promotor",
     levelIndex: 2,
     parentId: "coord-territorial-mariana",
-    territoryName: "Sección 0416 - Tamulté de las Barrancas",
-    code: "PROM-0416-RR",
-    assignedSections: ["0416"],
+    territoryName: "Zona Tamulté (Secciones 0416 y 0417)",
+    code: "PROM-TAMULTE-RR",
+    assignedSections: ["0416", "0417"],
     address: "Av. Gregorio Méndez Magaña #1205",
     colonia: "Tamulté de las Barrancas",
     electoralSection: "0416",
@@ -127,7 +127,7 @@ export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
     currentCount: 0,
     status: "en_progreso",
     validationStatus: "validado",
-    notes: "Promotor Territorial en Sección 0416 - Captación de promovidos y brigadas directas de campo."
+    notes: "Promotor Territorial en Secciones 0416 y 0417 - Supervisado por Ing. Mariana Garza Domínguez."
   },
 
   {

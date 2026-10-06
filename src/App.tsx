@@ -146,7 +146,7 @@ export function App() {
             if (
               l.level === 'promovido' &&
               (!l.parentId || l.parentId === 'null') &&
-              (l.electoralSection === '0416' || l.id.startsWith('promovido-ruben-') || l.id.startsWith('field-promovido-'))
+              (l.electoralSection === '0416' || l.electoralSection === '0417' || l.id.startsWith('promovido-ruben-') || l.id.startsWith('field-promovido-'))
             ) {
               l.parentId = 'prom-ruben-roque';
             }
@@ -215,7 +215,7 @@ export function App() {
           if (
             item.level === 'promovido' &&
             (!item.parentId || item.parentId === 'null') &&
-            (item.electoralSection === '0416' || item.id.startsWith('promovido-ruben-') || item.id.startsWith('field-promovido-'))
+            (item.electoralSection === '0416' || item.electoralSection === '0417' || item.id.startsWith('promovido-ruben-') || item.id.startsWith('field-promovido-'))
           ) {
             item.parentId = 'prom-ruben-roque';
           }
@@ -355,6 +355,15 @@ export function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed) {
+          // Si es Ruben Roque, garantizar asignación de secciones 0416 y 0417 de Mariana Garza
+          if (parsed.id === 'usr-prom-ruben-roque' || parsed.username === 'ruben.roque' || parsed.leaderId === 'prom-ruben-roque') {
+            return {
+              ...parsed,
+              territoryName: 'Zona Tamulté (Secciones 0416 y 0417)',
+              assignedSections: ['0416', '0417'],
+              assignedBy: 'Ing. Mariana Garza Domínguez',
+            };
+          }
           return parsed;
         } else {
           localStorage.removeItem('territorial_auth_user');
@@ -367,12 +376,23 @@ export function App() {
   });
 
   const handleSelectUser = useCallback((user: UserAccount) => {
-    setCurrentUser(user);
+    const safeUser = (user.id === 'usr-prom-ruben-roque' || user.username === 'ruben.roque' || user.leaderId === 'prom-ruben-roque')
+      ? {
+          ...user,
+          territoryName: 'Zona Tamulté (Secciones 0416 y 0417)',
+          assignedSections: ['0416', '0417'],
+          assignedBy: 'Ing. Mariana Garza Domínguez',
+        }
+      : user;
+
+    setCurrentUser(safeUser);
     try {
-      localStorage.setItem('territorial_auth_user', JSON.stringify(user));
+      localStorage.setItem('territorial_auth_user', JSON.stringify(safeUser));
     } catch (e) {
       console.error('Error saving user in localStorage', e);
     }
+    // Refresh automático inmediato al cambiar de usuario
+    window.location.reload();
   }, []);
 
   const handleLogout = useCallback(() => {
@@ -382,6 +402,8 @@ export function App() {
       console.error('Error removing auth user', e);
     }
     setCurrentUser(null);
+    // Refresh automático inmediato al cerrar sesión
+    window.location.reload();
   }, []);
 
   // Modal de Alta Manual de Usuario
@@ -467,7 +489,7 @@ export function App() {
     if (currentUser?.level === 'promotor') {
       const assigned = currentUser.assignedSections && currentUser.assignedSections.length > 0
         ? currentUser.assignedSections
-        : [currentUser.territoryName?.match(/\d{3,4}/)?.[0] || '0416'];
+        : (currentUser.leaderId === 'prom-ruben-roque' || currentUser.username === 'ruben.roque' ? ['0416', '0417'] : [currentUser.territoryName?.match(/\d{3,4}/)?.[0] || '0416']);
       const matched = sectionsData.filter(s => assigned.includes(s.sectionNumber));
       if (matched.length > 0) return matched;
       return assigned.map(secNum => {

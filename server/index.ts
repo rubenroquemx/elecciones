@@ -186,12 +186,12 @@ app.get('/api/leaders', async (req, res) => {
       }
     }
 
-    // Vincular promovidos de sección 0416 a prom-ruben-roque si no tienen padre asignado
+    // Vincular promovidos de sección 0416 o 0417 a prom-ruben-roque si no tienen padre asignado
     for (const [id, item] of mergedMap.entries()) {
       if (
         item.level === 'promovido' &&
         (!item.parentId || item.parentId === 'null') &&
-        (item.electoralSection === '0416' || item.id.startsWith('promovido-ruben-') || item.id.startsWith('field-promovido-'))
+        (item.electoralSection === '0416' || item.electoralSection === '0417' || item.id.startsWith('promovido-ruben-') || item.id.startsWith('field-promovido-'))
       ) {
         mergedMap.set(id, { ...item, parentId: 'prom-ruben-roque' });
       }
@@ -240,7 +240,7 @@ app.post('/api/leaders', async (req, res) => {
       removeDeletedId(data.id);
     }
 
-    if (data.level === 'promovido' && (!data.parentId || data.parentId === 'null') && data.electoralSection === '0416') {
+    if (data.level === 'promovido' && (!data.parentId || data.parentId === 'null') && (data.electoralSection === '0416' || data.electoralSection === '0417')) {
       data.parentId = 'prom-ruben-roque';
     }
 
@@ -415,7 +415,7 @@ app.put('/api/leaders/:id', async (req, res) => {
     let updatedInDb = null;
     try {
       let safeParentId = data.parentId || null;
-      if ((!safeParentId || safeParentId === 'null') && data.level === 'promovido' && data.electoralSection === '0416') {
+      if ((!safeParentId || safeParentId === 'null') && data.level === 'promovido' && (data.electoralSection === '0416' || data.electoralSection === '0417')) {
         safeParentId = 'prom-ruben-roque';
       }
       if (safeParentId) {
@@ -808,6 +808,7 @@ async function ensureCoreHierarchyAndLinkages() {
           { id: { startsWith: 'promovido-ruben-' } },
           { id: { startsWith: 'field-promovido-' } },
           { electoralSection: '0416' },
+          { electoralSection: '0417' },
         ],
       },
       data: {

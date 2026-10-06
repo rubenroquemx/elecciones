@@ -41,12 +41,13 @@ export const MOCK_ACCOUNTS: UserAccount[] = [
     leaderId: 'coord-territorial-mariana',
     level: 'territorial',
     territoryName: 'Zona Tamulté (Secciones 0416 y 0417)',
+    assignedSections: ['0416', '0417'],
     accountRoleLabel: 'Coordinador Territorial',
     avatarBg: 'bg-sky-600',
     assignedBy: 'Lic. Carlos Méndez Estrada',
   },
 
-  // 4. Promotor Territorial 1 (Sección 0416)
+  // 4. Promotor Territorial 1 (Secciones 0416 y 0417 - Supervisado por Mariana Garza)
   {
     id: 'usr-prom-ruben-roque',
     username: 'ruben.roque',
@@ -55,7 +56,8 @@ export const MOCK_ACCOUNTS: UserAccount[] = [
     password: 'promotor2026',
     leaderId: 'prom-ruben-roque',
     level: 'promotor',
-    territoryName: 'Sección Electoral 0416 (Tamulté)',
+    territoryName: 'Zona Tamulté (Secciones 0416 y 0417)',
+    assignedSections: ['0416', '0417'],
     accountRoleLabel: 'Promotor Territorial',
     avatarBg: 'bg-emerald-600',
     assignedBy: 'Ing. Mariana Garza Domínguez',

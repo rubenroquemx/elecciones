@@ -66,32 +66,91 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   const [formError, setFormError] = useState<string | null>(null);
   const [sectionMismatchError, setSectionMismatchError] = useState<string | null>(null);
 
-  const assignedSection = useMemo(() => {
-    if (defaultSectionNumber) return normalizeSectionNumber(defaultSectionNumber);
-    if (currentUser?.assignedSections && currentUser.assignedSections.length > 0) {
-      return normalizeSectionNumber(currentUser.assignedSections[0]);
+  // Todas las secciones asignadas válidas para este promotor (soporta múltiples secciones ej. 0416 y 0417)
+  const assignedSections = useMemo(() => {
+    const set = new Set<string>();
+
+    // 1. Asignaciones directas del currentUser
+    if (currentUser?.assignedSections && Array.isArray(currentUser.assignedSections)) {
+      currentUser.assignedSections.forEach(s => {
+        if (s) set.add(normalizeSectionNumber(s));
+      });
     }
-    const match = currentUser?.territoryName?.match(/\d{3,4}/);
-    if (match) return normalizeSectionNumber(match[0]);
-    return '0416';
-  }, [defaultSectionNumber, currentUser]);
+
+    // 2. Asignaciones en el nodo de líder del usuario
+    const userLeader = allLeaders.find(l => l.id === currentUser?.leaderId);
+    if (userLeader?.assignedSections && Array.isArray(userLeader.assignedSections)) {
+      userLeader.assignedSections.forEach(s => {
+        if (s) set.add(normalizeSectionNumber(s));
+      });
+    }
+
+    // 3. Del líder padre territorial (ej. Ing. Mariana Garza Domínguez)
+    const parentId = userLeader?.parentId || (currentUser?.leaderId === 'prom-ruben-roque' ? 'coord-territorial-mariana' : null);
+    if (parentId) {
+      const parentLeader = allLeaders.find(l => l.id === parentId);
+      if (parentLeader?.assignedSections && Array.isArray(parentLeader.assignedSections)) {
+        parentLeader.assignedSections.forEach(s => {
+          if (s) set.add(normalizeSectionNumber(s));
+        });
+      }
+    }
+
+    // 4. Si es Ruben Roque (depende de Mariana Garza con 0416 y 0417)
+    if (currentUser?.username === 'ruben.roque' || currentUser?.leaderId === 'prom-ruben-roque') {
+      set.add('0416');
+      set.add('0417');
+    }
+
+    // 5. Del territoryName ("Zona Tamulté (Secciones 0416 y 0417)")
+    const territoryStr = `${currentUser?.territoryName || ''} ${userLeader?.territoryName || ''}`;
+    const matches = territoryStr.match(/\b\d{3,4}\b/g);
+    if (matches) {
+      matches.forEach(m => set.add(normalizeSectionNumber(m)));
+    }
+
+    // 6. defaultSectionNumber
+    if (defaultSectionNumber) {
+      set.add(normalizeSectionNumber(defaultSectionNumber));
+    }
+
+    // 7. availableSections
+    if (set.size === 0 && availableSections && availableSections.length > 0) {
+      availableSections.forEach(s => {
+        if (s.sectionNumber) set.add(normalizeSectionNumber(s.sectionNumber));
+      });
+    }
+
+    if (set.size === 0) {
+      set.add('0416');
+      set.add('0417');
+    }
+
+    return Array.from(set).sort();
+  }, [currentUser, allLeaders, defaultSectionNumber, availableSections]);
 
   // Lista de secciones para el selector
   const sectionOptions = useMemo(() => {
-    const set = new Set<string>();
-    if (assignedSection) set.add(assignedSection);
-    if (currentUser?.assignedSections) {
-      currentUser.assignedSections.forEach(s => set.add(normalizeSectionNumber(s)));
-    }
+    const set = new Set<string>(assignedSections);
     availableSections.forEach(s => {
-      if (s.sectionNumber) set.add(normalizeSectionNumber(s.sectionNumber));
+      if (s.sectionNumber && assignedSections.includes(normalizeSectionNumber(s.sectionNumber))) {
+        set.add(normalizeSectionNumber(s.sectionNumber));
+      }
     });
     const list = Array.from(set).sort();
-    return list.length > 0 ? list : ['0416'];
-  }, [assignedSection, currentUser, availableSections]);
+    return list.length > 0 ? list : ['0416', '0417'];
+  }, [assignedSections, availableSections]);
+
+  // Sección inicial seleccionada
+  const initialSection = useMemo(() => {
+    if (defaultSectionNumber && assignedSections.includes(normalizeSectionNumber(defaultSectionNumber))) {
+      return normalizeSectionNumber(defaultSectionNumber);
+    }
+    return assignedSections[0] || '0416';
+  }, [defaultSectionNumber, assignedSections]);
 
   // Campos de formulario
-  const [electoralSection, setElectoralSection] = useState(assignedSection || '0416');
+  const [electoralSection, setElectoralSection] = useState(initialSection);
   const [electorKey, setElectorKey] = useState('');
   const [paternalLastName, setPaternalLastName] = useState('');
   const [maternalLastName, setMaternalLastName] = useState('');
@@ -106,10 +165,10 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
   const [newObservationText, setNewObservationText] = useState('');
 
   useEffect(() => {
-    if (assignedSection && (!electoralSection || electoralSection === '0416')) {
-      setElectoralSection(assignedSection);
+    if (initialSection && !electoralSection) {
+      setElectoralSection(initialSection);
     }
-  }, [assignedSection]);
+  }, [initialSection]);
 
   // Si recibe initialINEData
   useEffect(() => {
@@ -178,9 +237,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     const norm = normalizeSectionNumber(val);
     setElectoralSection(norm);
     setFormError(null);
-    if (norm !== assignedSection) {
+    if (!assignedSections.includes(norm)) {
       setSectionMismatchError(
-        `La sección seleccionada (${norm}) no coincide con tu sección asignada (${assignedSection}). Solo puedes registrar en tu demarcación.`
+        `La sección seleccionada (${norm}) no coincide con tus secciones asignadas (${assignedSections.join(', ')}). Solo puedes registrar en tu demarcación.`
       );
     } else {
       setSectionMismatchError(null);
@@ -284,25 +343,27 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       }
       if (existingElector.electoralSection) {
         const sec = normalizeSectionNumber(existingElector.electoralSection);
-        if (sec !== assignedSection) {
+        if (!assignedSections.includes(sec)) {
           setSectionMismatchError(
-            `Este ciudadano está registrado en la Sección Electoral ${sec}. Tu sección asignada es la ${assignedSection}. No es posible registrar promovidos fuera de tu demarcación asignada.`
+            `Este ciudadano está registrado en la Sección Electoral ${sec}. Tus secciones asignadas son (${assignedSections.join(', ')}). No es posible registrar promovidos fuera de tu demarcación asignada.`
           );
         } else {
           setSectionMismatchError(null);
+          setElectoralSection(sec);
         }
       }
     }
-  }, [existingElector, assignedSection]);
+  }, [existingElector, assignedSections]);
 
   const validation = useMemo(() => {
     if (sectionMismatchError) {
       return { allowed: false, errorMsg: sectionMismatchError };
     }
-    if (electoralSection && normalizeSectionNumber(electoralSection) !== assignedSection) {
+    const cleanSec = normalizeSectionNumber(electoralSection);
+    if (cleanSec && !assignedSections.includes(cleanSec)) {
       return { 
         allowed: false, 
-        errorMsg: `La sección electoral seleccionada (${electoralSection}) no coincide con tu sección asignada (${assignedSection}).` 
+        errorMsg: `La sección electoral seleccionada (${cleanSec}) no coincide con tus secciones asignadas (${assignedSections.join(', ')}).` 
       };
     }
     if (!electorKey.trim() || electorKey.trim().length < 6) {
@@ -310,11 +371,11 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
     }
     return validateElectorSection(
       electorKey.trim().toUpperCase(),
-      assignedSection,
+      cleanSec,
       allLeaders,
       availableSections
     );
-  }, [electorKey, assignedSection, electoralSection, sectionMismatchError, allLeaders, availableSections]);
+  }, [electorKey, assignedSections, electoralSection, sectionMismatchError, allLeaders, availableSections]);
 
   // Guardar ciudadano
   const handleSubmit = (e: React.FormEvent) => {
@@ -334,8 +395,8 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       setFormError('La Sección Electoral es obligatoria.');
       return;
     }
-    if (cleanSection !== assignedSection) {
-      setFormError(`La sección ${cleanSection} no coincide con tu sección asignada (${assignedSection}). Solo puedes registrar ciudadanos de tu sección asignada.`);
+    if (!assignedSections.includes(cleanSection)) {
+      setFormError(`La sección ${cleanSection} no coincide con tus secciones asignadas (${assignedSections.join(', ')}). Solo puedes registrar ciudadanos de tu sección asignada.`);
       return;
     }
     if (!paternalLastName.trim()) {
@@ -444,9 +505,9 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
       structures: [
         {
           id: newId,
-          structureName: `Célula Seccional ${assignedSection}`,
+          structureName: `Célula Seccional ${cleanSection}`,
           type: 'promovido',
-          sectionNumber: assignedSection,
+          sectionNumber: cleanSection,
           source: 'leader',
         },
       ],
@@ -955,7 +1016,7 @@ export const PromoterCitizenCapturePage: React.FC<PromoterCitizenCapturePageProp
                 electorKey.length < 6 ||
                 cleanPhoneDigits(phone).length < 10 ||
                 !electoralSection ||
-                normalizeSectionNumber(electoralSection) !== assignedSection
+                !assignedSections.includes(normalizeSectionNumber(electoralSection))
               }
               className="px-8 py-2.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold rounded-none shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
