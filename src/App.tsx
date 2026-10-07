@@ -4,6 +4,7 @@ import type { ElectoralSection, SectionStructure } from './types/sections';
 import type { UserAccount } from './types/auth';
 import { INITIAL_SECTIONS, CATALOG_BY_SECTION } from './data/mockSectionsData';
 import { MOCK_ACCOUNTS } from './data/mockAuthData';
+import { INITIAL_TERRITORY_DATA } from './data/mockTerritoryData';
 import { 
   calculateHierarchyAggregates, 
   getHierarchyStats, 
@@ -149,6 +150,12 @@ export function App() {
               .filter((l: TerritorialLeader) => !deletedSet.has(l.id))
               .map((l: TerritorialLeader) => [l.id, l])
           );
+          // Asegurar que el Jefe de Campaña oficial esté presente si no se ha eliminado
+          INITIAL_TERRITORY_DATA.forEach(init => {
+            if (!deletedSet.has(init.id) && !map.has(init.id)) {
+              map.set(init.id, init);
+            }
+          });
           // Vincular promovidos huérfanos dinámicamente al promotor responsable de su sección
           map.forEach(l => {
             if (l.level === 'promovido' && (!l.parentId || l.parentId === 'null')) {
@@ -170,7 +177,8 @@ export function App() {
     } catch (e) {
       console.warn('Error reading saved leaders', e);
     }
-    return [];
+    const initialList = INITIAL_TERRITORY_DATA.filter(l => !deletedSet.has(l.id));
+    return calculateHierarchyAggregates(initialList);
   });
 
   // Sincronización bidireccional continua en tiempo real (móvil <-> servidor central <-> PC)
@@ -200,14 +208,17 @@ export function App() {
 
       if (!serverLeaders || serverLeaders.length === 0) {
         setLeadersData(prev => {
-          const filtered = prev.filter(l => !currentDeletedSet.has(l.id));
-          if (filtered.length !== prev.length) {
-            try {
-              localStorage.setItem('territorial_leaders_data', JSON.stringify(filtered));
-            } catch (e) {}
-            return calculateHierarchyAggregates(filtered);
-          }
-          return prev;
+          const base = prev.length > 0 ? [...prev] : [...INITIAL_TERRITORY_DATA];
+          const filtered = base.filter(l => !currentDeletedSet.has(l.id));
+          INITIAL_TERRITORY_DATA.forEach(init => {
+            if (!currentDeletedSet.has(init.id) && !filtered.some(f => f.id === init.id)) {
+              filtered.push(init);
+            }
+          });
+          try {
+            localStorage.setItem('territorial_leaders_data', JSON.stringify(filtered));
+          } catch (e) {}
+          return calculateHierarchyAggregates(filtered);
         });
         return;
       }
@@ -234,6 +245,13 @@ export function App() {
           }
           combinedMap.set(item.id, item);
         }
+
+        // 2. Asegurar que el Jefe de Campaña oficial esté presente si no se ha eliminado
+        INITIAL_TERRITORY_DATA.forEach(init => {
+          if (!deletedSet.has(init.id) && !combinedMap.has(init.id)) {
+            combinedMap.set(init.id, init);
+          }
+        });
 
         // 3. Registros locales pendientes (ÚNICAMENTE capturas creadas localmente offline que aún no han subido)
         const pendingOfflineIds = getPendingOfflineIds();
@@ -376,7 +394,7 @@ export function App() {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const legacyDemoIds = new Set([
-            'usr-jefe-campana', 'usr-coord-distrital', 'usr-coord-zona', 
+            'usr-coord-distrital', 'usr-coord-zona', 
             'usr-resp-zona', 'usr-resp-seccion', 'usr-promotor',
             'usr-prom-ruben-roque', 'usr-coord-estatal', 'usr-coord-seccional'
           ]);

@@ -32,7 +32,22 @@ export const SUPERADMIN_ACCOUNT: UserAccount = {
   isSuperAdmin: true,
 };
 
+export const JEFE_CAMPANA_ACCOUNT: UserAccount = {
+  id: 'usr-jefe-campana',
+  username: 'jefe.campana',
+  name: 'Lic. Manuel Gurría Reséndez',
+  email: 'jefe.campana@vertex.mx',
+  password: 'admin123',
+  leaderId: 'lead-jefe-campana',
+  level: 'campana',
+  territoryName: 'Campaña General (Tabasco)',
+  accountRoleLabel: 'Jefe de Campaña',
+  avatarBg: 'bg-[#9d2449]',
+  phone: '9933123456',
+};
+
 export const MOCK_ACCOUNTS: UserAccount[] = [
   SUPERADMIN_ACCOUNT,
+  JEFE_CAMPANA_ACCOUNT,
 ];
 

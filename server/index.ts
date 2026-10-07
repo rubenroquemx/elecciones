@@ -43,18 +43,59 @@ const DELETED_FILE = path.join(STORE_DIR, 'deleted_leaders_store.json');
 const ACCOUNTS_FILE = path.join(STORE_DIR, 'accounts_store.json');
 const TICKETS_FILE = path.join(STORE_DIR, 'tickets_store.json');
 
+const DEFAULT_JEFE_CAMPANA_LEADER = {
+  id: 'lead-jefe-campana',
+  name: 'Lic. Manuel Gurría Reséndez',
+  role: 'Jefe de Campaña',
+  level: 'campana',
+  levelIndex: 1,
+  territoryName: 'Campaña General (Tabasco)',
+  parentId: null,
+  phone: '9933123456',
+  email: 'jefe.campana@vertex.mx',
+  username: 'jefe.campana',
+  hasAccount: true,
+  metaGoal: 150000,
+  currentCount: 0,
+  status: 'en_progreso',
+  validationStatus: 'validado',
+  assignedSections: [],
+  avatarBg: 'bg-[#9d2449]',
+  notes: 'Jefe de Campaña General',
+  directTeamCount: 0,
+};
+
+const DEFAULT_JEFE_CAMPANA_ACCOUNT = {
+  id: 'usr-jefe-campana',
+  username: 'jefe.campana',
+  name: 'Lic. Manuel Gurría Reséndez',
+  email: 'jefe.campana@vertex.mx',
+  password: 'admin123',
+  leaderId: 'lead-jefe-campana',
+  level: 'campana',
+  territoryName: 'Campaña General (Tabasco)',
+  accountRoleLabel: 'Jefe de Campaña',
+  avatarBg: 'bg-[#9d2449]',
+  phone: '9933123456',
+};
+
 function readAccountsStore(): any[] {
   try {
     if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
     if (fs.existsSync(ACCOUNTS_FILE)) {
       const content = fs.readFileSync(ACCOUNTS_FILE, 'utf-8');
       const parsed = JSON.parse(content);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        if (!parsed.some((a: any) => a.id === DEFAULT_JEFE_CAMPANA_ACCOUNT.id)) {
+          parsed.unshift(DEFAULT_JEFE_CAMPANA_ACCOUNT);
+        }
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn('Error reading accounts store:', e);
   }
-  return [];
+  return [DEFAULT_JEFE_CAMPANA_ACCOUNT];
 }
 
 function writeAccountsStore(accounts: any[]) {
@@ -359,12 +400,19 @@ function readBackupStore(): any[] {
     if (fs.existsSync(STORE_FILE)) {
       const content = fs.readFileSync(STORE_FILE, 'utf-8');
       const parsed = JSON.parse(content);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        const deletedSet = readDeletedStore();
+        if (!deletedSet.has(DEFAULT_JEFE_CAMPANA_LEADER.id) && !parsed.some((l: any) => l.id === DEFAULT_JEFE_CAMPANA_LEADER.id)) {
+          parsed.unshift(DEFAULT_JEFE_CAMPANA_LEADER);
+        }
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn('Error reading backup store:', e);
   }
-  return [];
+  const deletedSet = readDeletedStore();
+  return deletedSet.has(DEFAULT_JEFE_CAMPANA_LEADER.id) ? [] : [DEFAULT_JEFE_CAMPANA_LEADER];
 }
 
 function writeBackupStore(leaders: any[]) {
@@ -402,6 +450,10 @@ app.get('/api/leaders', async (req, res) => {
         const existing = mergedMap.get(l.id) || {};
         mergedMap.set(l.id, { ...existing, ...l });
       }
+    }
+
+    if (!deletedSet.has(DEFAULT_JEFE_CAMPANA_LEADER.id) && !mergedMap.has(DEFAULT_JEFE_CAMPANA_LEADER.id)) {
+      mergedMap.set(DEFAULT_JEFE_CAMPANA_LEADER.id, DEFAULT_JEFE_CAMPANA_LEADER);
     }
 
     // Vincular promovidos sin padre asignado al promotor responsable de su sección
