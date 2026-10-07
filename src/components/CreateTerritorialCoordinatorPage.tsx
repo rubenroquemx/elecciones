@@ -1,7 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import type { TerritorialLeader } from '../types/territory';
+import type { TerritorialLeader, TerritorialLevel } from '../types/territory';
 import type { UserAccount } from '../types/auth';
 import type { ElectoralSection } from '../types/sections';
+import { getAllowedChildLevel, getDefaultRoleForLevel } from '../utils/hierarchy';
+import { LEVEL_CONFIG } from '../data/mockTerritoryData';
 import { 
   ArrowLeft, 
   User, 
@@ -9,10 +11,9 @@ import {
   Mail, 
   Key, 
   Lock, 
-  Layers, 
-  CheckCircle2, 
   Search, 
-  Target 
+  MapPin,
+  CheckCircle2
 } from 'lucide-react';
 
 interface CreateTerritorialCoordinatorPageProps {
@@ -28,12 +29,39 @@ export const CreateTerritorialCoordinatorPage: React.FC<CreateTerritorialCoordin
   onSaveCoordinator,
   onBack,
 }) => {
+  // 1. Determinar nivel subordinado inmediato permitido
+  const targetChildLevel: TerritorialLevel = useMemo(() => {
+    return getAllowedChildLevel(currentUser.level) || 'distrital';
+  }, [currentUser.level]);
+
+  const childRoleLabel = useMemo(() => {
+    return getDefaultRoleForLevel(targetChildLevel);
+  }, [targetChildLevel]);
+
+  const levelCfg = useMemo(() => {
+    return LEVEL_CONFIG[targetChildLevel] || {
+      color: 'text-indigo-700',
+      bgLight: 'bg-indigo-50 border-indigo-200',
+      border: 'border-indigo-600',
+    };
+  }, [targetChildLevel]);
+
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
-  const [metaGoal, setMetaGoal] = useState('1500');
+  const [password, setPassword] = useState('admin123');
+  const [territoryName, setTerritoryName] = useState('');
+  const [metaGoal, setMetaGoal] = useState(() => {
+    switch (targetChildLevel) {
+      case 'distrital': return '25000';
+      case 'zona': return '8000';
+      case 'responsable_zona': return '3000';
+      case 'territorial': return '1000';
+      case 'promotor': return '50';
+      default: return '1500';
+    }
+  });
   const [selectedSections, setSelectedSections] = useState<string[]>([]);
   const [sectionSearch, setSectionSearch] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -51,14 +79,6 @@ export const CreateTerritorialCoordinatorPage: React.FC<CreateTerritorialCoordin
     return sectionNumbers.filter(s => s.includes(q));
   }, [sectionNumbers, sectionSearch]);
 
-  // Autogenerar nombre de usuario a partir del nombre
-  const handleNameChange = (val: string) => {
-    setName(val);
-    if (!username || username === generateSuggestedUsername(name)) {
-      setUsername(generateSuggestedUsername(val));
-    }
-  };
-
   function generateSuggestedUsername(fullName: string): string {
     const clean = fullName
       .toLowerCase()
@@ -67,13 +87,32 @@ export const CreateTerritorialCoordinatorPage: React.FC<CreateTerritorialCoordin
       .replace(/[^a-z0-9\s]/g, '')
       .trim();
     const parts = clean.split(/\s+/);
+    
+    let prefix = 'user';
+    switch (targetChildLevel) {
+      case 'campana': prefix = 'jefe'; break;
+      case 'distrital': prefix = 'coord_dist'; break;
+      case 'zona': prefix = 'coord_zona'; break;
+      case 'responsable_zona': prefix = 'resp_zona'; break;
+      case 'territorial': prefix = 'resp_sec'; break;
+      case 'promotor': prefix = 'prom'; break;
+    }
+
     if (parts.length >= 2) {
-      return `coord_${parts[0]}.${parts[1]}`;
+      return `${prefix}_${parts[0]}.${parts[1]}`;
     } else if (parts[0]) {
-      return `coord_${parts[0]}`;
+      return `${prefix}_${parts[0]}`;
     }
     return '';
   }
+
+  // Autogenerar nombre de usuario a partir del nombre
+  const handleNameChange = (val: string) => {
+    setName(val);
+    if (!username || username === generateSuggestedUsername(name)) {
+      setUsername(generateSuggestedUsername(val));
+    }
+  };
 
   const toggleSection = (secNum: string) => {
     setSelectedSections(prev => 
@@ -95,7 +134,7 @@ export const CreateTerritorialCoordinatorPage: React.FC<CreateTerritorialCoordin
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert('Ingresa el nombre del Coordinador Territorial.');
+      alert(`Ingresa el nombre completo de ${childRoleLabel}.`);
       return;
     }
     if (!username.trim()) {
@@ -109,17 +148,23 @@ export const CreateTerritorialCoordinatorPage: React.FC<CreateTerritorialCoordin
 
     setIsSubmitting(true);
     try {
-      const coordId = `ldr-terr-${Date.now()}`;
-      const userId = `usr-terr-${Date.now()}`;
-      const territoryLabel = selectedSections.length > 0 
-        ? `Secciones: ${selectedSections.slice(0, 3).join(', ')}${selectedSections.length > 3 ? '...' : ''}` 
-        : (currentUser.territoryName || 'Territorio Campaña');
+      const coordId = `ldr-${targetChildLevel}-${Date.now()}`;
+      const userId = `usr-${targetChildLevel}-${Date.now()}`;
+      
+      let territoryLabel = territoryName.trim();
+      if (!territoryLabel) {
+        if (selectedSections.length > 0) {
+          territoryLabel = `Secciones: ${selectedSections.slice(0, 3).join(', ')}${selectedSections.length > 3 ? '...' : ''}`;
+        } else {
+          territoryLabel = currentUser.territoryName || 'Territorio Asignado';
+        }
+      }
 
       const newLeader: TerritorialLeader = {
         id: coordId,
         name: name.trim(),
-        role: 'Coordinador Territorial',
-        level: 'territorial',
+        role: childRoleLabel,
+        level: targetChildLevel,
         levelIndex: 1,
         territoryName: territoryLabel,
         parentId: currentUser.leaderId || null,
@@ -133,7 +178,7 @@ export const CreateTerritorialCoordinatorPage: React.FC<CreateTerritorialCoordin
         validationStatus: 'validado',
         assignedSections: selectedSections,
         avatarBg: 'bg-[#9d2449]',
-        notes: `Coordinador Territorial asignado a ${selectedSections.length} sección(es).`,
+        notes: `${childRoleLabel} subordinado directo de ${currentUser.name}.`,
         directTeamCount: 0,
       };
 
@@ -141,25 +186,27 @@ export const CreateTerritorialCoordinatorPage: React.FC<CreateTerritorialCoordin
         id: userId,
         username: username.trim().toLowerCase(),
         name: name.trim(),
-        email: email.trim() || `${username.trim().toLowerCase()}@coordinacion.mx`,
+        email: email.trim() || `${username.trim().toLowerCase()}@plataforma.mx`,
         password: password.trim(),
         phone: phone.trim() || undefined,
         leaderId: coordId,
-        level: 'territorial',
+        level: targetChildLevel,
         territoryName: territoryLabel,
         assignedSections: selectedSections,
         avatarBg: 'bg-[#9d2449]',
-        accountRoleLabel: 'Coordinador Territorial',
+        accountRoleLabel: childRoleLabel,
       };
 
       await onSaveCoordinator(newLeader, newAccount);
     } catch (err) {
       console.error(err);
-      alert('Hubo un error al guardar el Coordinador Territorial.');
+      alert(`Hubo un error al guardar el registro de ${childRoleLabel}.`);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const showSectionPicker = targetChildLevel === 'territorial' || targetChildLevel === 'promotor' || selectedSections.length > 0;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto font-sans">
@@ -176,200 +223,238 @@ export const CreateTerritorialCoordinatorPage: React.FC<CreateTerritorialCoordin
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border uppercase tracking-wider ${levelCfg.bgLight} ${levelCfg.color}`}>
+                  {childRoleLabel}
+                </span>
+                <span className="text-xs text-slate-400">
+                  Subordinado de {currentUser.name}
+                </span>
+              </div>
               <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-                Nuevo Coordinador Territorial
+                Nuevo {childRoleLabel}
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                Crea el perfil de acceso y asigna las secciones electorales de supervisión territorial.
+                Crea el perfil de mando y credenciales de acceso para este nivel en la estructura electoral.
               </p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 2. Formulario */}
-      <div className="max-w-4xl mx-auto w-full px-4 sm:px-8 py-6 flex-1">
+      {/* 2. Formulario de Alta */}
+      <div className="max-w-4xl mx-auto w-full px-4 sm:px-8 py-8 flex-1">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Card: Datos Personales y Contacto */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <User className="w-4 h-4 text-[#9d2449]" />
-              <h2 className="text-sm font-bold text-slate-900">1. Datos Personales y de Contacto</h2>
+          {/* Card: Datos Personales */}
+          <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-xs space-y-5">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+              <User className="w-5 h-5 text-[#9d2449]" />
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                1. Información Personal y Contacto
+              </h3>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nombre Completo *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. Roberto Sánchez Méndez"
-                  value={name}
-                  onChange={(e) => handleNameChange(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9d2449]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Teléfono Móvil (WhatsApp)
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Nombre Completo <span className="text-rose-500">*</span>
                 </label>
                 <div className="relative">
-                  <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="tel"
-                    placeholder="Ej. 9931234567"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9d2449]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Correo Electrónico
-                </label>
-                <div className="relative">
-                  <Mail className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="email"
-                    placeholder="Ej. roberto.sanchez@ejemplo.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9d2449]"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Meta Objetivo de Promovidos
-                </label>
-                <div className="relative">
-                  <Target className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder="Ej. 1500"
-                    value={metaGoal}
-                    onChange={(e) => setMetaGoal(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9d2449]"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card: Credenciales de Acceso */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs space-y-4">
-            <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Key className="w-4 h-4 text-[#9d2449]" />
-              <h2 className="text-sm font-bold text-slate-900">2. Credenciales de Inicio de Sesión</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nombre de Usuario *
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. coord_roberto"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9d2449]"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Contraseña *
-                </label>
-                <div className="relative">
-                  <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <User className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input
                     type="text"
                     required
-                    placeholder="Contraseña de acceso"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9d2449]"
+                    placeholder={`Ej. Lic. Fernando Gómez`}
+                    value={name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Teléfono / WhatsApp
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="tel"
+                    placeholder="9931234567"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Correo Electrónico
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="email"
+                    placeholder="correo@ejemplo.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all"
                   />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Card: Asignación de Secciones */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200/90 shadow-xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2 border-b border-slate-100">
-              <div className="flex items-center gap-2">
-                <Layers className="w-4 h-4 text-[#9d2449]" />
-                <h2 className="text-sm font-bold text-slate-900">
-                  3. Asignación de Secciones Electorales ({selectedSections.length} seleccionadas)
-                </h2>
+          {/* Card: Cuenta de Acceso */}
+          <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-xs space-y-5">
+            <div className="flex items-center gap-2.5 pb-3 border-b border-slate-100">
+              <Key className="w-5 h-5 text-[#9d2449]" />
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                2. Credenciales de Inicio de Sesión
+              </h3>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Usuario del Sistema <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <span className="text-slate-400 font-mono text-xs absolute left-3.5 top-2.5">@</span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="usuario.sistema"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all font-mono font-bold"
+                  />
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-xs">
-                <button
-                  type="button"
-                  onClick={selectAllFiltered}
-                  className="text-[#9d2449] hover:underline font-bold cursor-pointer"
-                >
-                  Seleccionar visibles
-                </button>
-                <span className="text-slate-300">•</span>
-                <button
-                  type="button"
-                  onClick={clearSelected}
-                  className="text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
-                >
-                  Limpiar todas
-                </button>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Contraseña Asignada <span className="text-rose-500">*</span>
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="admin123"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all font-mono"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Asignación Territorial */}
+          <div className="bg-white rounded-2xl p-6 sm:p-7 border border-slate-200/90 shadow-xs space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <MapPin className="w-5 h-5 text-[#9d2449]" />
+                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wide">
+                  3. Asignación Territorial y Demarcación
+                </h3>
               </div>
             </div>
 
-            {/* Búsqueda de sección */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Filtrar número de sección (ej. 0168)..."
-                value={sectionSearch}
-                onChange={(e) => setSectionSearch(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#9d2449]"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Nombre de Territorio o Zona
+                </label>
+                <input
+                  type="text"
+                  placeholder={
+                    targetChildLevel === 'distrital' ? 'Ej. Distrito 04 (Centro)' :
+                    targetChildLevel === 'zona' ? 'Ej. Zona 1 Norte' :
+                    targetChildLevel === 'responsable_zona' ? 'Ej. Sector Tamulté' :
+                    'Ej. Sección 0285'
+                  }
+                  value={territoryName}
+                  onChange={(e) => setTerritoryName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all font-medium"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Meta Objetivo de Promovidos
+                </label>
+                <input
+                  type="number"
+                  placeholder="1500"
+                  value={metaGoal}
+                  onChange={(e) => setMetaGoal(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all font-mono font-bold"
+                />
+              </div>
             </div>
 
-            {/* Chips de Secciones */}
-            <div className="max-h-60 overflow-y-auto p-2 bg-slate-50 border border-slate-200/70 rounded-xl flex flex-wrap gap-1.5">
-              {filteredSectionNumbers.length === 0 ? (
-                <p className="text-xs text-slate-400 p-3 italic">
-                  No se encontraron secciones con el criterio de búsqueda.
-                </p>
-              ) : (
-                filteredSectionNumbers.map(secNum => {
-                  const isSelected = selectedSections.includes(secNum);
-                  return (
+            {/* Selector de Secciones Electorales */}
+            {showSectionPicker && (
+              <div className="pt-3 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Secciones Electorales Asignadas ({selectedSections.length} seleccionadas)
+                  </label>
+                  <div className="flex items-center gap-2">
                     <button
-                      key={secNum}
                       type="button"
-                      onClick={() => toggleSection(secNum)}
-                      className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#9d2449] text-white shadow-xs scale-102'
-                          : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
-                      }`}
+                      onClick={selectAllFiltered}
+                      className="text-[11px] font-bold text-[#9d2449] hover:underline cursor-pointer"
                     >
-                      {secNum}
+                      Seleccionar todas
                     </button>
-                  );
-                })
-              )}
-            </div>
+                    <span className="text-slate-300">•</span>
+                    <button
+                      type="button"
+                      onClick={clearSelected}
+                      className="text-[11px] font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por número de sección..."
+                    value={sectionSearch}
+                    onChange={(e) => setSectionSearch(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#9d2449]"
+                  />
+                </div>
+
+                <div className="max-h-44 overflow-y-auto p-2 bg-slate-50/70 border border-slate-200 rounded-xl grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5">
+                  {filteredSectionNumbers.map((secNum) => {
+                    const isSelected = selectedSections.includes(secNum);
+                    return (
+                      <button
+                        key={secNum}
+                        type="button"
+                        onClick={() => toggleSection(secNum)}
+                        className={`px-2 py-1.5 rounded-lg text-xs font-mono font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#9d2449] text-white shadow-xs'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {isSelected && <CheckCircle2 className="w-3 h-3" />}
+                        <span>{secNum}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Botones de Acción */}
@@ -378,33 +463,22 @@ export const CreateTerritorialCoordinatorPage: React.FC<CreateTerritorialCoordin
               type="button"
               onClick={onBack}
               disabled={isSubmitting}
-              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              className="px-5 py-2.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors cursor-pointer"
             >
               Cancelar
             </button>
+
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-2.5 bg-[#9d2449] hover:bg-[#851e3e] text-white font-bold rounded-xl text-xs shadow-md shadow-[#9d2449]/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-6 py-2.5 bg-[#9d2449] hover:bg-[#851e3e] text-white rounded-xl text-xs font-bold shadow-md shadow-[#9d2449]/20 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
             >
               <CheckCircle2 className="w-4 h-4" />
-              <span>{isSubmitting ? 'Guardando...' : 'Guardar Coordinador Territorial'}</span>
+              <span>{isSubmitting ? 'Guardando...' : `Guardar ${childRoleLabel}`}</span>
             </button>
           </div>
         </form>
       </div>
-
-      {/* Pie de página pequeño */}
-      <footer className="mt-auto py-3 px-6 border-t border-slate-200/60 bg-white text-center">
-        <a
-          href="https://www.instagram.com/rubenroqueguzman/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-[11px] text-slate-400 hover:text-slate-600 transition-colors"
-        >
-          Creado por: Rubén Roque Guzmán
-        </a>
-      </footer>
     </div>
   );
 };

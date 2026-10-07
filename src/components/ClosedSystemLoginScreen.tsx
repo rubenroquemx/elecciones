@@ -167,26 +167,6 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Acceso Rápido por Rol para Probar Dashboards */}
-          <div className="pt-4 border-t border-slate-100">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2 text-center">
-              Acceso Rápido de Prueba por Nivel:
-            </span>
-            <div className="flex flex-wrap gap-1.5 justify-center">
-              {accounts.map(acc => (
-                <button
-                  key={acc.id}
-                  type="button"
-                  onClick={() => onLogin(acc)}
-                  className="px-2 py-1 text-[10px] font-semibold bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 text-slate-700 rounded-lg transition-all cursor-pointer shadow-2xs"
-                  title={`Ingresar directamente como ${acc.name} (${acc.accountRoleLabel})`}
-                >
-                  {acc.accountRoleLabel}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </main>
 

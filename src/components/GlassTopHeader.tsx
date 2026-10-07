@@ -11,7 +11,6 @@ import {
   LogOut,
 } from 'lucide-react';
 import { MEXICAN_STATES, type StateData } from '../data/statesData';
-import { MOCK_ACCOUNTS } from '../data/mockAuthData';
 import type { UserAccount } from '../types/auth';
 
 interface GlassTopHeaderProps {
@@ -267,7 +266,7 @@ export const GlassTopHeader: React.FC<GlassTopHeaderProps> = ({
               </div>
 
               <div className="space-y-1 max-h-60 overflow-y-auto pr-0.5">
-                {[...registeredUsers, ...MOCK_ACCOUNTS.slice(0, 3)].map((acc) => {
+                {registeredUsers.map((acc) => {
                   const isSelected = acc.id === currentUser.id;
                   const isNew = registeredUsers.some((r) => r.id === acc.id);
                   return (

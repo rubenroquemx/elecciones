@@ -375,11 +375,19 @@ export function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
+          const legacyDemoIds = new Set([
+            'usr-jefe-campana', 'usr-coord-distrital', 'usr-coord-zona', 
+            'usr-resp-zona', 'usr-resp-seccion', 'usr-promotor',
+            'usr-prom-ruben-roque', 'usr-coord-estatal', 'usr-coord-seccional'
+          ]);
           const cleaned = parsed.filter((a: UserAccount) => 
-            a.id !== 'usr-prom-ruben-roque' && 
+            !legacyDemoIds.has(a.id) &&
             !a.email?.includes('estrategia-territorial.mx') &&
             a.email !== 'admin@estrategia-territorial.mx'
           );
+          try {
+            localStorage.setItem('territorial_custom_accounts', JSON.stringify(cleaned));
+          } catch {}
           const savedIds = new Set(cleaned.map((a: UserAccount) => a.id));
           const missingMock = MOCK_ACCOUNTS.filter(a => !savedIds.has(a.id));
           return [...missingMock, ...cleaned];
@@ -540,7 +548,7 @@ export function App() {
       return updated;
     });
 
-    setTopSuccessNotice(`¡Coordinador Territorial "${leader.name}" dado de alta con éxito!`);
+    setTopSuccessNotice(`¡${leader.role} "${leader.name}" dado de alta con éxito!`);
     setActiveNav('usuarios');
   }, []);
 
@@ -734,17 +742,17 @@ export function App() {
       setActiveNav('escritorio');
     }
     const isMidLevel = currentUser.level === 'distrital' || currentUser.level === 'zona' || currentUser.level === 'responsable_zona';
-    const allowedMidPages: MainNavSection[] = ['escritorio', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
+    const allowedMidPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
     if (isMidLevel && !allowedMidPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
     const isTerritorial = currentUser.level === 'territorial' || currentUser.level === 'seccional';
-    const allowedTerritorialPages: MainNavSection[] = ['escritorio', 'promotores', 'crear-promotor', 'editar-promotor', 'secciones'];
+    const allowedTerritorialPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'promotores', 'crear-promotor', 'editar-promotor', 'secciones'];
     if (isTerritorial && !allowedTerritorialPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
     const isAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;
-    const allowedAdminPages: MainNavSection[] = ['escritorio', 'mesa-de-ayuda', 'crear-coordinador'];
+    const allowedAdminPages: MainNavSection[] = ['escritorio', 'mesa-de-ayuda', 'usuarios', 'crear-coordinador', 'crear-coordinador-territorial'];
     if (isAdmin && !allowedAdminPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }

@@ -296,44 +296,66 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
 
+            {/* 4. USUARIOS / EQUIPO (Para Distrital, Zona, Responsable de Zona) */}
+            {!isPromotor && !isCampana && !isAdmin && !isTerritorial && (
+              <button
+                type="button"
+                onClick={() => {
+                  onNavChange('usuarios');
+                  onCloseMobile?.();
+                }}
+                title="Usuarios"
+                className={`w-full flex items-center rounded-xl text-xs font-semibold transition-[background-color,color] duration-140 cursor-pointer ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                } ${
+                  activeNav === 'usuarios' || activeNav === 'crear-coordinador-territorial'
+                    ? 'bg-white/[0.14] text-white shadow-xs'
+                    : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                }`}
+              >
+                <Users className={`w-5 h-5 shrink-0 ${activeNav === 'usuarios' || activeNav === 'crear-coordinador-territorial' ? 'text-indigo-400' : 'text-slate-400'}`} />
+                {!isCollapsed && <span>Usuarios</span>}
+              </button>
+            )}
+
             {/* SECCIÓN DEDICADA PARA COORDINADOR TERRITORIAL */}
             {isTerritorial && (
               <div className="space-y-1 pt-3 border-t border-white/[0.08]">
                 <button
                   type="button"
                   onClick={() => {
-                    onNavChange('promotores');
+                    onNavChange('usuarios');
                     onCloseMobile?.();
                   }}
-                  title="Directorio de Promotores"
+                  title="Usuarios (Promotores Territoriales)"
                   className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
                   } ${
-                    activeNav === 'promotores'
+                    activeNav === 'usuarios' || activeNav === 'promotores'
                       ? 'bg-sky-500/25 text-white border border-sky-400/40 shadow-xs'
                       : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                   }`}
                 >
-                  <Users className={`w-5 h-5 shrink-0 ${activeNav === 'promotores' ? 'text-sky-300' : 'text-sky-400'}`} />
-                  {!isCollapsed && <span>Ver Promotores</span>}
+                  <Users className={`w-5 h-5 shrink-0 ${activeNav === 'usuarios' || activeNav === 'promotores' ? 'text-sky-300' : 'text-sky-400'}`} />
+                  {!isCollapsed && <span>Usuarios (Promotores)</span>}
                 </button>
 
                 <button
                   type="button"
                   onClick={() => {
-                    onNavChange('crear-promotor');
+                    onNavChange('crear-coordinador-territorial');
                     onCloseMobile?.();
                   }}
                   title="Crear Promotor"
                   className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
                   } ${
-                    activeNav === 'crear-promotor'
+                    activeNav === 'crear-coordinador-territorial' || activeNav === 'crear-promotor'
                       ? 'bg-emerald-500/25 text-white border border-emerald-400/40 shadow-xs'
                       : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                   }`}
                 >
-                  <UserPlus className={`w-5 h-5 shrink-0 ${activeNav === 'crear-promotor' ? 'text-emerald-300' : 'text-emerald-400'}`} />
+                  <UserPlus className={`w-5 h-5 shrink-0 ${activeNav === 'crear-coordinador-territorial' || activeNav === 'crear-promotor' ? 'text-emerald-300' : 'text-emerald-400'}`} />
                   {!isCollapsed && <span>Crear Promotor</span>}
                 </button>
               </div>
@@ -342,14 +364,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {/* SECCIONES PARA COORDINADOR DE CAMPAÑA: SIEMPRE MANTENERSE DEBAJO */}
             {isCampana && (
               <div className="mt-auto pt-4 border-t border-white/[0.08] space-y-1.5">
-                {/* 1. Usuario */}
+                {/* 1. Usuarios */}
                 <button
                   type="button"
                   onClick={() => {
                     onNavChange('usuarios');
                     onCloseMobile?.();
                   }}
-                  title="Usuario (Coordinadores Territoriales)"
+                  title="Usuarios"
                   className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                     isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
                   } ${
@@ -359,7 +381,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}
                 >
                   <Users className={`w-5 h-5 shrink-0 ${activeNav === 'usuarios' || activeNav === 'crear-coordinador-territorial' ? 'text-white' : 'text-slate-400'}`} />
-                  {!isCollapsed && <span>Usuario</span>}
+                  {!isCollapsed && <span>Usuarios</span>}
                 </button>
 
                 {/* 2. Configuración */}
