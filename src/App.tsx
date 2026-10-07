@@ -239,7 +239,7 @@ export function App() {
           localPending.forEach(localLeader => {
             const safeLeader = {
               ...localLeader,
-              parentId: localLeader.parentId || (currentUser?.level === 'promotor' ? currentUser.leaderId : null) || 'prom-ruben-roque',
+              parentId: localLeader.parentId || (currentUser?.level === 'promotor' ? currentUser.leaderId : null) || null,
             };
             combinedMap.set(safeLeader.id, safeLeader);
             saveLeaderApi(safeLeader, false)
@@ -317,14 +317,39 @@ export function App() {
       window.history.replaceState(null, '', '/');
     }
     try {
-      const savedLeaders = localStorage.getItem('territorial_leaders_data');
-      if (savedLeaders && savedLeaders.includes('"pmv-')) {
-        const parsed = JSON.parse(savedLeaders);
-        if (Array.isArray(parsed)) {
-          const cleaned = parsed.filter((l: any) => !l.id?.startsWith('pmv-'));
-          localStorage.setItem('territorial_leaders_data', JSON.stringify(cleaned));
-        }
+      const savedAuth = localStorage.getItem('territorial_auth_user');
+      if (savedAuth && (
+        savedAuth.includes('estrategia-territorial.mx') || 
+        savedAuth.includes('usr-prom-ruben-roque') ||
+        savedAuth.includes('promotor2026')
+      )) {
+        localStorage.removeItem('territorial_auth_user');
       }
+
+      const savedCustom = localStorage.getItem('territorial_custom_accounts');
+      if (savedCustom && (
+        savedCustom.includes('estrategia-territorial.mx') || 
+        savedCustom.includes('usr-prom-ruben-roque')
+      )) {
+        const parsed = JSON.parse(savedCustom);
+        const filtered = Array.isArray(parsed) 
+          ? parsed.filter((a: any) => !a.email?.includes('estrategia-territorial.mx') && a.id !== 'usr-prom-ruben-roque') 
+          : [];
+        localStorage.setItem('territorial_custom_accounts', JSON.stringify(filtered));
+      }
+
+      const savedLeaders = localStorage.getItem('territorial_leaders_data');
+      if (savedLeaders && (
+        savedLeaders.includes('coord-campana-carlos') ||
+        savedLeaders.includes('coord-terri-fernando') ||
+        savedLeaders.includes('prom-patricia-lara') ||
+        savedLeaders.includes('prom-ruben-roque') ||
+        savedLeaders.includes('Lic. Carlos') ||
+        savedLeaders.includes('Elena Ramos')
+      )) {
+        localStorage.removeItem('territorial_leaders_data');
+      }
+
       const reg = localStorage.getItem('territorial_elector_registry');
       if (reg && (reg.includes('Elena Ramos') || reg.includes('Fernando May') || reg.includes('Carlos Eduardo') || reg.includes('pmv-'))) {
         localStorage.removeItem('territorial_elector_registry');
@@ -334,16 +359,21 @@ export function App() {
     }
   }, []);
 
-  // User accounts: base 4 mock accounts + manually created accounts from localStorage
+  // User accounts: Super Administrador (desde env) + cuentas creadas en el sistema
   const [accounts, setAccounts] = useState<UserAccount[]>(() => {
     try {
       const saved = localStorage.getItem('territorial_custom_accounts');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          const savedIds = new Set(parsed.map((a: UserAccount) => a.id));
+          const cleaned = parsed.filter((a: UserAccount) => 
+            a.id !== 'usr-prom-ruben-roque' && 
+            !a.email?.includes('estrategia-territorial.mx') &&
+            a.email !== 'admin@estrategia-territorial.mx'
+          );
+          const savedIds = new Set(cleaned.map((a: UserAccount) => a.id));
           const missingMock = MOCK_ACCOUNTS.filter(a => !savedIds.has(a.id));
-          return [...missingMock, ...parsed];
+          return [...missingMock, ...cleaned];
         }
       }
     } catch (e) {
@@ -352,13 +382,21 @@ export function App() {
     return MOCK_ACCOUNTS;
   });
 
-  // Authenticated user in closed system (defaults to Ruben Roque or saved session)
+  // Authenticated user in closed system (requiere credenciales si no hay sesión guardada)
   const [currentUser, setCurrentUser] = useState<UserAccount | null>(() => {
     try {
       const saved = localStorage.getItem('territorial_auth_user');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed) {
+          if (
+            parsed.id === 'usr-prom-ruben-roque' || 
+            parsed.email?.includes('estrategia-territorial.mx') ||
+            (parsed.id === 'usr-admin' && parsed.email !== 'usrubenroqueguzman@gmail.com')
+          ) {
+            localStorage.removeItem('territorial_auth_user');
+            return null;
+          }
           return parsed;
         } else {
           localStorage.removeItem('territorial_auth_user');
@@ -367,7 +405,7 @@ export function App() {
     } catch (e) {
       console.error('Error loading saved auth user', e);
     }
-    return MOCK_ACCOUNTS.find(a => a.id === 'usr-prom-ruben-roque') || MOCK_ACCOUNTS[0];
+    return null;
   });
 
   const handleSelectUser = useCallback((user: UserAccount) => {

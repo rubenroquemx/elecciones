@@ -1,34 +1,38 @@
 import type { UserAccount } from '../types/auth';
 
-export const MOCK_ACCOUNTS: UserAccount[] = [
-  // 1. Super Administrador (Acceso Total)
-  {
-    id: 'usr-admin',
-    username: 'superadmin',
-    name: 'Super Administrador',
-    email: 'admin@estrategia-territorial.mx',
-    password: 'admin',
-    leaderId: null, // Acceso Global a todo el estado
-    level: 'admin',
-    territoryName: 'Todo el Estado (Acceso Total)',
-    accountRoleLabel: 'Super Administrador',
-    avatarBg: 'bg-purple-700',
-    isSuperAdmin: true,
-  },
+// Credenciales oficiales de Superadministrador configuradas desde variables de entorno
+const getEnvSuperadminEmail = (): string => {
+  if (typeof window !== 'undefined' && (window as any).__ENV__?.VITE_SUPERADMIN_EMAIL) {
+    return (window as any).__ENV__.VITE_SUPERADMIN_EMAIL;
+  }
+  return import.meta.env.VITE_SUPERADMIN_EMAIL || 'usrubenroqueguzman@gmail.com';
+};
 
-  // 2. Promotor Territorial (Ruben Roque)
-  {
-    id: 'usr-prom-ruben-roque',
-    username: 'ruben.roque',
-    name: 'Ruben Roque',
-    email: 'ruben.roque@estrategia-territorial.mx',
-    password: 'promotor2026',
-    leaderId: 'prom-ruben-roque',
-    level: 'promotor',
-    territoryName: 'Zona Tamulté (Secciones 0416 y 0417)',
-    assignedSections: ['0416', '0417'],
-    accountRoleLabel: 'Promotor Territorial',
-    avatarBg: 'bg-emerald-600',
-    assignedBy: 'Coordinación Territorial',
-  },
+const getEnvSuperadminPassword = (): string => {
+  if (typeof window !== 'undefined' && (window as any).__ENV__?.VITE_SUPERADMIN_PASSWORD) {
+    return (window as any).__ENV__.VITE_SUPERADMIN_PASSWORD;
+  }
+  return import.meta.env.VITE_SUPERADMIN_PASSWORD || 'admin123';
+};
+
+const superadminEmail = getEnvSuperadminEmail().toLowerCase();
+const superadminPassword = getEnvSuperadminPassword();
+
+export const SUPERADMIN_ACCOUNT: UserAccount = {
+  id: 'usr-superadmin',
+  username: superadminEmail.includes('@') ? superadminEmail.split('@')[0] : superadminEmail,
+  name: 'Super Administrador',
+  email: superadminEmail,
+  password: superadminPassword,
+  leaderId: null, // Acceso Global central
+  level: 'admin',
+  territoryName: 'Nivel Central (Acceso Total)',
+  accountRoleLabel: 'Super Administrador',
+  avatarBg: 'bg-[#9d2449]',
+  isSuperAdmin: true,
+};
+
+// Única cuenta inicial del sistema cerrado: Super Administrador
+export const MOCK_ACCOUNTS: UserAccount[] = [
+  SUPERADMIN_ACCOUNT,
 ];

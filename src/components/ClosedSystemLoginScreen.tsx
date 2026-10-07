@@ -9,8 +9,7 @@ import {
   AlertCircle, 
   CheckCircle2, 
   ShieldAlert,
-  Sparkles,
-  Users
+  Sparkles
 } from 'lucide-react';
 
 interface ClosedSystemLoginScreenProps {
@@ -25,8 +24,9 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
 
@@ -38,16 +38,42 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
       return;
     }
 
-    // Buscar en cuentas autorizadas
+    setIsSubmitting(true);
+
+    // 1. Intento de autenticación directa con el servidor
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: cleanId, password: cleanPass }),
+      });
+
+      if (res.ok) {
+        const user = await res.json();
+        setIsSubmitting(false);
+        onLogin(user);
+        return;
+      } else if (res.status === 401) {
+        setIsSubmitting(false);
+        setErrorMsg('Credenciales incorrectas. Verifica tu usuario/correo y contraseña.');
+        return;
+      }
+    } catch {
+      // Si el backend no responde o estamos offline, verificar contra cuentas locales autorizadas
+    }
+
+    // 2. Verificación contra cuentas autorizadas en el cliente / localStorage
     const user = accounts.find(
       (a) =>
         a.username.toLowerCase() === cleanId ||
         a.email.toLowerCase() === cleanId
     );
 
+    setIsSubmitting(false);
+
     if (!user) {
       setErrorMsg(
-        'Acceso denegado: El usuario no existe en la base de datos de este sistema cerrado. Contacta a tu Coordinador Territorial para que te dé de alta manualmente.'
+        'Acceso denegado: El usuario no existe en este sistema cerrado. Contacta a la Coordinación Central para tu acceso.'
       );
       return;
     }
@@ -60,19 +86,12 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
     onLogin(user);
   };
 
-  const handleSelectQuickAccount = (acc: UserAccount) => {
-    setIdentifier(acc.username);
-    setPassword(acc.password || 'red2026');
-    setErrorMsg(null);
-    onLogin(acc);
-  };
-
   return (
     <div className="min-h-screen w-full bg-slate-950 text-slate-100 flex flex-col justify-between relative overflow-hidden select-none font-sans">
       {/* Dynamic Background Glows */}
-      <div className="absolute top-0 left-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-emerald-600/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -top-10 -right-10 w-80 h-80 bg-rose-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#9d2449]/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-10 right-1/4 w-96 h-96 bg-slate-800/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -top-10 -right-10 w-80 h-80 bg-[#9d2449]/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Top Warning Banner */}
       <header className="w-full bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80 px-4 py-2.5 flex items-center justify-between text-xs z-10">
@@ -80,7 +99,7 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
           <ShieldAlert className="w-4 h-4 text-amber-400 shrink-0" />
           <span className="font-semibold text-slate-200">Sistema Cerrado • Acceso Restringido</span>
           <span className="hidden sm:inline text-slate-500">|</span>
-          <span className="hidden sm:inline text-slate-500">Sin registro público • Sin proveedores externos</span>
+          <span className="hidden sm:inline text-slate-500">Sin registro público • Entorno Real</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -93,14 +112,14 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
         <div className="w-full max-w-md space-y-6">
           {/* Logo & Headline */}
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-sky-600 to-emerald-500 text-white shadow-xl shadow-indigo-950/50 mb-1 border border-white/20">
+            <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#9d2449] text-white shadow-xl shadow-[#9d2449]/30 mb-1 border border-white/20">
               <Lock className="w-7 h-7" />
             </div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white apple-title-2">
               Estructura Territorial
             </h1>
             <p className="text-xs text-slate-400 max-w-sm mx-auto leading-relaxed">
-              Plataforma de alta seguridad para operación y control territorial. Solo personal autorizado con cuenta dada de alta manualmente.
+              Plataforma de alta seguridad para operación y control territorial. Ingresa con tus credenciales autorizadas.
             </p>
           </div>
 
@@ -124,14 +143,15 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
                   </div>
                   <input
                     type="text"
+                    required
                     value={identifier}
                     onChange={(e) => {
                       setIdentifier(e.target.value);
                       setErrorMsg(null);
                     }}
-                    placeholder="ej. ruben.roque o usuario@dominio.mx"
+                    placeholder="ej. usrubenroqueguzman@gmail.com"
                     autoComplete="username"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium"
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#9d2449] focus:ring-1 focus:ring-[#9d2449] transition-all font-medium"
                   />
                 </div>
               </div>
@@ -146,6 +166,7 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
                   </div>
                   <input
                     type="password"
+                    required
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
@@ -153,63 +174,23 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
                     }}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-mono"
+                    className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/80 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#9d2449] focus:ring-1 focus:ring-[#9d2449] transition-all font-mono"
                   />
                 </div>
               </div>
 
               <button
                 type="submit"
-                className="w-full py-3 px-4 bg-gradient-to-r from-indigo-600 via-sky-600 to-indigo-600 hover:from-indigo-500 hover:via-sky-500 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-950/40 hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                disabled={isSubmitting}
+                className="w-full py-3 px-4 bg-[#9d2449] hover:bg-[#851e3e] disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-lg shadow-[#9d2449]/30 hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
-                <span>Ingresar al Sistema Cerrado</span>
+                <span>{isSubmitting ? 'Verificando...' : 'Ingresar al Sistema Cerrado'}</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
 
             <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-500 text-center leading-relaxed">
-              ¿No tienes cuenta? Los accesos únicamente los generan los coordinadores de campaña y territoriales. No existe registro público.
-            </div>
-          </div>
-
-          {/* Quick Access Switcher for 4 Official Levels + Manual Accounts */}
-          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 backdrop-blur-md space-y-2.5">
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-indigo-400" />
-                Cuentas Autorizadas ({accounts.length})
-              </span>
-              <span className="text-[10px] text-slate-500">1-clic para ingresar</span>
-            </div>
-
-            <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto pr-1">
-              {accounts.map((acc) => (
-                <button
-                  key={acc.id}
-                  type="button"
-                  onClick={() => handleSelectQuickAccount(acc)}
-                  className="flex items-center justify-between p-2 rounded-xl bg-slate-950/60 hover:bg-slate-800/70 border border-slate-800/60 hover:border-slate-700 transition-all text-left text-xs group cursor-pointer"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-bold shrink-0 ${acc.avatarBg || 'bg-slate-700'}`}>
-                      {acc.level === 'admin' ? <Shield className="w-3.5 h-3.5" /> : acc.name.charAt(0)}
-                    </div>
-                    <div className="min-w-0 truncate">
-                      <div className="font-bold text-slate-200 group-hover:text-white truncate">
-                        {acc.name}
-                      </div>
-                      <div className="text-[10px] text-slate-500 truncate flex items-center gap-1.5">
-                        <span className="font-mono text-indigo-400">@{acc.username}</span>
-                        <span>•</span>
-                        <span className="text-slate-400 truncate">{acc.accountRoleLabel}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] bg-slate-800 group-hover:bg-indigo-600 text-slate-400 group-hover:text-white px-2 py-0.5 rounded-lg transition-colors font-semibold shrink-0 ml-2">
-                    Acceder
-                  </span>
-                </button>
-              ))}
+              ¿No tienes cuenta? Los accesos únicamente los generan los coordinadores autorizados. No existe registro público.
             </div>
           </div>
         </div>
@@ -222,12 +203,12 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
           Sistema Cerrado
         </span>
         <span className="flex items-center gap-1.5">
-          <Shield className="w-3.5 h-3.5 text-indigo-400" />
-          Altas Manuales
+          <Shield className="w-3.5 h-3.5 text-[#9d2449]" />
+          Acceso Restringido
         </span>
         <span className="flex items-center gap-1.5">
-          <Lock className="w-3.5 h-3.5 text-sky-400" />
-          Sin Google / Sin Rastreadores
+          <Lock className="w-3.5 h-3.5 text-slate-400" />
+          Entorno de Producción
         </span>
         <span className="flex items-center gap-1.5">
           <Sparkles className="w-3.5 h-3.5 text-amber-400" />

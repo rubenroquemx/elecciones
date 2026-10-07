@@ -27,8 +27,66 @@ app.get('/api/health', (req, res) => {
 app.get('/api/config', (req, res) => {
   res.json({
     authMode: 'closed_system',
-    superadminEmail: process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'admin@estrategia-territorial.mx'
+    superadminEmail: (process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'usrubenroqueguzman@gmail.com').toLowerCase(),
   });
+});
+
+// Autenticación en Sistema Cerrado
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { identifier, password } = req.body;
+    if (!identifier || !password) {
+      return res.status(400).json({ error: 'Usuario o correo y contraseña requeridos' });
+    }
+
+    const cleanId = String(identifier).trim().toLowerCase();
+    const cleanPass = String(password).trim();
+
+    const envSuperadminEmail = (process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'usrubenroqueguzman@gmail.com').toLowerCase();
+    const envSuperadminPass = process.env.SUPERADMIN_PASSWORD || process.env.VITE_SUPERADMIN_PASSWORD || 'admin123';
+    const envSuperadminUsername = envSuperadminEmail.includes('@') ? envSuperadminEmail.split('@')[0] : envSuperadminEmail;
+
+    // 1. Verificación de Super Administrador desde variables de entorno
+    if ((cleanId === envSuperadminEmail || cleanId === envSuperadminUsername) && cleanPass === envSuperadminPass) {
+      return res.json({
+        id: 'usr-superadmin',
+        username: envSuperadminUsername,
+        name: 'Super Administrador',
+        email: envSuperadminEmail,
+        password: envSuperadminPass,
+        leaderId: null,
+        level: 'admin',
+        territoryName: 'Nivel Central (Acceso Total)',
+        accountRoleLabel: 'Super Administrador',
+        avatarBg: 'bg-[#9d2449]',
+        isSuperAdmin: true,
+      });
+    }
+
+    // 2. Verificación de usuarios creados en PostgreSQL
+    let userFromDb: any = null;
+    try {
+      userFromDb = await prisma.userAccount.findFirst({
+        where: {
+          OR: [
+            { email: cleanId },
+            { username: cleanId }
+          ]
+        }
+      });
+    } catch (e) {}
+
+    if (userFromDb) {
+      if (userFromDb.password && userFromDb.password !== cleanPass) {
+        return res.status(401).json({ error: 'Contraseña incorrecta' });
+      }
+      return res.json(userFromDb);
+    }
+
+    return res.status(401).json({ error: 'Credenciales inválidas en este sistema cerrado' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error en autenticación', message: err.message });
+  }
 });
 
 // Estado de disponibilidad de OCR (Servicio Autohospedado en Servidor Propio)
@@ -750,7 +808,8 @@ app.use((req, res) => {
       let html = fs.readFileSync(indexPath, 'utf-8');
       const envData = {
         VITE_AUTH_MODE: 'closed_system',
-        VITE_SUPERADMIN_EMAIL: (process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'admin@estrategia-territorial.mx').toLowerCase(),
+        VITE_SUPERADMIN_EMAIL: (process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'usrubenroqueguzman@gmail.com').toLowerCase(),
+        VITE_SUPERADMIN_PASSWORD: process.env.SUPERADMIN_PASSWORD || process.env.VITE_SUPERADMIN_PASSWORD || 'admin123',
       };
       const envTag = `<script>window.__ENV__ = ${JSON.stringify(envData)};</script>`;
       html = html.replace('</head>', `${envTag}</head>`);
@@ -791,42 +850,17 @@ async function ensureDbSchema() {
       ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "inePhotoUrl" TEXT;
       ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "vigencia" TEXT;
       ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "changelog" JSONB;
+      ALTER TABLE "UserAccount" ADD COLUMN IF NOT EXISTS "password" TEXT;
     `);
-    console.log('✓ Columnas de ciudadano verificadas en tabla Leader.');
+    console.log('✓ Columnas de esquema verificadas en base de datos PostgreSQL.');
   } catch (err: any) {
     console.warn('Aviso en ensureDbSchema:', err.message);
   }
 }
 
-async function ensureCoreHierarchyAndLinkages() {
-  try {
-    // Vincular todos los promovidos de la sección 0416 y 0417 al promotor Ruben Roque
-    await prisma.leader.updateMany({
-      where: {
-        parentId: null,
-        level: 'promovido',
-        OR: [
-          { id: { startsWith: 'pmv-rr-' } },
-          { id: { startsWith: 'promovido-ruben-' } },
-          { id: { startsWith: 'field-promovido-' } },
-          { electoralSection: '0416' },
-          { electoralSection: '0417' },
-        ],
-      },
-      data: {
-        parentId: 'prom-ruben-roque',
-      },
-    });
-
-    console.log('✓ Promovidos territoriales vinculados en base de datos real.');
-  } catch (err: any) {
-    console.warn('Aviso en ensureCoreHierarchyAndLinkages:', err.message);
-  }
-}
-
 async function syncDatabase() {
   if (!process.env.DATABASE_URL) {
-    console.log('DATABASE_URL no configurada; operando con dataset inicial.');
+    console.log('DATABASE_URL no configurada; operando con base de datos en memoria/local.');
     return;
   }
   try {
@@ -835,12 +869,11 @@ async function syncDatabase() {
     const pushResult = await execAsync('npx prisma db push --skip-generate --accept-data-loss');
     console.log(pushResult.stdout);
 
-    console.log('Verificando siembra inicial...');
+    console.log('Verificando inicialización de datos para entorno real...');
     const seedResult = await execAsync('npx tsx prisma/seed.ts');
     console.log(seedResult.stdout);
     
-    await ensureCoreHierarchyAndLinkages();
-    console.log('✓ Base de datos PostgreSQL lista y conectada.');
+    console.log('✓ Base de datos PostgreSQL lista y conectada en modo real.');
   } catch (error: any) {
     console.warn('Aviso en inicialización de BD:', error.message);
   }

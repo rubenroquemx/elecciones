@@ -87,6 +87,7 @@ model UserAccount {
   email            String   @unique
   username         String
   name             String
+  password         String?
   leaderId         String?
   level            String   // 'admin' | 'estatal' | 'distrital' | 'territorial' | 'seccional' | 'promotor'
   territoryName    String

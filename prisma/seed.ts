@@ -2,105 +2,73 @@ import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { INITIAL_TERRITORY_DATA } from '../src/data/mockTerritoryData';
 import { INITIAL_SECTIONS } from '../src/data/mockSectionsData';
-import { MOCK_ACCOUNTS } from '../src/data/mockAuthData';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const prisma = new PrismaClient();
 
-
 async function main() {
-  console.log('--- Iniciando verificación de Base de Datos PostgreSQL ---');
+  console.log('--- Iniciando verificación y configuración para Entorno Real ---');
 
-  // 1. Seed Leaders
-  const leaderCount = await prisma.leader.count();
-  console.log(`Líderes en base de datos: ${leaderCount}`);
-
-  console.log(`Sembrando y verificando ${INITIAL_TERRITORY_DATA.length} líderes territoriales base...`);
-
-  // Insert level by level to respect foreign keys (0: distrital, 1: territorial, 2: promotor, 3: promovido)
-  for (let levelIdx = 0; levelIdx <= 4; levelIdx++) {
-    const nodesAtLevel = INITIAL_TERRITORY_DATA.filter((n) => (n.levelIndex ?? 0) === levelIdx);
-    console.log(`Verificando nivel ${levelIdx} (${nodesAtLevel.length} registros)...`);
-
-    for (const node of nodesAtLevel) {
-      let safeParentId = node.parentId || null;
-      if (safeParentId) {
-        const parentExists = await prisma.leader.findUnique({ where: { id: safeParentId } });
-        if (!parentExists) safeParentId = null;
-      }
-
-      await prisma.leader.upsert({
-        where: { id: node.id },
-        update: {
-          name: node.name,
-          role: node.role,
-          level: node.level,
-          levelIndex: node.levelIndex ?? levelIdx,
-          parentId: safeParentId,
-          territoryName: node.territoryName,
-        },
-        create: {
-          id: node.id,
-          name: node.name,
-          role: node.role,
-          level: node.level,
-          levelIndex: node.levelIndex ?? levelIdx,
-          parentId: safeParentId,
-          territoryName: node.territoryName,
-          code: node.code || null,
-          phone: node.phone || null,
-          email: node.email || null,
-          username: node.username || null,
-          hasAccount: node.hasAccount ?? (node.level !== 'promovido'),
-          metaGoal: node.metaGoal ?? 0,
-          currentCount: node.currentCount ?? 0,
-          status: node.status || 'en_progreso',
-          validationStatus: node.validationStatus || 'validado',
-          notes: node.notes || null,
-          avatarBg: node.avatarBg || 'bg-indigo-600',
-          address: node.address || null,
-          colonia: node.colonia || null,
-          electoralSection: node.electoralSection || null,
-          curp: node.curp || null,
-          electorKey: node.electorKey || null,
-          inePhotoUrl: node.inePhotoUrl || null,
-          vigencia: node.vigencia || null,
-          changelog: node.changelog ? JSON.parse(JSON.stringify(node.changelog)) : null,
-        },
-      });
-    }
+  // 1. Limpieza de datos de prueba en tabla Leader
+  try {
+    const deletedLeaders = await prisma.leader.deleteMany({});
+    console.log(`✓ Eliminados ${deletedLeaders.count} registros de líderes/promovidos de ejemplo. Tabla Leader limpia.`);
+  } catch (err: any) {
+    console.warn('Aviso limpiando líderes:', err.message);
   }
 
-  // Vincular promovidos huérfanos a prom-ruben-roque
+  // 2. Configuración exclusiva de la cuenta Super Administrador desde variables de entorno
+  const superadminEmail = (process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'usrubenroqueguzman@gmail.com').toLowerCase();
+  const superadminPassword = process.env.SUPERADMIN_PASSWORD || process.env.VITE_SUPERADMIN_PASSWORD || 'admin123';
+  const superadminUsername = superadminEmail.includes('@') ? superadminEmail.split('@')[0] : superadminEmail;
+
   try {
-    await prisma.leader.updateMany({
+    const deletedUsers = await prisma.userAccount.deleteMany({
       where: {
-        parentId: null,
-        level: 'promovido',
-        OR: [
-          { id: { startsWith: 'promovido-ruben-' } },
-          { id: { startsWith: 'field-promovido-' } },
-          { electoralSection: '0416' },
-        ],
+        email: { not: superadminEmail }
+      }
+    });
+    console.log(`✓ Eliminadas ${deletedUsers.count} cuentas de prueba. Solo existe la cuenta de Super Administrador.`);
+
+    await prisma.userAccount.upsert({
+      where: { email: superadminEmail },
+      update: {
+        username: superadminUsername,
+        name: 'Super Administrador',
+        password: superadminPassword,
+        level: 'admin',
+        territoryName: 'Nivel Central (Acceso Total)',
+        accountRoleLabel: 'Super Administrador',
+        isSuperAdmin: true,
+        avatarBg: 'bg-[#9d2449]',
       },
-      data: {
-        parentId: 'prom-ruben-roque',
+      create: {
+        id: 'usr-superadmin',
+        email: superadminEmail,
+        username: superadminUsername,
+        name: 'Super Administrador',
+        password: superadminPassword,
+        leaderId: null,
+        level: 'admin',
+        territoryName: 'Nivel Central (Acceso Total)',
+        avatarBg: 'bg-[#9d2449]',
+        accountRoleLabel: 'Super Administrador',
+        isSuperAdmin: true,
       },
     });
-  } catch (e: any) {
-    console.warn('Aviso vinculando promovidos huérfanos:', e.message);
+    console.log(`✓ Cuenta Super Administrador configurada: ${superadminEmail} / [password configurada desde env]`);
+  } catch (err: any) {
+    console.warn('Aviso configurando cuenta Super Administrador:', err.message);
   }
-  console.log('✓ Líderes territoriales base y promovidos sincronizados.');
 
-  // 2. Seed Electoral Sections & Structures
+  // 3. Verificar Secciones Electorales Geográficas (Cartografía Real INE)
   const sectionCount = await prisma.electoralSection.count();
   console.log(`Secciones electorales en base de datos: ${sectionCount}`);
 
   if (sectionCount === 0) {
-    console.log(`Sembrando ${INITIAL_SECTIONS.length} secciones electorales con cartografía...`);
+    console.log(`Sembrando ${INITIAL_SECTIONS.length} secciones electorales con cartografía oficial...`);
     for (const sec of INITIAL_SECTIONS) {
       await prisma.electoralSection.create({
         data: {
@@ -111,71 +79,15 @@ async function main() {
           nominalList: sec.nominalList,
           geometry: sec.geometry ? (sec.geometry as any) : undefined,
           structures: {
-            create: sec.structures.map((st) => ({
-              id: st.id,
-              name: st.name,
-              leaderName: st.leaderName,
-              targetCount: st.targetCount,
-              currentCount: st.currentCount,
-              status: st.status,
-              rootLeaderId: st.rootLeaderId || null,
-              color: st.color || 'bg-sky-500',
-            })),
+            create: [],
           },
         },
       });
     }
-    console.log('✓ Secciones electorales sembradas correctamente.');
+    console.log('✓ Secciones electorales cartográficas listas.');
   }
 
-  // 3. Seed Accounts
-  const userCount = await prisma.userAccount.count();
-  console.log(`Cuentas de usuario en base de datos: ${userCount}`);
-
-  if (userCount === 0) {
-    console.log('Sembrando cuentas de usuario y Superadministrador...');
-    // Seed Superadmin
-    const superadminEmail = (process.env.SUPERADMIN_EMAIL || 'usrubenroque@gmail.com').toLowerCase();
-    await prisma.userAccount.upsert({
-      where: { email: superadminEmail },
-      update: {},
-      create: {
-        id: 'usr-superadmin',
-        email: superadminEmail,
-        username: 'usrubenroque',
-        name: 'Ruben Roque',
-        leaderId: null,
-        level: 'admin',
-        territoryName: 'Tabasco Completo (Acceso Total)',
-        avatarBg: 'bg-purple-700',
-        accountRoleLabel: 'Superadministrador',
-        isSuperAdmin: true,
-      },
-    });
-
-    // Seed mock accounts
-    for (const acc of MOCK_ACCOUNTS) {
-      await prisma.userAccount.upsert({
-        where: { email: acc.email.toLowerCase() },
-        update: {},
-        create: {
-          id: acc.id,
-          email: acc.email.toLowerCase(),
-          username: acc.username,
-          name: acc.name,
-          leaderId: acc.leaderId,
-          level: acc.level,
-          territoryName: acc.territoryName,
-          avatarBg: acc.avatarBg,
-          accountRoleLabel: acc.accountRoleLabel,
-          isSuperAdmin: acc.level === 'admin',
-        },
-      });
-    }
-    console.log('✓ Cuentas de usuario sembradas correctamente.');
-  }
-
-  // 4. Seed National Electoral Catalog
+  // 4. Catálogo Nacional Electoral
   const catalogCount = await prisma.electoralSectionCatalog.count();
   console.log(`Catálogo de secciones electorales en base de datos: ${catalogCount}`);
 
@@ -198,7 +110,6 @@ async function main() {
         }
         if (!line.trim()) continue;
 
-        // CLAVE_ENTIDAD,NOMBRE_ENTIDAD,DISTRITO_FEDERAL,CABECERA_DISTRITAL,DISTRITO_LOCAL,CLAVE_MUNICIPIO,NOMBRE_MUNICIPIO,SECCION,TIPO_SECCION,LISTA_HOMBRES,LISTA_MUJERES,LISTA_NO_BINARIO,LISTA_NOMINAL
         const parts = line.split(',');
         if (parts.length >= 13) {
           batch.push({
@@ -236,17 +147,16 @@ async function main() {
         });
         totalInserted += batch.length;
       }
-      console.log(`✓ Catálogo Nacional sembrado exitosamente (${totalInserted} secciones).`);
+      console.log(`✓ Catálogo Nacional listo (${totalInserted} secciones).`);
     }
   }
 
-  console.log('--- Proceso de inicialización de Base de Datos completado con éxito ---');
-
+  console.log('--- Base de datos preparada en modo real. Solo superadmin activo. ---');
 }
 
 main()
   .catch((e) => {
-    console.error('Error durante la siembra de base de datos:', e);
+    console.error('Error durante la inicialización de base de datos:', e);
     process.exit(1);
   })
   .finally(async () => {

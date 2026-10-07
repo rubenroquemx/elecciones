@@ -1,22 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { UserAccount } from '../types/auth';
-import { MOCK_ACCOUNTS } from '../data/mockAuthData';
-import { getAllowedChildLevel } from '../utils/hierarchy';
-import { LEVEL_CONFIG } from '../data/mockTerritoryData';
 import { 
   Shield, 
   ChevronDown, 
-  Check, 
-  Eye, 
-  UserPlus, 
-  Sparkles,
-  LogOut
+  LogOut,
+  Mail,
+  MapPin,
+  CheckCircle2
 } from 'lucide-react';
 
 interface UserSessionSwitcherProps {
   currentUser: UserAccount;
-  onSelectUser: (user: UserAccount) => void;
-  visibleCount: number;
+  onSelectUser?: (user: UserAccount) => void;
+  visibleCount?: number;
   onLogout?: () => void;
   accounts?: UserAccount[];
   onOpenCreateUser?: () => void;
@@ -24,11 +20,7 @@ interface UserSessionSwitcherProps {
 
 export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
   currentUser,
-  onSelectUser,
-  visibleCount,
   onLogout,
-  accounts = MOCK_ACCOUNTS,
-  onOpenCreateUser,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -44,22 +36,19 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const allowedChildLevel = getAllowedChildLevel(currentUser.level);
-  const targetConfig = allowedChildLevel ? LEVEL_CONFIG[allowedChildLevel] : null;
-
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Session Pill Button */}
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-left transition-all shadow-2xs hover:shadow-xs group"
-        title="Cambiar sesión de usuario para probar permisos y alcances"
+        className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-300 rounded-xl text-left transition-all shadow-2xs hover:shadow-xs group cursor-pointer"
+        title="Perfil y sesión activa"
       >
         {currentUser.picture ? (
           <img src={currentUser.picture} alt={currentUser.name} className="w-7 h-7 rounded-lg object-cover shadow-xs shrink-0" />
         ) : (
-          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs ${currentUser.avatarBg || 'bg-slate-700'}`}>
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs ${currentUser.avatarBg || 'bg-[#9d2449]'}`}>
             {currentUser.level === 'admin' ? <Shield className="w-3.5 h-3.5" /> : currentUser.name.charAt(0)}
           </div>
         )}
@@ -83,141 +72,42 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs animate-emil-popover">
+        <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden text-xs animate-emil-popover">
           {/* Header Info */}
-          <div className="p-3.5 bg-gradient-to-r from-slate-900 to-slate-800 text-white">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                Simulador de Cuenta Activa (RBAC)
-              </span>
-              <span className="text-[10px] bg-slate-700/80 px-2 py-0.5 rounded-full text-slate-200 font-mono">
-                {visibleCount} nodos visibles
-              </span>
-            </div>
-            <div className="mt-2 text-xs text-slate-300 space-y-1">
-              <div className="flex items-center gap-1.5 text-emerald-300">
-                <Eye className="w-3.5 h-3.5 shrink-0" />
-                <span><strong>Visibilidad:</strong> Solo ve su propia sub-pirámide.</span>
+          <div className="p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shadow-md shrink-0 ${currentUser.avatarBg || 'bg-[#9d2449]'}`}>
+                {currentUser.level === 'admin' ? <Shield className="w-5 h-5" /> : currentUser.name.charAt(0)}
               </div>
-              <div className="flex items-center gap-1.5 text-sky-300">
-                <UserPlus className="w-3.5 h-3.5 shrink-0" />
-                <span>
-                  <strong>Creación:</strong> {
-                    currentUser.level === 'promotor'
-                      ? 'No crea cuentas; registra Ciudadanos Promovidos.'
-                      : currentUser.level === 'admin'
-                        ? 'Crea Coordinadores de Campaña.'
-                        : targetConfig 
-                          ? `Solo puede crear cuentas de ${targetConfig.label}.`
-                          : 'Sin permisos de creación.'
-                  }
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Manual Create User Button (Only for roles with creation permissions) */}
-          {currentUser.level !== 'promotor' && onOpenCreateUser && (
-            <div className="p-2 border-b border-slate-100 bg-slate-50/60">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsOpen(false);
-                  onOpenCreateUser();
-                }}
-                className="w-full text-left p-2.5 rounded-xl bg-gradient-to-r from-indigo-50 to-sky-50 hover:from-indigo-100 hover:to-sky-100 text-indigo-950 border border-indigo-200/80 transition-all flex items-center justify-between font-bold text-xs cursor-pointer shadow-2xs group"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center">
-                    <UserPlus className="w-3.5 h-3.5" />
-                  </div>
-                  <span>Dar de Alta Usuario Manualmente</span>
+              <div className="min-w-0">
+                <h4 className="font-bold text-white text-sm truncate">{currentUser.name}</h4>
+                <div className="flex items-center gap-1 text-[11px] text-slate-300 mt-0.5">
+                  <span className="text-emerald-400 font-bold flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    En línea
+                  </span>
+                  <span>•</span>
+                  <span className="text-slate-300">{currentUser.accountRoleLabel}</span>
                 </div>
-                <span className="text-[10px] font-mono font-bold bg-indigo-200/80 text-indigo-800 px-1.5 py-0.5 rounded">
-                  + Nuevo
-                </span>
-              </button>
+              </div>
             </div>
-          )}
-
-          {/* Accounts List */}
-          <div className="p-2 divide-y divide-slate-100 max-h-72 overflow-y-auto">
-            <div className="px-2 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-              <span>Cuentas Autorizadas ({accounts.length}):</span>
-              <span className="text-[9px] text-slate-400">Sistema Cerrado</span>
-            </div>
-            {accounts.map((acc) => {
-              const isSelected = acc.id === currentUser.id;
-              const childLvl = getAllowedChildLevel(acc.level);
-              const childCfg = childLvl ? LEVEL_CONFIG[childLvl] : null;
-
-              return (
-                <button
-                  key={acc.id}
-                  type="button"
-                  onClick={() => {
-                    onSelectUser(acc);
-                    setIsOpen(false);
-                  }}
-                  className={`w-full text-left p-2.5 rounded-xl transition-all flex items-start gap-3 my-0.5 ${
-                    isSelected
-                      ? 'bg-sky-50 border border-sky-200 text-sky-900 shadow-2xs'
-                      : 'hover:bg-slate-50 text-slate-700 border border-transparent'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5 shadow-xs ${acc.avatarBg || 'bg-slate-700'}`}>
-                    {acc.level === 'admin' ? <Shield className="w-4 h-4" /> : acc.name.charAt(0)}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <h4 className="font-bold text-slate-900 truncate text-xs">
-                          {acc.name}
-                        </h4>
-                        {isSelected && (
-                          <span className="text-[9px] font-black px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
-                            Activo
-                          </span>
-                        )}
-                      </div>
-                      {isSelected && <Check className="w-4 h-4 text-sky-600 shrink-0" />}
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="text-[10px] font-semibold text-slate-600 bg-white border border-slate-200 px-1.5 py-0.2 rounded">
-                        {acc.accountRoleLabel}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono truncate">
-                        @{acc.username}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-500 truncate mt-1">
-                      {acc.territoryName}
-                    </p>
-                    <div className="mt-1 flex items-center gap-1 text-[10px] text-slate-500">
-                      <span className="font-semibold text-slate-600">Puede crear:</span>
-                      {acc.level === 'promotor' ? (
-                        <span className="text-emerald-700 font-medium bg-emerald-50 px-1 rounded">
-                          Promovidos (Ciudadanos)
-                        </span>
-                      ) : childCfg ? (
-                        <span className="text-indigo-700 font-medium bg-indigo-50 px-1 rounded">
-                          {childCfg.label}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 italic">Ninguno</span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
           </div>
 
-          {/* Footer note & Logout */}
-          <div className="p-2.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-[10px] text-slate-500">
-            <span>Visibilidad descendente protegida</span>
+          {/* Details */}
+          <div className="p-3.5 space-y-2 bg-slate-50 border-b border-slate-100 text-slate-600 text-[11px]">
+            <div className="flex items-center gap-2">
+              <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="truncate">{currentUser.email || currentUser.username}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span className="truncate">{currentUser.territoryName}</span>
+            </div>
+          </div>
+
+          {/* Logout */}
+          <div className="p-2.5 bg-white flex items-center justify-between">
+            <span className="text-[10px] text-slate-400">Sistema Seguro Cerrado</span>
             {onLogout && (
               <button
                 type="button"
@@ -225,10 +115,10 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
                   setIsOpen(false);
                   onLogout();
                 }}
-                className="flex items-center gap-1 text-rose-600 hover:text-rose-800 font-bold px-2 py-1 rounded hover:bg-rose-50 transition-colors"
+                className="flex items-center gap-1.5 text-rose-600 hover:text-rose-800 font-bold px-3 py-1.5 rounded-xl hover:bg-rose-50 transition-colors cursor-pointer"
                 title="Cerrar sesión en este dispositivo"
               >
-                <LogOut className="w-3 h-3" />
+                <LogOut className="w-3.5 h-3.5" />
                 <span>Cerrar sesión</span>
               </button>
             )}
