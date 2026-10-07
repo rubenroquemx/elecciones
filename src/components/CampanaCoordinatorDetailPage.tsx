@@ -50,6 +50,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [mapLayer, setMapLayer] = useState<'streets' | 'sat'>('streets');
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -90,8 +91,14 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
     });
     mapInstanceRef.current = map;
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 18,
+    const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+    const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
+    const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c'];
+
+    L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      subdomains,
     }).addTo(map);
 
     const assigned = coordinator.assignedSections || [];
@@ -99,19 +106,37 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
     let sectionsDrawn = 0;
 
     assigned.forEach(secNum => {
-      const norm = secNum.padStart(4, '0');
-      const carto = CARTOGRAPHY_BY_SECTION.get(norm);
-      if (carto && carto.polygon && carto.polygon.length > 0) {
-        const poly = L.polygon(carto.polygon as [number, number][], {
-          color: '#4f46e5',
+      const clean = String(secNum).trim();
+      const norm = clean.padStart(4, '0');
+      const carto = CARTOGRAPHY_BY_SECTION.get(norm) || CARTOGRAPHY_BY_SECTION.get(clean);
+      if (carto && carto.polygon && carto.polygon.length >= 3) {
+        // GeoJSON viene como [lon, lat]. Leaflet requiere [lat, lon]:
+        const latLngs: L.LatLngExpression[] = carto.polygon.map(([lon, lat]) => [lat, lon]);
+        const poly = L.polygon(latLngs, {
+          color: mapLayer === 'sat' ? '#38bdf8' : '#4f46e5',
           weight: 1.5,
-          fillColor: '#6366f1',
-          fillOpacity: 0.35,
+          fillColor: mapLayer === 'sat' ? '#0284c7' : '#6366f1',
+          fillOpacity: mapLayer === 'sat' ? 0.42 : 0.35,
         }).addTo(map);
 
-        poly.bindTooltip(`Sección ${carto.sectionNumber} - ${carto.municipio}`, {
-          sticky: true,
-          className: 'font-sans text-xs font-bold',
+        poly.bindTooltip(
+          `<div class="px-1 py-0.5 font-sans"><span class="font-bold text-xs text-slate-900">Sección ${carto.sectionNumber}</span><div class="text-[10px] text-slate-500">${carto.municipio} • ${carto.tipo}</div></div>`,
+          { sticky: true, direction: 'top' }
+        );
+
+        poly.on('mouseover', () => {
+          poly.setStyle({
+            weight: 2.5,
+            fillOpacity: 0.65,
+            color: '#1e1b4b',
+          });
+        });
+        poly.on('mouseout', () => {
+          poly.setStyle({
+            weight: 1.5,
+            fillOpacity: mapLayer === 'sat' ? 0.42 : 0.35,
+            color: mapLayer === 'sat' ? '#38bdf8' : '#4f46e5',
+          });
         });
 
         bounds.extend(poly.getBounds());
@@ -126,13 +151,20 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
       map.setView([17.9892, -92.9281], 11);
     }
 
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 200);
+
     return () => {
+      clearTimeout(timer);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
     };
-  }, [coordinator.assignedSections]);
+  }, [coordinator.assignedSections, mapLayer]);
 
   const handleCopyCredentials = () => {
     const text = `🎉 *ACCESO A PLATAFORMA ELECTORAL*\n\n` +
@@ -252,16 +284,44 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
         
         {/* MAPA DE LA ZONA ASIGNADA ANTES DE LOS DATOS QUE OCUPA TODO EL ANCHO */}
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60">
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 flex-wrap gap-2">
             <div className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-indigo-600" />
               <span className="text-xs font-bold text-slate-800">
                 Zona Asignada: {coordinator.territoryName}
               </span>
             </div>
-            <span className="text-[11px] font-semibold text-slate-500 font-mono">
-              {coordinator.assignedSections?.length || 0} secciones asignadas
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-semibold text-slate-500 font-mono">
+                {coordinator.assignedSections?.length || 0} secciones asignadas
+              </span>
+
+              {/* Selector de tipo de capa: Calles vs Satélite */}
+              <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setMapLayer('streets')}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                    mapLayer === 'streets'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Calles
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapLayer('sat')}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                    mapLayer === 'sat'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Satélite
+                </button>
+              </div>
+            </div>
           </div>
           <div ref={mapContainerRef} className="w-full h-80 sm:h-96 z-0" />
         </div>
