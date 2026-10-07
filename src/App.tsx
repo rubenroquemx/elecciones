@@ -40,6 +40,7 @@ import { TerritorialCoordinatorsAdminPage } from './components/TerritorialCoordi
 import { CreateTerritorialCoordinatorPage } from './components/CreateTerritorialCoordinatorPage';
 import { ConfiguracionPlaceholderPage } from './components/ConfiguracionPlaceholderPage';
 import { AcercaDePlaceholderPage } from './components/AcercaDePlaceholderPage';
+import { CampanaCoordinatorDetailPage } from './components/CampanaCoordinatorDetailPage';
 import { Users, Bell, CheckCircle2, X, MapPin, ShieldAlert, ArrowLeft } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
@@ -673,9 +674,12 @@ export function App() {
 
   // Active navigation: 'escritorio' | 'estructura' | 'secciones'
   const [activeNav, setActiveNav] = useState<MainNavSection>('escritorio');
+  const [selectedCoordinatorDetailId, setSelectedCoordinatorDetailId] = useState<string | null>(null);
+
   const handleNavChange = useCallback((nav: MainNavSection) => {
     setActiveNav(nav);
     setDetailSectionNumber(null);
+    setSelectedCoordinatorDetailId(null);
   }, []);
   const [structureMode, setStructureMode] = useState<StructureMode>('organigrama');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -1231,8 +1235,30 @@ export function App() {
         <main className={`flex-1 relative flex ${
           currentUser?.level === 'promotor' ? 'overflow-visible md:overflow-hidden pb-16 md:pb-0' : 'overflow-hidden'
         }`}>
-          {/* Vista de Página Completa de Detalle de Sección */}
-          {detailSectionNumber ? (
+          {/* Vista de Página Completa de Detalle de Coordinador de Campaña (NO MODAL) */}
+          {selectedCoordinatorDetailId ? (
+            (() => {
+              const targetCoord = leadersData.find(l => l.id === selectedCoordinatorDetailId);
+              const targetAcc = accounts.find(a => a.leaderId === selectedCoordinatorDetailId || a.username === targetCoord?.username);
+              if (!targetCoord) return null;
+              return (
+                <CampanaCoordinatorDetailPage
+                  coordinator={targetCoord}
+                  account={targetAcc}
+                  allLeaders={leadersData}
+                  onBack={() => setSelectedCoordinatorDetailId(null)}
+                  onImpersonate={(acc) => {
+                    setSelectedCoordinatorDetailId(null);
+                    handleImpersonate(acc);
+                  }}
+                  onDeleteCoordinator={(id) => {
+                    setSelectedCoordinatorDetailId(null);
+                    handleDeleteLeader(id, false);
+                  }}
+                />
+              );
+            })()
+          ) : detailSectionNumber ? (
             <SectionDetailPage
               sectionNumber={detailSectionNumber}
               allSections={scopedSections}
@@ -1261,6 +1287,7 @@ export function App() {
                     onImpersonate={handleImpersonate}
                     onDeleteCoordinator={(id) => handleDeleteLeader(id, false)}
                     onOpenCreateCoordinatorWizard={() => setActiveNav('crear-coordinador')}
+                    onViewCoordinatorDetails={(id) => setSelectedCoordinatorDetailId(id)}
                   />
                 ) : (
                   <ExecutiveKpiDesktop

@@ -74,7 +74,7 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
   const [coordinatorEmail, setCoordinatorEmail] = useState('');
   const [coordinatorUsername, setCoordinatorUsername] = useState('');
   const [coordinatorPassword, setCoordinatorPassword] = useState('campana2026');
-  const [metaGoal, setMetaGoal] = useState<number>(5000);
+  const metaGoal = 5000;
 
   // 4. Estado de envío y éxito
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -331,10 +331,6 @@ _Por favor guarda este mensaje y mantén seguras tus credenciales._`;
             <ArrowLeft className="w-4 h-4" />
             <span>Volver al Panel SaaS</span>
           </button>
-
-          <span className="text-xs font-semibold text-[#9d2449] bg-[#9d2449]/10 px-3 py-1 rounded-full border border-[#9d2449]/20">
-            Alta de Coordinador de Campaña (Exclusivo Superadmin)
-          </span>
         </div>
 
         {/* Título de la Página */}
@@ -801,20 +797,6 @@ _Por favor guarda este mensaje y mantén seguras tus credenciales._`;
                   onChange={(e) => setCoordinatorPassword(e.target.value)}
                   placeholder="••••••••"
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 font-mono focus:outline-none focus:border-[#9d2449] focus:ring-1 focus:ring-[#9d2449]"
-                />
-              </div>
-
-              {/* Meta Objetivo */}
-              <div className="sm:col-span-2">
-                <label className="block font-bold text-slate-700 mb-1">
-                  Meta Objetivo de Ciudadanos Promovidos
-                </label>
-                <input
-                  type="number"
-                  value={metaGoal}
-                  onChange={(e) => setMetaGoal(Number(e.target.value))}
-                  placeholder="5000"
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-[#9d2449] focus:ring-1 focus:ring-[#9d2449]"
                 />
               </div>
             </div>

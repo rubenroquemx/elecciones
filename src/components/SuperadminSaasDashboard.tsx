@@ -24,7 +24,9 @@ import {
   Server, 
   Activity, 
   Sparkles,
-  X
+  X,
+  Phone,
+  Eye
 } from 'lucide-react';
 
 interface SuperadminSaasDashboardProps {
@@ -34,6 +36,7 @@ interface SuperadminSaasDashboardProps {
   onImpersonate: (coordinatorAccount: UserAccount) => void;
   onDeleteCoordinator: (leaderId: string) => Promise<void> | void;
   onOpenCreateCoordinatorWizard?: () => void;
+  onViewCoordinatorDetails?: (coordinatorId: string) => void;
 }
 
 export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = ({
@@ -43,6 +46,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   onImpersonate,
   onDeleteCoordinator,
   onOpenCreateCoordinatorWizard,
+  onViewCoordinatorDetails,
 }) => {
   const [activeTab, setActiveTab] = useState<'campanas' | 'tickets' | 'servidores'>('campanas');
   const [searchQuery, setSearchQuery] = useState('');
@@ -399,138 +403,185 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredCoordinators.map((coord) => {
-                const acc = accountsByLeaderId.get(coord.id) || accounts.find(a => a.username === coord.username);
-                const stats = statsByCoordinator.get(coord.id) || { promotoresCount: 0, promovidosCount: 0 };
-                const isCopied = copiedKey === coord.id;
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                      <th className="py-3 px-4">Coordinador & Campaña</th>
+                      <th className="py-3 px-4">Usuario</th>
+                      <th className="py-3 px-4">Contacto</th>
+                      <th className="py-3 px-4 text-center">Equipo & Avance</th>
+                      <th className="py-3 px-4 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    {filteredCoordinators.map((coord) => {
+                      const acc = accountsByLeaderId.get(coord.id) || accounts.find(a => a.username === coord.username);
+                      const stats = statsByCoordinator.get(coord.id) || { promotoresCount: 0, promovidosCount: 0 };
+                      const isCopied = copiedKey === coord.id;
+                      const cleanPhone = (coord.phone || '').replace(/\D/g, '');
 
-                return (
-                  <div
-                    key={coord.id}
-                    className="bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden"
-                  >
-                    {/* Header Card */}
-                    <div className="p-5 border-b border-slate-100 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0">
-                            {coord.name.charAt(0)}
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="text-sm font-bold text-slate-900 truncate">{coord.name}</h4>
-                            <span className="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 truncate max-w-[200px]">
-                              {coord.territoryName}
+                      const targetAccount: UserAccount = acc || {
+                        id: `usr-${coord.id}`,
+                        username: coord.username || 'usuario',
+                        name: coord.name,
+                        email: coord.email || `${coord.username}@campana.mx`,
+                        password: 'campana2026',
+                        leaderId: coord.id,
+                        level: 'campana',
+                        territoryName: coord.territoryName,
+                        accountRoleLabel: 'Coordinador de Campaña',
+                        avatarBg: 'bg-indigo-600',
+                        assignedBy: 'Super Administrador (SaaS)',
+                      };
+
+                      return (
+                        <tr key={coord.id} className="hover:bg-slate-50/60 transition-colors">
+                          {/* 1. Coordinador & Campaña */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+                                {coord.name.charAt(0)}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="font-bold text-slate-900 truncate">{coord.name}</div>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80 truncate max-w-[200px]">
+                                    {coord.territoryName}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* 2. Usuario (Sin exponer la contraseña) */}
+                          <td className="py-3.5 px-4">
+                            <span className="font-mono text-slate-800 font-semibold bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                              @{acc?.username || coord.username || 'N/A'}
                             </span>
-                          </div>
-                        </div>
-                      </div>
+                          </td>
 
-                      {/* Credenciales y Datos */}
-                      <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 text-[11px] font-mono border border-slate-100">
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400 font-sans">Usuario:</span>
-                          <span className="font-bold text-slate-800">{acc?.username || coord.username || 'N/A'}</span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-slate-400 font-sans">Contraseña:</span>
-                          <span className="font-bold text-emerald-700">{acc?.password || 'campana2026'}</span>
-                        </div>
-                        {coord.phone && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-400 font-sans">Teléfono:</span>
-                            <span className="text-slate-700 font-sans">{coord.phone}</span>
-                          </div>
-                        )}
-                        {coord.email && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-400 font-sans">Correo:</span>
-                            <span className="text-slate-600 truncate max-w-[150px] font-sans">{coord.email}</span>
-                          </div>
-                        )}
-                      </div>
+                          {/* 3. Contacto Directo: Llamar y WhatsApp */}
+                          <td className="py-3.5 px-4">
+                            <div className="flex items-center gap-2">
+                              {coord.phone ? (
+                                <>
+                                  <a
+                                    href={`tel:${cleanPhone}`}
+                                    className="p-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                                    title={`Llamar a ${coord.name} (${coord.phone})`}
+                                  >
+                                    <Phone className="w-3.5 h-3.5" />
+                                  </a>
+                                  <a
+                                    href={`https://wa.me/52${cleanPhone}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                                    title={`Enviar WhatsApp a ${coord.name}`}
+                                  >
+                                    <Send className="w-3.5 h-3.5" />
+                                  </a>
+                                  <span className="text-slate-700 font-mono text-[11px] ml-1">
+                                    {coord.phone}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-slate-400 italic text-[11px]">Sin teléfono</span>
+                              )}
+                            </div>
+                            {coord.email && (
+                              <div className="text-[11px] text-slate-400 truncate max-w-[180px] mt-0.5 font-sans">
+                                {coord.email}
+                              </div>
+                            )}
+                          </td>
 
-                      {/* Mini Estadísticas de su Campaña */}
-                      <div className="grid grid-cols-2 gap-2 pt-1 text-center">
-                        <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                          <p className="text-[10px] text-slate-400 uppercase font-bold">Promotores</p>
-                          <p className="text-base font-black text-slate-800 font-mono">{stats.promotoresCount}</p>
-                        </div>
-                        <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
-                          <p className="text-[10px] text-slate-400 uppercase font-bold">Promovidos</p>
-                          <p className="text-base font-black text-emerald-700 font-mono">{stats.promovidosCount}</p>
-                        </div>
-                      </div>
-                    </div>
+                          {/* 4. Equipo & Avance */}
+                          <td className="py-3.5 px-4 text-center">
+                            <div className="inline-flex items-center gap-3">
+                              <div className="text-center" title="Promotores Territoriales activos">
+                                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Promotores</span>
+                                <span className="font-mono font-bold text-slate-800 text-xs">{stats.promotoresCount}</span>
+                              </div>
+                              <div className="w-px h-6 bg-slate-200" />
+                              <div className="text-center" title="Ciudadanos Promovidos registrados">
+                                <span className="text-[10px] text-slate-400 uppercase font-semibold block">Promovidos</span>
+                                <span className="font-mono font-bold text-emerald-700 text-xs">{stats.promovidosCount}</span>
+                              </div>
+                            </div>
+                          </td>
 
-                    {/* Acciones SaaS */}
-                    <div className="p-3.5 bg-slate-50/50 border-t border-slate-100 flex items-center gap-2">
-                      {/* BOTÓN CLAVE: Entrar a su cuenta (Impersonar) */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const targetAccount: UserAccount = acc || {
-                            id: `usr-${coord.id}`,
-                            username: coord.username || 'usuario',
-                            name: coord.name,
-                            email: coord.email || `${coord.username}@campana.mx`,
-                            password: 'campana2026',
-                            leaderId: coord.id,
-                            level: 'campana',
-                            territoryName: coord.territoryName,
-                            accountRoleLabel: 'Coordinador de Campaña',
-                            avatarBg: 'bg-indigo-600',
-                            assignedBy: 'Super Administrador (SaaS)',
-                          };
-                          onImpersonate(targetAccount);
-                        }}
-                        className="flex-1 py-2 px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-xs cursor-pointer active:scale-98"
-                        title="Iniciar sesión directamente en la cuenta de este Coordinador de Campaña"
-                      >
-                        <LogIn className="w-3.5 h-3.5" />
-                        <span>Entrar a su cuenta</span>
-                      </button>
+                          {/* 5. Acciones */}
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="inline-flex items-center gap-1.5 justify-end">
+                              {/* Botón Ver Detalles (Página completa) */}
+                              <button
+                                type="button"
+                                onClick={() => onViewCoordinatorDetails?.(coord.id)}
+                                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                                title="Ver detalles completos del coordinador en su propia página"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Detalles</span>
+                              </button>
 
-                      {/* Copiar Credenciales */}
-                      <button
-                        type="button"
-                        onClick={() => handleCopyCredentials(coord, acc)}
-                        className="p-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl transition-colors cursor-pointer"
-                        title="Copiar credenciales para WhatsApp"
-                      >
-                        {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-                      </button>
+                              {/* Botón Entrar a su Cuenta */}
+                              <button
+                                type="button"
+                                onClick={() => onImpersonate(targetAccount)}
+                                className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors shadow-2xs cursor-pointer active:scale-98"
+                                title="Iniciar sesión directamente en la cuenta de este Coordinador de Campaña"
+                              >
+                                <LogIn className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Entrar</span>
+                              </button>
 
-                      {/* Abrir Ticket con él */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTicketTargetCoordId(coord.id);
-                          setIsSuperadminNewTicketOpen(true);
-                        }}
-                        className="p-2 bg-white hover:bg-slate-100 text-indigo-600 border border-slate-200 rounded-xl transition-colors cursor-pointer"
-                        title="Enviar comunicado o crear ticket hacia este Coordinador"
-                      >
-                        <LifeBuoy className="w-4 h-4" />
-                      </button>
+                              {/* Copiar Credenciales */}
+                              <button
+                                type="button"
+                                onClick={() => handleCopyCredentials(coord, acc)}
+                                className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                                title="Copiar credenciales de acceso"
+                              >
+                                {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                              </button>
 
-                      {/* Eliminar Coordinador */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (confirm(`¿Estás seguro de eliminar al Coordinador de Campaña "${coord.name}"?`)) {
-                            onDeleteCoordinator(coord.id);
-                          }
-                        }}
-                        className="p-2 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 rounded-xl transition-colors cursor-pointer"
-                        title="Eliminar Coordinador de Campaña"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                );
-              })}
+                              {/* Ticket */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setTicketTargetCoordId(coord.id);
+                                  setIsSuperadminNewTicketOpen(true);
+                                }}
+                                className="p-1.5 bg-white hover:bg-slate-100 text-indigo-600 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+                                title="Enviar mensaje o ticket de soporte"
+                              >
+                                <LifeBuoy className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Eliminar */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (confirm(`¿Estás seguro de eliminar permanentemente al Coordinador "${coord.name}"?`)) {
+                                    onDeleteCoordinator(coord.id);
+                                  }
+                                }}
+                                className="p-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg transition-colors cursor-pointer"
+                                title="Eliminar Coordinador"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </div>
