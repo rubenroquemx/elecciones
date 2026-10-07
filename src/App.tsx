@@ -36,6 +36,10 @@ import { PromoterSectionsMapView } from './components/PromoterSectionsMapView';
 import { SuperadminSaasDashboard } from './components/SuperadminSaasDashboard';
 import { CampanaTicketsModal } from './components/CampanaTicketsModal';
 import { CreateCampanaCoordinatorWizardPage } from './components/CreateCampanaCoordinatorWizardPage';
+import { TerritorialCoordinatorsAdminPage } from './components/TerritorialCoordinatorsAdminPage';
+import { CreateTerritorialCoordinatorPage } from './components/CreateTerritorialCoordinatorPage';
+import { ConfiguracionPlaceholderPage } from './components/ConfiguracionPlaceholderPage';
+import { AcercaDePlaceholderPage } from './components/AcercaDePlaceholderPage';
 import { Users, Bell, CheckCircle2, X, MapPin, ShieldAlert, ArrowLeft } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
@@ -513,6 +517,30 @@ export function App() {
     setTopSuccessNotice(`¡Coordinador de Campaña "${leader.name}" dado de alta con éxito!`);
   }, []);
 
+  const handleSaveNewTerritorialCoordinator = useCallback(async (leader: TerritorialLeader, account: UserAccount) => {
+    const savedLeader = await saveLeaderApi(leader, false);
+    await saveUserAccountApi(account);
+
+    setLeadersData(prev => {
+      const updated = [savedLeader, ...prev.filter(l => l.id !== savedLeader.id)];
+      try {
+        localStorage.setItem('territorial_leaders_data', JSON.stringify(updated));
+      } catch (e) {}
+      return calculateHierarchyAggregates(updated);
+    });
+
+    setAccounts(prev => {
+      const updated = [account, ...prev.filter(a => a.id !== account.id)];
+      try {
+        localStorage.setItem('territorial_custom_accounts', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setTopSuccessNotice(`¡Coordinador Territorial "${leader.name}" dado de alta con éxito!`);
+    setActiveNav('usuarios');
+  }, []);
+
   // Registered Electoral Sections with multi-structures
   const [sectionsData, setSectionsData] = useState<ElectoralSection[]>(() => {
     try {
@@ -659,6 +687,11 @@ export function App() {
     if (!currentUser) return;
     const allowedPromotorPages: MainNavSection[] = ['escritorio', 'mis-secciones', 'capturar-promovido', 'ver-promovido', 'editar-promovido'];
     if (currentUser.level === 'promotor' && !allowedPromotorPages.includes(activeNav)) {
+      setActiveNav('escritorio');
+    }
+    const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital';
+    const allowedCampanaPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'configuracion', 'acerca-de'];
+    if (isCampana && !allowedCampanaPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
     if (currentUser.level === 'territorial' && structureMode === 'organigrama') {
@@ -1081,7 +1114,6 @@ export function App() {
         onOpenAddModal={handleOpenAddModal}
         onOpenQuickCapture={() => handleOpenQuickCapture()}
         onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
-        onOpenTicketsModal={() => setIsCampanaTicketsModalOpen(true)}
         onExportData={handleExportData}
         onImportData={handleImportData}
         isMobileOpen={isMobileMenuOpen}
@@ -1397,6 +1429,38 @@ export function App() {
                   }}
                   onNavigate={setActiveNav}
                 />
+              )}
+
+              {/* 10. USUARIOS: ADMINISTRACIÓN DE COORDINADORES TERRITORIALES */}
+              {activeNav === 'usuarios' && currentUser && (
+                <TerritorialCoordinatorsAdminPage
+                  currentUser={currentUser}
+                  allLeaders={visibleLeaders}
+                  accounts={accounts}
+                  scopedSections={scopedSections}
+                  onNavigate={setActiveNav}
+                  onDeleteCoordinator={(id) => handleDeleteLeader(id, false)}
+                />
+              )}
+
+              {/* 11. ALTA DE COORDINADOR TERRITORIAL (PÁGINA COMPLETA, NO MODAL) */}
+              {activeNav === 'crear-coordinador-territorial' && currentUser && (
+                <CreateTerritorialCoordinatorPage
+                  currentUser={currentUser}
+                  availableSections={scopedSections}
+                  onSaveCoordinator={handleSaveNewTerritorialCoordinator}
+                  onBack={() => setActiveNav('usuarios')}
+                />
+              )}
+
+              {/* 12. CONFIGURACIÓN (PÁGINA EN BLANCO) */}
+              {activeNav === 'configuracion' && (
+                <ConfiguracionPlaceholderPage />
+              )}
+
+              {/* 13. ACERCA DE (PÁGINA EN BLANCO) */}
+              {activeNav === 'acerca-de' && (
+                <AcercaDePlaceholderPage />
               )}
             </>
           )}

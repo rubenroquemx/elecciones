@@ -12,7 +12,9 @@ import {
   Compass,
   Users,
   UserPlus,
-  Edit3
+  Edit3,
+  Settings,
+  HelpCircle
 } from 'lucide-react';
 import type { FilterOptions } from '../types/territory';
 import type { UserAccount } from '../types/auth';
@@ -62,6 +64,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   accounts,
   onOpenCreateUser,
 }) => {
+  const isCampana = currentUser?.level === 'campana' || currentUser?.level === 'estatal' || currentUser?.level === 'distrital';
+
   return (
     <header className={`apple-chrome px-3 sm:px-6 py-2.5 shrink-0 z-20 ${
       currentUser?.level === 'promotor' ? 'relative md:sticky md:top-0' : 'sticky top-0'
@@ -159,11 +163,39 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                     <span>Expediente</span>
                   </>
                 )}
+
+                {activeNav === 'usuarios' && (
+                  <>
+                    <Users className="w-5 h-5 text-[#9d2449]" />
+                    <span>Coordinadores Territoriales</span>
+                  </>
+                )}
+
+                {activeNav === 'crear-coordinador-territorial' && (
+                  <>
+                    <UserPlus className="w-5 h-5 text-[#9d2449]" />
+                    <span>Nuevo Coordinador Territorial</span>
+                  </>
+                )}
+
+                {activeNav === 'configuracion' && (
+                  <>
+                    <Settings className="w-5 h-5 text-[#9d2449]" />
+                    <span>Configuración</span>
+                  </>
+                )}
+
+                {activeNav === 'acerca-de' && (
+                  <>
+                    <HelpCircle className="w-5 h-5 text-[#9d2449]" />
+                    <span>Acerca de</span>
+                  </>
+                )}
               </h1>
             </div>
 
-          {/* En Estructura: Toggle entre Organigrama y Lista (Apple Segmented Control) */}
-          {activeNav === 'estructura' && currentUser?.level !== 'territorial' && currentUser?.level !== 'promotor' && (
+          {/* En Estructura: Toggle entre Organigrama y Lista (Apple Segmented Control - Oculto para Coordinador de Campaña) */}
+          {activeNav === 'estructura' && !isCampana && currentUser?.level !== 'territorial' && currentUser?.level !== 'promotor' && (
             <div className="hidden md:flex items-center ml-4 apple-segmented">
               <button
                 type="button"
@@ -212,7 +244,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
         {/* Right: Search/Filters (en Estructura) + User Session Switcher (siempre en la esquina superior derecha) */}
         <div className="flex items-center gap-2 shrink-0 ml-auto">
-          {activeNav === 'estructura' && (
+          {activeNav === 'estructura' && !isCampana && (
             <div className="hidden lg:flex items-center gap-2">
               {/* Search Input */}
               <div className="relative min-w-[170px] sm:min-w-[210px]">
@@ -272,8 +304,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             </div>
           )}
 
-          {/* Omnibox Search Button (Apple Spotlight capsule - oculto para Promotor) */}
-          {onOpenGlobalSearch && currentUser?.level !== 'promotor' && (
+          {/* Omnibox Search Button (Apple Spotlight capsule - oculto para Promotor y Coordinador de Campaña) */}
+          {onOpenGlobalSearch && currentUser?.level !== 'promotor' && !isCampana && (
             <button
               type="button"
               onClick={onOpenGlobalSearch}

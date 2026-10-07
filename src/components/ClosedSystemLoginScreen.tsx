@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import type { UserAccount } from '../types/auth';
 import { SUPERADMIN_ACCOUNT } from '../data/mockAuthData';
 import { 
-  Lock, 
   User, 
   KeyRound, 
   ArrowRight, 
@@ -97,13 +96,15 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
       {/* Tarjeta Limpia de Inicio de Sesión */}
       <main className="w-full max-w-sm my-auto">
         <div className="bg-white border border-slate-200/80 rounded-2xl p-7 sm:p-8 shadow-sm space-y-6">
-          <div className="text-center space-y-3">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[#9d2449] text-white shadow-sm mb-1">
-              <Lock className="w-6 h-6" />
-            </div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900">
-              Estructura Territorial
-            </h1>
+          <div className="text-center space-y-2">
+            <img 
+              src="/logo-claro.svg" 
+              alt="VERTEX" 
+              className="h-10 mx-auto object-contain" 
+            />
+            <p className="text-xs text-slate-500 font-medium tracking-tight">
+              Plataforma de Control Territorial
+            </p>
           </div>
 
           {errorMsg && (
