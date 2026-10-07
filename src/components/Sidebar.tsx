@@ -81,16 +81,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
 }) => {
   const isPromotor = currentUser.level === 'promotor';
-  const isTerritorial = currentUser.level === 'territorial';
-  const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital';
+  const isTerritorial = currentUser.level === 'territorial' || currentUser.level === 'seccional';
+  const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal';
   const isAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;
 
   const getAddButtonLabel = () => {
     switch (currentUser.level) {
       case 'promotor': return 'Capturar Promovido';
       case 'territorial': return 'Crear Promotor Territorial';
-      case 'campana': return 'Crear Coord. Territorial';
-      case 'admin': return 'Crear Coord. de Campaña';
+      case 'responsable_zona': return 'Crear Resp. Sección';
+      case 'zona': return 'Crear Resp. Zona';
+      case 'distrital': return 'Crear Coord. Zona';
+      case 'campana': return 'Crear Coord. Distrital';
+      case 'admin': return 'Crear Jefe de Campaña';
       default: return 'Registrar en Estructura';
     }
   };

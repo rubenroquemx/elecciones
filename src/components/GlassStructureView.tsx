@@ -45,9 +45,11 @@ export const GlassStructureView: React.FC<GlassStructureViewProps> = ({
   const [viewMode, setViewMode] = useState<'organigrama' | 'directorio'>('organigrama');
 
   const levelsOrder: TerritorialLevel[] = [
+    'campana',
     'distrital',
+    'zona',
+    'responsable_zona',
     'territorial',
-    'seccional',
     'promotor',
     'promovido',
   ];

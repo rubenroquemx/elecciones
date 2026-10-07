@@ -71,7 +71,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   isSidebarCollapsed,
   onToggleCollapse,
 }) => {
-  const isCampana = currentUser?.level === 'campana' || currentUser?.level === 'estatal' || currentUser?.level === 'distrital';
+  const isCampana = currentUser?.level === 'campana' || currentUser?.level === 'estatal';
   const isAdmin = currentUser?.level === 'admin' || currentUser?.isSuperAdmin;
 
   return (

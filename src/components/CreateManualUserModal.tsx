@@ -39,14 +39,32 @@ export const CreateManualUserModal: React.FC<CreateManualUserModalProps> = ({
   const allowedLevels: { level: TerritorialLevel; label: string; desc: string }[] = useMemo(() => {
     if (currentUser.level === 'admin' || currentUser.isSuperAdmin) {
       return [
-        { level: 'campana', label: 'Coordinador de Campaña', desc: 'Gestiona estructuras completas, organigrama y distritos.' },
-        { level: 'territorial', label: 'Coordinador Territorial', desc: 'Supervisa promotores y secciones específicas asignadas.' },
-        { level: 'promotor', label: 'Promotor Territorial', desc: 'Captura promovidos en campo y escanea credenciales INE.' },
+        { level: 'campana', label: 'Jefe de Campaña', desc: 'Gestiona la campaña completa, organigrama y distritos electorales.' },
+        { level: 'distrital', label: 'Coordinador Distrital', desc: 'Supervisa las zonas electorales asignadas a su distrito.' },
+        { level: 'zona', label: 'Coordinador de Zona', desc: 'Supervisa los Responsables de Zona del sector.' },
+        { level: 'responsable_zona', label: 'Responsable de Zona', desc: 'Coordina directamente a los Responsables de Sección.' },
+        { level: 'territorial', label: 'Responsable de Sección', desc: 'Supervisa casillas, promotores y secciones asignadas.' },
+        { level: 'promotor', label: 'Promotor Territorial', desc: 'Captura promovidos en calle y escanea credenciales INE.' },
       ];
     }
-    if (currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital') {
+    if (currentUser.level === 'campana' || currentUser.level === 'estatal') {
       return [
-        { level: 'territorial', label: 'Coordinador Territorial', desc: 'Supervisa promotores y secciones específicas asignadas.' },
+        { level: 'distrital', label: 'Coordinador Distrital', desc: 'Supervisa las zonas electorales de su distrito.' },
+      ];
+    }
+    if (currentUser.level === 'distrital') {
+      return [
+        { level: 'zona', label: 'Coordinador de Zona', desc: 'Supervisa los sectores y Responsables de Zona.' },
+      ];
+    }
+    if (currentUser.level === 'zona') {
+      return [
+        { level: 'responsable_zona', label: 'Responsable de Zona', desc: 'Coordina directamente a los Responsables de Sección.' },
+      ];
+    }
+    if (currentUser.level === 'responsable_zona') {
+      return [
+        { level: 'territorial', label: 'Responsable de Sección', desc: 'Supervisa promotores y casillas de su sección asignada.' },
       ];
     }
     if (currentUser.level === 'territorial' || currentUser.level === 'seccional') {

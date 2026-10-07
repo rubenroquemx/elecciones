@@ -1,11 +1,13 @@
 export type TerritorialLevel = 
-  | 'campana'        // Coordinador de Campaña
-  | 'territorial'    // Coordinador Territorial
-  | 'promotor'       // Promotor Territorial
-  | 'promovido'      // Ciudadano Promovido
-  | 'estatal'        // alias compat
-  | 'distrital'      // alias compat
-  | 'seccional';     // alias compat
+  | 'campana'          // Nivel 1: Jefe de campaña
+  | 'distrital'        // Nivel 2: Coordinador Distrital
+  | 'zona'             // Nivel 3: Coordinador de Zona
+  | 'responsable_zona' // Nivel 4: Responsable de Zona
+  | 'territorial'      // Nivel 5: Responsable de sección (anterior Coordinador Territorial)
+  | 'promotor'         // Nivel 6: Promotor Territorial
+  | 'promovido'        // Nivel 7: Ciudadano Promovido
+  | 'estatal'          // alias compat para campaña
+  | 'seccional';       // alias compat para responsable de sección
 
 
 export interface LeaderNote {

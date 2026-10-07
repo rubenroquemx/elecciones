@@ -728,9 +728,19 @@ export function App() {
     if (currentUser.level === 'promotor' && !allowedPromotorPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
-    const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital';
+    const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal';
     const allowedCampanaPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'configuracion', 'acerca-de'];
     if (isCampana && !allowedCampanaPages.includes(activeNav)) {
+      setActiveNav('escritorio');
+    }
+    const isMidLevel = currentUser.level === 'distrital' || currentUser.level === 'zona' || currentUser.level === 'responsable_zona';
+    const allowedMidPages: MainNavSection[] = ['escritorio', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
+    if (isMidLevel && !allowedMidPages.includes(activeNav)) {
+      setActiveNav('escritorio');
+    }
+    const isTerritorial = currentUser.level === 'territorial' || currentUser.level === 'seccional';
+    const allowedTerritorialPages: MainNavSection[] = ['escritorio', 'promotores', 'crear-promotor', 'editar-promotor', 'secciones'];
+    if (isTerritorial && !allowedTerritorialPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
     const isAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;

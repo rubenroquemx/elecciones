@@ -31,6 +31,12 @@ import {
 } from 'lucide-react';
 import { INECameraScannerModal } from './INECameraScannerModal';
 import type { ExtractedINEData } from '../utils/ineScanner';
+import { JefeCampanaDashboard } from './dashboards/JefeCampanaDashboard';
+import { CoordinadorDistritalDashboard } from './dashboards/CoordinadorDistritalDashboard';
+import { CoordinadorZonaDashboard } from './dashboards/CoordinadorZonaDashboard';
+import { ResponsableZonaDashboard } from './dashboards/ResponsableZonaDashboard';
+import { ResponsableSeccionDashboard } from './dashboards/ResponsableSeccionDashboard';
+import { PromotorTerritorialDashboard } from './dashboards/PromotorTerritorialDashboard';
 
 interface ExecutiveKpiDesktopProps {
   currentUser: UserAccount;
@@ -578,6 +584,83 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   const validInePct = promovidosList.length > 0
     ? Math.round((validIneCount / promovidosList.length) * 100)
     : 100;
+
+  // 1. Jefe de Campaña
+  if (currentUser.level === 'campana' || currentUser.level === 'estatal') {
+    return (
+      <JefeCampanaDashboard
+        currentUser={currentUser}
+        allLeaders={visibleLeaders}
+        sections={sections}
+        onSelectLeader={onSelectLeader}
+        onNavigateView={onNavigateView}
+      />
+    );
+  }
+
+  // 2. Coordinador Distrital
+  if (currentUser.level === 'distrital') {
+    return (
+      <CoordinadorDistritalDashboard
+        currentUser={currentUser}
+        allLeaders={visibleLeaders}
+        sections={sections}
+        onSelectLeader={onSelectLeader}
+      />
+    );
+  }
+
+  // 3. Coordinador de Zona
+  if (currentUser.level === 'zona') {
+    return (
+      <CoordinadorZonaDashboard
+        currentUser={currentUser}
+        allLeaders={visibleLeaders}
+        sections={sections}
+        onSelectLeader={onSelectLeader}
+      />
+    );
+  }
+
+  // 4. Responsable de Zona
+  if (currentUser.level === 'responsable_zona') {
+    return (
+      <ResponsableZonaDashboard
+        currentUser={currentUser}
+        allLeaders={visibleLeaders}
+        sections={sections}
+        onSelectLeader={onSelectLeader}
+        onOpenCreateUser={onOpenCreateUser}
+      />
+    );
+  }
+
+  // 5. Responsable de Sección (anterior Coordinador Territorial)
+  if (currentUser.level === 'territorial' || currentUser.level === 'seccional') {
+    return (
+      <ResponsableSeccionDashboard
+        currentUser={currentUser}
+        allLeaders={visibleLeaders}
+        sections={sections}
+        onSelectLeader={onSelectLeader}
+        onNavigateView={onNavigateView}
+      />
+    );
+  }
+
+  // 6. Promotor Territorial
+  if (currentUser.level === 'promotor') {
+    return (
+      <PromotorTerritorialDashboard
+        currentUser={currentUser}
+        visibleLeaders={visibleLeaders}
+        onNavigateView={onNavigateView}
+        onOpenQuickCapture={onOpenQuickCapture}
+        onViewCitizen={onViewCitizen}
+        onDeleteCitizen={onDeleteCitizen}
+      />
+    );
+  }
 
   return (
     <div className={`flex-1 bg-[#f5f5f7] ${

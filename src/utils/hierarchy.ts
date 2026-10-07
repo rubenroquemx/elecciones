@@ -1,10 +1,13 @@
 import type { TerritorialLeader, HierarchyStats, TerritorialLevel, FilterOptions } from '../types/territory';
 
 export const ORDERED_LEVELS: TerritorialLevel[] = [
-  'campana',        // Nivel 1: Coordinador de Campaña
-  'territorial',    // Nivel 2: Coordinador Territorial
-  'promotor',       // Nivel 3: Promotor Territorial
-  'promovido',      // Nivel 4: Promovido (Ciudadano capturado)
+  'campana',          // Nivel 1: Jefe de campaña
+  'distrital',        // Nivel 2: Coordinador Distrital
+  'zona',             // Nivel 3: Coordinador de Zona
+  'responsable_zona', // Nivel 4: Responsable de Zona
+  'territorial',      // Nivel 5: Responsable de sección (anterior Coordinador Territorial)
+  'promotor',         // Nivel 6: Promotor Territorial
+  'promovido',        // Nivel 7: Ciudadano Promovido
 ];
 
 /**
@@ -19,20 +22,25 @@ export function getChildLevel(parentLevel: TerritorialLevel | null | undefined):
 
 /**
  * Returns what type of node/account a creator of given level is allowed to create:
- * - Super admin: 'campana'
- * - Coordinador de campaña: 'territorial' (Crea cuentas de coordinador territorial)
- * - Coordinador territorial: 'promotor' (Crear cuentas de promotor territorial)
- * - Promotor territorial: 'promovido' (Su tarea principal es capturar promovidos)
+ * - Super admin: 'campana' (Jefe de campaña)
+ * - Jefe de campaña: 'distrital' (Coordinador Distrital)
+ * - Coordinador Distrital: 'zona' (Coordinador de Zona)
+ * - Coordinador de Zona: 'responsable_zona' (Responsable de Zona)
+ * - Responsable de Zona: 'territorial' (Responsable de Sección)
+ * - Responsable de Sección: 'promotor' (Promotor Territorial)
+ * - Promotor Territorial: 'promovido' (Captura promovidos)
  */
 export function getAllowedChildLevel(creatorLevel: TerritorialLevel | 'admin'): TerritorialLevel | null {
   switch (creatorLevel) {
     case 'admin': return 'campana';
-    case 'campana': return 'territorial';
+    case 'campana': return 'distrital';
+    case 'distrital': return 'zona';
+    case 'zona': return 'responsable_zona';
+    case 'responsable_zona': return 'territorial';
     case 'territorial': return 'promotor';
     case 'promotor': return 'promovido';
     // Legacy aliases
-    case 'estatal': return 'territorial';
-    case 'distrital': return 'territorial';
+    case 'estatal': return 'distrital';
     case 'seccional': return 'promotor';
     default: return null;
   }
@@ -54,11 +62,18 @@ export function getAllowedLevelsForCreator(creatorLevel: TerritorialLevel | 'adm
 
 /**
  * Checks if a role can create system user accounts:
- * - Admin, Coordinador de campaña, Coordinador territorial.
+ * - Admin, Jefe de campaña, Coordinador Distrital, Coordinador de Zona, Responsable de Zona, Responsable de Sección.
  * Promotor territorial captures citizen records, does not manage login accounts.
  */
 export function canCreateAccounts(level: TerritorialLevel | 'admin'): boolean {
-  return level === 'admin' || level === 'campana' || level === 'territorial' || level === 'estatal' || level === 'distrital';
+  return level === 'admin' || 
+    level === 'campana' || 
+    level === 'distrital' || 
+    level === 'zona' || 
+    level === 'responsable_zona' || 
+    level === 'territorial' || 
+    level === 'estatal' || 
+    level === 'seccional';
 }
 
 /**
@@ -66,13 +81,15 @@ export function canCreateAccounts(level: TerritorialLevel | 'admin'): boolean {
  */
 export function getDefaultRoleForLevel(level: TerritorialLevel): string {
   switch (level) {
-    case 'campana': return 'Coordinador de Campaña';
-    case 'territorial': return 'Coordinador Territorial';
+    case 'campana': return 'Jefe de Campaña';
+    case 'distrital': return 'Coordinador Distrital';
+    case 'zona': return 'Coordinador de Zona';
+    case 'responsable_zona': return 'Responsable de Zona';
+    case 'territorial': return 'Responsable de Sección';
     case 'promotor': return 'Promotor Territorial';
     case 'promovido': return 'Ciudadano Promovido';
-    case 'estatal':
-    case 'distrital': return 'Coordinador de Campaña';
-    case 'seccional': return 'Coordinador Territorial';
+    case 'estatal': return 'Jefe de Campaña';
+    case 'seccional': return 'Responsable de Sección';
     default: return 'Integrante Territorial';
   }
 }
@@ -226,11 +243,13 @@ export function getVisibleSubtree(rootId: string | null, nodes: TerritorialLeade
 export function getHierarchyStats(nodes: TerritorialLeader[]): HierarchyStats {
   const levelCounts: Record<TerritorialLevel, number> = {
     campana: 0,
+    distrital: 0,
+    zona: 0,
+    responsable_zona: 0,
     territorial: 0,
     promotor: 0,
     promovido: 0,
     estatal: 0,
-    distrital: 0,
     seccional: 0,
   };
 
