@@ -33,7 +33,10 @@ import { PromoterCitizenDetailPage } from './components/PromoterCitizenDetailPag
 import { PromoterCitizenEditPage } from './components/PromoterCitizenEditPage';
 import { PromoterNotificationsModal } from './components/PromoterNotificationsModal';
 import { PromoterSectionsMapView } from './components/PromoterSectionsMapView';
-import { Users, Bell, CheckCircle2, X, MapPin } from 'lucide-react';
+import { SuperadminSaasDashboard } from './components/SuperadminSaasDashboard';
+import { CampanaTicketsModal } from './components/CampanaTicketsModal';
+import { CreateCampanaCoordinatorModal } from './components/CreateCampanaCoordinatorModal';
+import { Users, Bell, CheckCircle2, X, MapPin, ShieldAlert, ArrowLeft } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -391,6 +394,64 @@ export function App() {
 
   // Modal de Alta Manual de Usuario
   const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
+
+  // Estados SaaS Superadmin: Impersonación de sesión ("Entrar a su cuenta") y Tickets
+  const [impersonatingAdminUser, setImpersonatingAdminUser] = useState<UserAccount | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('saas_impersonating_admin');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  });
+
+  const [isCampanaTicketsModalOpen, setIsCampanaTicketsModalOpen] = useState(false);
+  const [isCreateCampanaModalOpen, setIsCreateCampanaModalOpen] = useState(false);
+
+  const handleImpersonate = useCallback((coordinatorAccount: UserAccount) => {
+    if (currentUser) {
+      setImpersonatingAdminUser(currentUser);
+      sessionStorage.setItem('saas_impersonating_admin', JSON.stringify(currentUser));
+    }
+    setCurrentUser(coordinatorAccount);
+    try {
+      localStorage.setItem('territorial_auth_user', JSON.stringify(coordinatorAccount));
+    } catch (e) {}
+    setActiveNav('escritorio');
+  }, [currentUser]);
+
+  const handleExitImpersonation = useCallback(() => {
+    if (impersonatingAdminUser) {
+      setCurrentUser(impersonatingAdminUser);
+      try {
+        localStorage.setItem('territorial_auth_user', JSON.stringify(impersonatingAdminUser));
+      } catch (e) {}
+      setImpersonatingAdminUser(null);
+      sessionStorage.removeItem('saas_impersonating_admin');
+      setActiveNav('escritorio');
+    }
+  }, [impersonatingAdminUser]);
+
+  const handleSaveNewCoordinator = useCallback(async (leader: TerritorialLeader, account: UserAccount) => {
+    const savedLeader = await saveLeaderApi(leader, false);
+
+    setLeadersData(prev => {
+      const updated = [savedLeader, ...prev.filter(l => l.id !== savedLeader.id)];
+      try {
+        localStorage.setItem('territorial_leaders_data', JSON.stringify(updated));
+      } catch (e) {}
+      return calculateHierarchyAggregates(updated);
+    });
+
+    setAccounts(prev => {
+      const updated = [account, ...prev.filter(a => a.id !== account.id)];
+      try {
+        localStorage.setItem('territorial_custom_accounts', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    setTopSuccessNotice(`¡Coordinador de Campaña "${leader.name}" dado de alta con éxito!`);
+  }, []);
 
   // Registered Electoral Sections with multi-structures
   const [sectionsData, setSectionsData] = useState<ElectoralSection[]>(() => {
@@ -960,6 +1021,8 @@ export function App() {
         onOpenAddModal={handleOpenAddModal}
         onOpenQuickCapture={() => handleOpenQuickCapture()}
         onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
+        onOpenTicketsModal={() => setIsCampanaTicketsModalOpen(true)}
+        onOpenCreateCampanaModal={() => setIsCreateCampanaModalOpen(true)}
         onExportData={handleExportData}
         onImportData={handleImportData}
         isMobileOpen={isMobileMenuOpen}
@@ -994,6 +1057,31 @@ export function App() {
           accounts={accounts}
           onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
         />
+
+        {/* Banner de Impersonación Activa (Superadmin auditando cuenta de Coordinador de Campaña) */}
+        {impersonatingAdminUser && (
+          <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 px-4 sm:px-6 py-2.5 flex items-center justify-between border-b border-amber-600 shadow-md z-40 shrink-0 animate-emil-fade">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="w-5 h-5 text-slate-950 shrink-0" />
+              <div>
+                <span className="text-xs sm:text-sm font-bold tracking-tight">
+                  MODO AUDITORÍA SAAS: Has iniciado sesión como <strong className="underline">{currentUser?.name}</strong> ({currentUser?.territoryName})
+                </span>
+                <span className="hidden sm:inline-block ml-2 text-[10px] bg-slate-950/20 px-2 py-0.5 rounded font-mono font-bold">
+                  Sesión Superadmin en Pausa
+                </span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleExitImpersonation}
+              className="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Salir y Volver al Panel Superadmin</span>
+            </button>
+          </div>
+        )}
 
         {/* Barra de niveles solo activa en vista Estructura */}
         {activeNav === 'estructura' && (
@@ -1040,51 +1128,62 @@ export function App() {
             />
           ) : (
             <>
-              {/* 1. ESCRITORIO (Tablero de KPIs Oficiales) */}
+              {/* 1. ESCRITORIO (Tablero SaaS para Superadmin o KPIs para Coordinadores/Promotores) */}
               {activeNav === 'escritorio' && (
-                <ExecutiveKpiDesktop
-                  currentUser={currentUser}
-                  stats={stats}
-                  visibleLeaders={visibleLeaders}
-                  sections={scopedSections}
-                  activeStateId={activeStateId}
-                  onStateChange={handleStateChange}
-                  onSelectLeader={handleSelectLeader}
-                  onNavigateView={(view) => {
-                    if (view === 'flow') {
-                      setActiveNav('estructura');
-                      setStructureMode('organigrama');
-                    } else if (view === 'table') {
-                      setActiveNav('estructura');
-                      setStructureMode('lista');
-                    } else if (view === 'sections') {
-                      setActiveNav('secciones');
-                    } else if (view === 'capturar-promovido') {
-                      setActiveNav('capturar-promovido');
-                    } else if (view === 'mis-secciones') {
-                      setActiveNav('mis-secciones');
-                    }
-                  }}
-                  onOpenAddModal={handleOpenAddModal}
-                  onOpenQuickCapture={handleOpenQuickCapture}
-                  onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
-                  onViewCitizen={(id) => {
-                    setSelectedPromovidoId(id);
-                    setActiveNav('ver-promovido');
-                  }}
-                  onEditCitizen={(id) => {
-                    setSelectedPromovidoId(id);
-                    setActiveNav('editar-promovido');
-                  }}
-                  onDeleteCitizen={(id) => handleDeleteLeader(id, true)}
-                  onViewSectionDetail={(secNum) => {
-                    const padded = secNum.padStart(4, '0');
-                    const inScope = scopedSections.some(s => s.sectionNumber === secNum || s.sectionNumber === padded);
-                    if (inScope) {
-                      setDetailSectionNumber(secNum);
-                    }
-                  }}
-                />
+                currentUser?.level === 'admin' ? (
+                  <SuperadminSaasDashboard
+                    currentUser={currentUser}
+                    allLeaders={leadersData}
+                    accounts={accounts}
+                    onImpersonate={handleImpersonate}
+                    onSaveNewCoordinator={handleSaveNewCoordinator}
+                    onDeleteCoordinator={(id) => handleDeleteLeader(id, false)}
+                  />
+                ) : (
+                  <ExecutiveKpiDesktop
+                    currentUser={currentUser}
+                    stats={stats}
+                    visibleLeaders={visibleLeaders}
+                    sections={scopedSections}
+                    activeStateId={activeStateId}
+                    onStateChange={handleStateChange}
+                    onSelectLeader={handleSelectLeader}
+                    onNavigateView={(view) => {
+                      if (view === 'flow') {
+                        setActiveNav('estructura');
+                        setStructureMode('organigrama');
+                      } else if (view === 'table') {
+                        setActiveNav('estructura');
+                        setStructureMode('lista');
+                      } else if (view === 'sections') {
+                        setActiveNav('secciones');
+                      } else if (view === 'capturar-promovido') {
+                        setActiveNav('capturar-promovido');
+                      } else if (view === 'mis-secciones') {
+                        setActiveNav('mis-secciones');
+                      }
+                    }}
+                    onOpenAddModal={handleOpenAddModal}
+                    onOpenQuickCapture={handleOpenQuickCapture}
+                    onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
+                    onViewCitizen={(id) => {
+                      setSelectedPromovidoId(id);
+                      setActiveNav('ver-promovido');
+                    }}
+                    onEditCitizen={(id) => {
+                      setSelectedPromovidoId(id);
+                      setActiveNav('editar-promovido');
+                    }}
+                    onDeleteCitizen={(id) => handleDeleteLeader(id, true)}
+                    onViewSectionDetail={(secNum) => {
+                      const padded = secNum.padStart(4, '0');
+                      const inScope = scopedSections.some(s => s.sectionNumber === secNum || s.sectionNumber === padded);
+                      if (inScope) {
+                        setDetailSectionNumber(secNum);
+                      }
+                    }}
+                  />
+                )
               )}
 
               {/* 1b. MIS SECCIONES (MAPA EN PANTALLA COMPLETA PARA PROMOTOR TERRITORIAL) */}
@@ -1296,6 +1395,22 @@ export function App() {
         currentUser={currentUser}
         availableSections={scopedSections}
         onUserCreated={handleCreateManualUser}
+      />
+
+      {/* Modal de Soporte y Tickets para Coordinadores de Campaña */}
+      {currentUser && (
+        <CampanaTicketsModal
+          isOpen={isCampanaTicketsModalOpen}
+          onClose={() => setIsCampanaTicketsModalOpen(false)}
+          currentUser={currentUser}
+        />
+      )}
+
+      {/* Modal de Alta Exclusiva de Coordinador de Campaña para Superadmin SaaS */}
+      <CreateCampanaCoordinatorModal
+        isOpen={isCreateCampanaModalOpen}
+        onClose={() => setIsCreateCampanaModalOpen(false)}
+        onSave={handleSaveNewCoordinator}
       />
 
       {/* Barra Inferior Fija para Promotor Territorial en Móvil */}

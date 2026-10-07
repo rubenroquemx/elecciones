@@ -630,7 +630,114 @@ app.get('/api/catalog/sections', async (req, res) => {
   }
 });
 
+// --- SUPPORT TICKETS API (SAAS SUPERADMIN <-> COORDINADORES DE CAMPAÑA) ---
+const TICKETS_FILE = path.join(STORE_DIR, 'tickets_store.json');
 
+function readTicketsStore(): any[] {
+  try {
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    if (fs.existsSync(TICKETS_FILE)) {
+      const content = fs.readFileSync(TICKETS_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.warn('Error reading tickets store:', e);
+  }
+  return [];
+}
+
+function writeTicketsStore(tickets: any[]) {
+  try {
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    fs.writeFileSync(TICKETS_FILE, JSON.stringify(tickets, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Error writing tickets store:', e);
+  }
+}
+
+app.get('/api/tickets', (req, res) => {
+  const { campanaLeaderId } = req.query;
+  const tickets = readTicketsStore();
+  if (campanaLeaderId) {
+    return res.json(tickets.filter((t: any) => t.campanaLeaderId === campanaLeaderId));
+  }
+  res.json(tickets);
+});
+
+app.post('/api/tickets', (req, res) => {
+  try {
+    const ticketData = req.body;
+    const tickets = readTicketsStore();
+    const newTicket = {
+      id: ticketData.id || `TCK-${Math.floor(1000 + Math.random() * 9000)}`,
+      campanaLeaderId: ticketData.campanaLeaderId,
+      campanaLeaderName: ticketData.campanaLeaderName,
+      campanaTerritory: ticketData.campanaTerritory || 'General',
+      campanaUserEmail: ticketData.campanaUserEmail || '',
+      subject: ticketData.subject,
+      category: ticketData.category || 'soporte_tecnico',
+      priority: ticketData.priority || 'media',
+      status: ticketData.status || 'abierto',
+      createdAt: ticketData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      messages: Array.isArray(ticketData.messages) ? ticketData.messages : [],
+    };
+    tickets.unshift(newTicket);
+    writeTicketsStore(tickets);
+    res.status(201).json(newTicket);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al crear ticket', details: err.message });
+  }
+});
+
+app.post('/api/tickets/:id/messages', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message, newStatus } = req.body;
+    const tickets = readTicketsStore();
+    const ticketIndex = tickets.findIndex((t: any) => t.id === id);
+    if (ticketIndex === -1) {
+      return res.status(404).json({ error: 'Ticket no encontrado' });
+    }
+    const ticket = tickets[ticketIndex];
+    if (message) {
+      ticket.messages.push({
+        id: message.id || `msg-${Date.now()}`,
+        senderId: message.senderId,
+        senderName: message.senderName,
+        senderRole: message.senderRole,
+        message: message.message,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    if (newStatus) {
+      ticket.status = newStatus;
+    }
+    ticket.updatedAt = new Date().toISOString();
+    writeTicketsStore(tickets);
+    res.json(ticket);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al enviar mensaje', details: err.message });
+  }
+});
+
+app.patch('/api/tickets/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, priority } = req.body;
+    const tickets = readTicketsStore();
+    const ticket = tickets.find((t: any) => t.id === id);
+    if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
+    if (status) ticket.status = status;
+    if (priority) ticket.priority = priority;
+    ticket.updatedAt = new Date().toISOString();
+    writeTicketsStore(tickets);
+    res.json(ticket);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al actualizar ticket', details: err.message });
+  }
+});
 
 // --- SERVE COMPILED VITE CLIENT WITH RUNTIME ENV INJECTION ---
 const distPath = path.resolve(__dirname, '../dist');

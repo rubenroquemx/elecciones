@@ -8,7 +8,8 @@ import {
   Download,
   Upload,
   Shield,
-  Users
+  Users,
+  LifeBuoy
 } from 'lucide-react';
 
 import type { UserAccount } from '../types/auth';
@@ -39,6 +40,8 @@ interface SidebarProps {
   onOpenAddModal: () => void;
   onOpenQuickCapture?: () => void;
   onOpenCreateUser?: () => void;
+  onOpenTicketsModal?: () => void;
+  onOpenCreateCampanaModal?: () => void;
   onExportData: () => void;
   onImportData: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onLogout?: () => void;
@@ -60,6 +63,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAddModal,
   onOpenQuickCapture,
   onOpenCreateUser,
+  onOpenTicketsModal,
+  onOpenCreateCampanaModal,
   onExportData,
   onImportData,
   isMobileOpen = false,
@@ -77,6 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       case 'promotor': return 'Capturar Promovido';
       case 'territorial': return 'Crear Promotor Territorial';
       case 'campana': return 'Crear Coord. Territorial';
+      case 'admin': return 'Crear Coord. de Campaña';
       default: return 'Registrar en Estructura';
     }
   };
@@ -104,11 +110,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-bold text-white tracking-tight apple-title-3">
-                Estructura Territorial
+                {isAdmin ? 'Estrategia SaaS' : 'Estructura Territorial'}
               </span>
             </div>
             <p className="text-[11px] text-slate-400 font-medium truncate">
-              {activeStateName} ({activeStateAbbr.toUpperCase()}) • 4 Niveles
+              {isAdmin ? 'Superadministrador Central' : `${activeStateName} (${activeStateAbbr.toUpperCase()}) • 4 Niveles`}
             </p>
           </div>
         </div>
@@ -120,7 +126,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               Navegación Principal
             </span>
 
-            {/* 1. ESCRITORIO (Tablero KPIs / Avance) */}
+            {/* 1. ESCRITORIO (Tablero KPIs / Avance / SaaS) */}
             <button
               type="button"
               onClick={() => {
@@ -135,10 +141,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
             >
               <div className="flex items-center gap-2.5">
                 <BarChart3 className={`w-4 h-4 ${activeNav === 'escritorio' ? 'text-indigo-400' : 'text-slate-400'}`} />
-                <span>{isPromotor ? 'Mi Escritorio' : 'Escritorio'}</span>
+                <span>{isPromotor ? 'Mi Escritorio' : isAdmin ? 'Panel SaaS (Campañas)' : 'Escritorio'}</span>
               </div>
               <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/[0.08] text-indigo-300">
-                {isPromotor ? 'Avance' : 'KPIs'}
+                {isPromotor ? 'Avance' : isAdmin ? 'SaaS' : 'KPIs'}
               </span>
             </button>
 
@@ -256,6 +262,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
 
+            {/* Mesa de Ayuda & Tickets SaaS (Para Coordinador de Campaña) */}
+            {isCampana && onOpenTicketsModal && (
+              <button
+                type="button"
+                onClick={() => {
+                  onOpenTicketsModal();
+                  onCloseMobile?.();
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium text-slate-300 hover:bg-white/[0.07] hover:text-white transition-[background-color,color] duration-140 cursor-pointer"
+              >
+                <div className="flex items-center gap-2.5">
+                  <LifeBuoy className="w-4 h-4 text-indigo-400" />
+                  <span>Soporte / Tickets</span>
+                </div>
+                <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-400/30">
+                  SaaS
+                </span>
+              </button>
+            )}
+
             {/* SECCIÓN DEDICADA PARA COORDINADOR TERRITORIAL: PROMOTORES TERRITORIALES */}
             {isTerritorial && (
               <div className="space-y-1 pt-3 border-t border-white/[0.08] animate-emil-fade">
@@ -341,23 +367,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
 
-            {/* Crear en estructura: No mostrado a Promotor porque su tarea principal es capturar promovidos */}
+            {/* Crear en estructura / Crear Coordinador: No mostrado a Promotor */}
             {!isPromotor && (
               <button
                 type="button"
                 onClick={() => {
-                  onOpenAddModal();
+                  if (isAdmin && onOpenCreateCampanaModal) {
+                    onOpenCreateCampanaModal();
+                  } else {
+                    onOpenAddModal();
+                  }
                   onCloseMobile?.();
                 }}
-                className="w-full flex items-center justify-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-900/30 transition-all active:scale-98 cursor-pointer"
+                className={`w-full flex items-center justify-center gap-2 px-3.5 py-2.5 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-98 cursor-pointer ${
+                  isAdmin 
+                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 shadow-indigo-950/40' 
+                    : 'bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-indigo-900/30'
+                }`}
               >
                 <UserPlus className="w-4 h-4" />
                 <span>{getAddButtonLabel()}</span>
               </button>
             )}
 
-            {/* Alta Manual de Usuario: Solo visible para Admin, Campaña y Territorial */}
-            {!isPromotor && onOpenCreateUser && (
+            {/* Alta Manual de Usuario: Solo visible para Campaña y Territorial (Admin solo crea Coordinadores de Campaña) */}
+            {!isPromotor && !isAdmin && onOpenCreateUser && (
               <button
                 type="button"
                 onClick={() => {
