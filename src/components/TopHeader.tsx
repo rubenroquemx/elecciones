@@ -14,7 +14,9 @@ import {
   UserPlus,
   Edit3,
   Settings,
-  HelpCircle
+  HelpCircle,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 import type { FilterOptions } from '../types/territory';
 import type { UserAccount } from '../types/auth';
@@ -41,6 +43,8 @@ interface TopHeaderProps {
   onOpenGlobalSearch?: () => void;
   accounts?: UserAccount[];
   onOpenCreateUser?: () => void;
+  isSidebarCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -54,8 +58,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onToggleMobileMenu,
   onExpandAll,
   onCollapseAll,
-  activeStateName,
-  activeStateAbbr,
+  activeStateName: _activeStateName,
+  activeStateAbbr: _activeStateAbbr,
   currentUser,
   onSelectUser,
   visibleCount,
@@ -63,8 +67,11 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onOpenGlobalSearch,
   accounts,
   onOpenCreateUser,
+  isSidebarCollapsed,
+  onToggleCollapse,
 }) => {
   const isCampana = currentUser?.level === 'campana' || currentUser?.level === 'estatal' || currentUser?.level === 'distrital';
+  const isAdmin = currentUser?.level === 'admin' || currentUser?.isSuperAdmin;
 
   return (
     <header className={`apple-chrome px-3 sm:px-6 py-2.5 shrink-0 z-20 ${
@@ -86,6 +93,22 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             </button>
           )}
 
+          {/* Boton para colapsar/expandir barra lateral en Desktop */}
+          {onToggleCollapse && (
+            <button
+              type="button"
+              onClick={onToggleCollapse}
+              className="p-1.5 -ml-1 text-slate-600 hover:text-slate-900 rounded-lg hover:bg-black/[0.05] hidden lg:flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+              title={isSidebarCollapsed ? "Expandir menú lateral" : "Colapsar menú lateral"}
+            >
+              {isSidebarCollapsed ? (
+                <PanelLeftOpen className="w-5 h-5" />
+              ) : (
+                <PanelLeftClose className="w-5 h-5" />
+              )}
+            </button>
+          )}
+
           {/* Section Breadcrumb & Title */}
           <div className="min-w-0">
             <h1 className="text-sm sm:text-base font-bold text-slate-900 tracking-tight flex items-center gap-2 truncate">
@@ -93,11 +116,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   <>
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
                     <span>Escritorio</span>
-                    {activeStateName && currentUser?.level !== 'promotor' && (
-                      <span className="ml-2 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80">
-                        {activeStateName} ({activeStateAbbr?.toUpperCase()})
-                      </span>
-                    )}
                   </>
                 )}
 
@@ -304,8 +322,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             </div>
           )}
 
-          {/* Omnibox Search Button (Apple Spotlight capsule - oculto para Promotor y Coordinador de Campaña) */}
-          {onOpenGlobalSearch && currentUser?.level !== 'promotor' && !isCampana && (
+          {/* Omnibox Search Button (oculto para Promotor, Campaña y Superadmin) */}
+          {onOpenGlobalSearch && currentUser?.level !== 'promotor' && !isCampana && !isAdmin && (
             <button
               type="button"
               onClick={onOpenGlobalSearch}

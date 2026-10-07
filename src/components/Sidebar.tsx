@@ -10,7 +10,9 @@ import {
   Shield,
   Users,
   Settings,
-  HelpCircle
+  HelpCircle,
+  PanelLeftClose,
+  PanelLeftOpen
 } from 'lucide-react';
 
 import type { UserAccount } from '../types/auth';
@@ -53,6 +55,8 @@ interface SidebarProps {
   onCloseMobile?: () => void;
   activeStateName?: string;
   activeStateAbbr?: string;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -61,9 +65,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   structureMode,
   onStructureModeChange,
   currentUser,
-  visibleCount,
-  sectionsCount,
-  promotersCount = 0,
+  visibleCount: _visibleCount = 0,
+  sectionsCount: _sectionsCount = 0,
+  promotersCount: _promotersCount = 0,
   onOpenAddModal,
   onOpenQuickCapture,
   onOpenCreateUser,
@@ -71,8 +75,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onImportData,
   isMobileOpen = false,
   onCloseMobile,
-  activeStateName = 'Tabasco',
-  activeStateAbbr = 'tab',
+  isCollapsed = false,
+  onToggleCollapse,
 }) => {
   const isPromotor = currentUser.level === 'promotor';
   const isTerritorial = currentUser.level === 'territorial';
@@ -100,59 +104,60 @@ export const Sidebar: React.FC<SidebarProps> = ({
       )}
 
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 sm:w-72 apple-chrome-dark text-slate-100 flex flex-col transition-transform duration-280 [transition-timing-function:var(--ease-apple-sheet)] shrink-0 ${
+        style={{
+          background: 'linear-gradient(180deg, #000000 0%, #2E2E2E 50%, #141414 100%)',
+        }}
+        className={`fixed lg:static inset-y-0 left-0 z-50 text-slate-100 flex flex-col transition-all duration-300 ease-in-out shrink-0 border-r border-white/[0.08] ${
           isMobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        }`}
+        } ${isCollapsed ? 'w-20' : 'w-64 sm:w-72'}`}
       >
-        {/* Header / Brand */}
-        <div className="p-4 sm:p-5 border-b border-white/[0.08] flex flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-2">
+        {/* Header / Brand: Centrado, ocupa el ancho, sin etiquetas ni textos extras */}
+        <div className={`border-b border-white/[0.08] flex items-center justify-center transition-all duration-300 ${
+          isCollapsed ? 'p-3.5 min-h-[64px]' : 'px-4 py-5 min-h-[72px]'
+        }`}>
+          {isCollapsed ? (
+            <img 
+              src="/icon.svg" 
+              alt="VERTEX" 
+              className="w-9 h-9 object-contain mx-auto" 
+              title="VERTEX"
+            />
+          ) : (
             <img 
               src="/logo-oscuro.svg" 
               alt="VERTEX" 
-              className="h-8 max-w-[170px] object-contain object-left shrink-0" 
+              className="w-full max-h-9 object-contain mx-auto" 
             />
-            {isAdmin && (
-              <span className="text-[9px] font-mono font-bold uppercase tracking-wider bg-white/[0.10] text-indigo-300 px-2 py-0.5 rounded">
-                SaaS
-              </span>
-            )}
-          </div>
-          <p className="text-[11px] text-slate-400 font-medium truncate">
-            {isAdmin ? 'Superadministrador Central' : `${activeStateName} (${activeStateAbbr.toUpperCase()}) • 4 Niveles`}
-          </p>
+          )}
         </div>
 
         {/* Primary Navigation Menu */}
-        <div className="flex-1 overflow-y-auto p-3.5 space-y-6 flex flex-col">
-          <div className="space-y-1 flex-1 flex flex-col">
-            <span className="px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400 apple-caption">
-              Navegación Principal
-            </span>
+        <div className={`flex-1 overflow-y-auto space-y-4 flex flex-col ${isCollapsed ? 'p-2' : 'p-3.5'}`}>
+          <div className="space-y-1.5 flex-1 flex flex-col">
 
-            {/* 1. ESCRITORIO (Tablero KPIs / Avance / SaaS) */}
+            {/* 1. ESCRITORIO */}
             <button
               type="button"
               onClick={() => {
                 onNavChange('escritorio');
                 onCloseMobile?.();
               }}
-              className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 ${
+              title={isPromotor ? 'Mi Escritorio' : 'Escritorio'}
+              className={`w-full flex items-center rounded-xl text-xs font-semibold transition-[background-color,color] duration-140 cursor-pointer ${
+                isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+              } ${
                 activeNav === 'escritorio'
-                  ? 'bg-white/[0.14] text-white font-semibold shadow-xs'
+                  ? 'bg-white/[0.14] text-white shadow-xs'
                   : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <BarChart3 className={`w-4 h-4 ${activeNav === 'escritorio' ? 'text-indigo-400' : 'text-slate-400'}`} />
-                <span>{isPromotor ? 'Mi Escritorio' : isAdmin ? 'Panel SaaS (Campañas)' : 'Escritorio'}</span>
-              </div>
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/[0.08] text-indigo-300">
-                {isPromotor ? 'Avance' : isAdmin ? 'SaaS' : 'KPIs'}
-              </span>
+              <BarChart3 className={`w-5 h-5 shrink-0 ${activeNav === 'escritorio' ? 'text-indigo-400' : 'text-slate-400'}`} />
+              {!isCollapsed && (
+                <span>{isPromotor ? 'Mi Escritorio' : 'Escritorio'}</span>
+              )}
             </button>
 
-            {/* 1b. MIS SECCIONES (Mapa Pantalla Completa para Promotor Territorial) */}
+            {/* 1b. MIS SECCIONES (Promotor Territorial) */}
             {isPromotor && (
               <button
                 type="button"
@@ -160,25 +165,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onNavChange('mis-secciones');
                   onCloseMobile?.();
                 }}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 ${
+                title="Mis Secciones"
+                className={`w-full flex items-center rounded-xl text-xs font-semibold transition-[background-color,color] duration-140 cursor-pointer ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                } ${
                   activeNav === 'mis-secciones'
-                    ? 'bg-emerald-500/25 text-white font-bold border border-emerald-400/40 shadow-xs'
+                    ? 'bg-emerald-500/25 text-white border border-emerald-400/40 shadow-xs'
                     : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-2.5">
-                  <MapPin className={`w-4 h-4 ${activeNav === 'mis-secciones' ? 'text-emerald-300' : 'text-emerald-400'}`} />
-                  <span>Mis Secciones</span>
-                </div>
-                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-emerald-500/20 text-emerald-300">
-                  {currentUser.assignedSections?.length || 1}
-                </span>
+                <MapPin className={`w-5 h-5 shrink-0 ${activeNav === 'mis-secciones' ? 'text-emerald-300' : 'text-emerald-400'}`} />
+                {!isCollapsed && <span>Mis Secciones</span>}
               </button>
             )}
 
-            {/* 2. ESTRUCTURA (Oculto para Promotor y Coordinador de Campaña) */}
-            {!isPromotor && !isCampana && (
-              <div className="space-y-1 pt-1">
+            {/* 2. ESTRUCTURA (Oculto para Promotor, Campaña y Superadmin) */}
+            {!isPromotor && !isCampana && !isAdmin && (
+              <div className="space-y-1">
                 <button
                   type="button"
                   onClick={() => {
@@ -188,23 +191,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 ${
+                  title={isTerritorial ? 'Promotores y Referidos' : 'Estructura'}
+                  className={`w-full flex items-center rounded-xl text-xs font-semibold transition-[background-color,color] duration-140 cursor-pointer ${
+                    isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                  } ${
                     activeNav === 'estructura'
-                      ? 'bg-white/[0.14] text-white font-semibold shadow-xs'
+                      ? 'bg-white/[0.14] text-white shadow-xs'
                       : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Network className={`w-4 h-4 ${activeNav === 'estructura' ? 'text-sky-400' : 'text-slate-400'}`} />
+                  <Network className={`w-5 h-5 shrink-0 ${activeNav === 'estructura' ? 'text-sky-400' : 'text-slate-400'}`} />
+                  {!isCollapsed && (
                     <span>{isTerritorial ? 'Promotores y Referidos' : 'Estructura'}</span>
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-white/[0.08] text-slate-300">
-                    {visibleCount}
-                  </span>
+                  )}
                 </button>
 
-                {/* Sub-vistas de Estructura: Solo para Admin */}
-                {activeNav === 'estructura' && !isTerritorial && (
+                {/* Sub-vistas de Estructura cuando está expandido */}
+                {activeNav === 'estructura' && !isTerritorial && !isCollapsed && (
                   <div className="ml-4 pl-3 border-l-2 border-indigo-500/40 space-y-1 pt-1 animate-emil-fade">
                     <button
                       type="button"
@@ -242,107 +245,94 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </div>
             )}
 
-            {/* 3. SECCIONES & MAPAS (Oculto para Promotor y Coordinador de Campaña) */}
-            {!isPromotor && !isCampana && (
+            {/* 3. SECCIONES & MAPAS (Oculto para Promotor, Campaña y Superadmin) */}
+            {!isPromotor && !isCampana && !isAdmin && (
               <button
                 type="button"
                 onClick={() => {
                   onNavChange('secciones');
                   onCloseMobile?.();
                 }}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                title={isTerritorial ? 'Secciones Asignadas' : 'Secciones & Mapas'}
+                className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                } ${
                   activeNav === 'secciones'
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
                     : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <MapPin className={`w-4 h-4 ${activeNav === 'secciones' ? 'text-white' : 'text-rose-400'}`} />
+                <MapPin className={`w-5 h-5 shrink-0 ${activeNav === 'secciones' ? 'text-white' : 'text-rose-400'}`} />
+                {!isCollapsed && (
                   <span>{isTerritorial ? 'Secciones Asignadas' : 'Secciones & Mapas'}</span>
-                </div>
-                <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-slate-800 text-rose-300">
-                  {sectionsCount}
-                </span>
+                )}
               </button>
             )}
 
-            {/* SECCIÓN DEDICADA PARA COORDINADOR TERRITORIAL: PROMOTORES TERRITORIALES */}
+            {/* SECCIÓN DEDICADA PARA COORDINADOR TERRITORIAL */}
             {isTerritorial && (
-              <div className="space-y-1 pt-3 border-t border-white/[0.08] animate-emil-fade">
-                <span className="px-3 text-[10px] font-semibold uppercase tracking-wider text-sky-400 apple-caption">
-                  Promotores Territoriales
-                </span>
-
-                {/* 1. Ver / Administrar */}
+              <div className="space-y-1 pt-3 border-t border-white/[0.08]">
                 <button
                   type="button"
                   onClick={() => {
                     onNavChange('promotores');
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 cursor-pointer ${
+                  title="Directorio de Promotores"
+                  className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                  } ${
                     activeNav === 'promotores'
-                      ? 'bg-sky-500/25 text-white font-bold border border-sky-400/40 shadow-xs'
+                      ? 'bg-sky-500/25 text-white border border-sky-400/40 shadow-xs'
                       : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Users className={`w-4 h-4 ${activeNav === 'promotores' ? 'text-sky-300' : 'text-sky-400'}`} />
-                    <span>Ver / Administrar</span>
-                  </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold bg-sky-500/20 text-sky-300">
-                    {promotersCount}
-                  </span>
+                  <Users className={`w-5 h-5 shrink-0 ${activeNav === 'promotores' ? 'text-sky-300' : 'text-sky-400'}`} />
+                  {!isCollapsed && <span>Ver Promotores</span>}
                 </button>
 
-                {/* 2. Crear Promotor */}
                 <button
                   type="button"
                   onClick={() => {
                     onNavChange('crear-promotor');
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 cursor-pointer ${
+                  title="Crear Promotor"
+                  className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                  } ${
                     activeNav === 'crear-promotor'
-                      ? 'bg-emerald-500/25 text-white font-bold border border-emerald-400/40 shadow-xs'
+                      ? 'bg-emerald-500/25 text-white border border-emerald-400/40 shadow-xs'
                       : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <UserPlus className={`w-4 h-4 ${activeNav === 'crear-promotor' ? 'text-emerald-300' : 'text-emerald-400'}`} />
-                    <span>Crear Promotor</span>
-                  </div>
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/30 text-emerald-200 font-mono">
-                    + Nuevo
-                  </span>
+                  <UserPlus className={`w-5 h-5 shrink-0 ${activeNav === 'crear-promotor' ? 'text-emerald-300' : 'text-emerald-400'}`} />
+                  {!isCollapsed && <span>Crear Promotor</span>}
                 </button>
               </div>
             )}
 
             {/* SECCIONES PARA COORDINADOR DE CAMPAÑA: SIEMPRE MANTENERSE DEBAJO */}
             {isCampana && (
-              <div className="mt-auto pt-4 border-t border-white/[0.08] space-y-1">
-                {/* 1. Usuario (Administración de Coordinadores Territoriales) */}
+              <div className="mt-auto pt-4 border-t border-white/[0.08] space-y-1.5">
+                {/* 1. Usuario */}
                 <button
                   type="button"
                   onClick={() => {
                     onNavChange('usuarios');
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 cursor-pointer ${
+                  title="Usuario (Coordinadores Territoriales)"
+                  className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                  } ${
                     activeNav === 'usuarios' || activeNav === 'crear-coordinador-territorial'
-                      ? 'bg-[#9d2449] text-white font-bold shadow-xs'
+                      ? 'bg-[#9d2449] text-white shadow-xs'
                       : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                   }`}
-                  title="Aquí se administran los Coordinadores Territoriales"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Users className={`w-4 h-4 ${activeNav === 'usuarios' || activeNav === 'crear-coordinador-territorial' ? 'text-white' : 'text-slate-400'}`} />
-                    <span>Usuario</span>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded font-semibold bg-white/[0.12] text-slate-200">
-                    Coord. Territoriales
-                  </span>
+                  <Users className={`w-5 h-5 shrink-0 ${activeNav === 'usuarios' || activeNav === 'crear-coordinador-territorial' ? 'text-white' : 'text-slate-400'}`} />
+                  {!isCollapsed && <span>Usuario</span>}
                 </button>
 
                 {/* 2. Configuración */}
@@ -352,16 +342,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onNavChange('configuracion');
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 cursor-pointer ${
+                  title="Configuración"
+                  className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                  } ${
                     activeNav === 'configuracion'
-                      ? 'bg-[#9d2449] text-white font-bold shadow-xs'
+                      ? 'bg-[#9d2449] text-white shadow-xs'
                       : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                   }`}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <Settings className={`w-4 h-4 ${activeNav === 'configuracion' ? 'text-white' : 'text-slate-400'}`} />
-                    <span>Configuración</span>
-                  </div>
+                  <Settings className={`w-5 h-5 shrink-0 ${activeNav === 'configuracion' ? 'text-white' : 'text-slate-400'}`} />
+                  {!isCollapsed && <span>Configuración</span>}
                 </button>
 
                 {/* 3. Acerca de */}
@@ -371,29 +362,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     onNavChange('acerca-de');
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-[10px] text-xs font-medium transition-[background-color,color] duration-140 cursor-pointer ${
+                  title="Acerca de"
+                  className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                    isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                  } ${
                     activeNav === 'acerca-de'
-                      ? 'bg-[#9d2449] text-white font-bold shadow-xs'
+                      ? 'bg-[#9d2449] text-white shadow-xs'
                       : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
                   }`}
-                  title="Manuales de uso de la app"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <HelpCircle className={`w-4 h-4 ${activeNav === 'acerca-de' ? 'text-white' : 'text-slate-400'}`} />
-                    <span>Acerca de</span>
-                  </div>
+                  <HelpCircle className={`w-5 h-5 shrink-0 ${activeNav === 'acerca-de' ? 'text-white' : 'text-slate-400'}`} />
+                  {!isCollapsed && <span>Acerca de</span>}
                 </button>
               </div>
             )}
           </div>
 
-          {/* Quick Actions & Data Controls (Oculto para Coordinador de Campaña) */}
-          {!isCampana && (
-            <div className="space-y-2 pt-4 border-t border-slate-800/80">
-              <span className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Acciones Rápidas
-              </span>
-
+          {/* Quick Actions & Data Controls: Oculto para Coordinador de Campaña y Superadmin */}
+          {!isCampana && !isAdmin && (
+            <div className="space-y-2 pt-3 border-t border-white/[0.08]">
               {/* Botón de Captura Rápida */}
               {onOpenQuickCapture && (
                 <button
@@ -406,113 +393,107 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     }
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 bg-gradient-to-r from-emerald-600 to-rose-900 hover:from-emerald-500 hover:to-rose-800 text-white text-xs font-bold shadow-md shadow-emerald-950/30 transition-all active:scale-98 cursor-pointer ${
-                    isPromotor ? 'rounded-none' : 'rounded-xl'
+                  className={`w-full flex items-center rounded-xl bg-gradient-to-r from-emerald-600 to-rose-900 hover:from-emerald-500 hover:to-rose-800 text-white text-xs font-bold shadow-md shadow-emerald-950/30 transition-all active:scale-98 cursor-pointer ${
+                    isCollapsed ? 'justify-center p-3' : 'justify-between px-3.5 py-2.5'
                   }`}
                   title="Capturar Ciudadano Promovido"
                 >
                   <div className="flex items-center gap-2">
                     <UserPlus className="w-4 h-4 text-emerald-200" />
-                    <span>{isPromotor ? 'Capturar Promovido' : 'Captura Rápida'}</span>
+                    {!isCollapsed && <span>{isPromotor ? 'Capturar Promovido' : 'Captura Rápida'}</span>}
                   </div>
-                  <span className="bg-emerald-400/20 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded-none font-mono font-bold">+</span>
+                  {!isCollapsed && <span className="bg-emerald-400/20 text-emerald-200 text-[10px] px-1.5 py-0.5 rounded font-mono font-bold">+</span>}
                 </button>
               )}
 
-              {/* Crear en estructura / Crear Coordinador: No mostrado a Promotor */}
+              {/* Crear en estructura */}
               {!isPromotor && (
                 <button
                   type="button"
                   onClick={() => {
-                    if (isAdmin) {
-                      onNavChange('crear-coordinador');
-                    } else {
-                      onOpenAddModal();
-                    }
+                    onOpenAddModal();
                     onCloseMobile?.();
                   }}
-                  className={`w-full flex items-center justify-center gap-2 px-3.5 py-2.5 text-white rounded-xl text-xs font-bold shadow-md transition-all active:scale-98 cursor-pointer ${
-                    isAdmin 
-                      ? 'bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 shadow-indigo-950/40' 
-                      : 'bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 shadow-indigo-900/30'
+                  className={`w-full flex items-center rounded-xl bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white text-xs font-bold shadow-md shadow-indigo-900/30 transition-all active:scale-98 cursor-pointer ${
+                    isCollapsed ? 'justify-center p-3' : 'justify-center gap-2 px-3.5 py-2.5'
                   }`}
+                  title={getAddButtonLabel()}
                 >
                   <UserPlus className="w-4 h-4" />
-                  <span>{getAddButtonLabel()}</span>
+                  {!isCollapsed && <span>{getAddButtonLabel()}</span>}
                 </button>
               )}
 
               {/* Alta Manual de Usuario */}
-              {!isPromotor && !isAdmin && onOpenCreateUser && (
+              {!isPromotor && onOpenCreateUser && (
                 <button
                   type="button"
                   onClick={() => {
                     onOpenCreateUser();
                     onCloseMobile?.();
                   }}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-800/90 hover:bg-slate-700/90 text-indigo-300 hover:text-white rounded-xl text-xs font-bold border border-indigo-500/30 transition-all active:scale-98 cursor-pointer"
-                  title="Generar credenciales manuales para un nuevo usuario del sistema cerrado"
+                  className={`w-full flex items-center rounded-xl bg-slate-800/90 hover:bg-slate-700/90 text-indigo-300 hover:text-white text-xs font-bold border border-indigo-500/30 transition-all active:scale-98 cursor-pointer ${
+                    isCollapsed ? 'justify-center p-3' : 'justify-center gap-2 px-3 py-2'
+                  }`}
+                  title="Alta Manual de Usuario"
                 >
                   <Shield className="w-3.5 h-3.5 text-indigo-400" />
-                  <span>Alta Manual de Usuario</span>
+                  {!isCollapsed && <span>Alta Manual</span>}
                 </button>
               )}
 
-              {/* Exportar e Importar: Solo para Admin */}
-              {isAdmin && (
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={onExportData}
-                    className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold border border-slate-700/60 transition-colors"
-                    title="Descargar estructura visible en CSV"
-                  >
-                    <Download className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Exportar</span>
-                  </button>
+              {/* Exportar e Importar */}
+              <div className={`grid gap-2 pt-1 ${isCollapsed ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                <button
+                  type="button"
+                  onClick={onExportData}
+                  className="flex items-center justify-center gap-1.5 p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold border border-slate-700/60 transition-colors"
+                  title="Descargar estructura visible en CSV"
+                >
+                  <Download className="w-3.5 h-3.5 text-slate-400" />
+                  {!isCollapsed && <span>Exportar</span>}
+                </button>
 
-                  <label
-                    className="flex items-center justify-center gap-1.5 px-2.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold border border-slate-700/60 transition-colors cursor-pointer"
-                    title="Cargar estructura desde JSON"
-                  >
-                    <Upload className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Importar</span>
-                    <input
-                      type="file"
-                      accept=".json"
-                      onChange={onImportData}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              )}
+                <label
+                  className="flex items-center justify-center gap-1.5 p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg text-[11px] font-semibold border border-slate-700/60 transition-colors cursor-pointer"
+                  title="Cargar estructura desde JSON"
+                >
+                  <Upload className="w-3.5 h-3.5 text-slate-400" />
+                  {!isCollapsed && <span>Importar</span>}
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={onImportData}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+
+          {/* Botón de Colapso de Barra Lateral (Desktop) */}
+          {onToggleCollapse && (
+            <div className="pt-3 border-t border-white/[0.08] mt-auto hidden lg:block">
+              <button
+                type="button"
+                onClick={onToggleCollapse}
+                className={`w-full flex items-center rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.08] transition-colors cursor-pointer text-xs font-medium ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                }`}
+                title={isCollapsed ? 'Expandir barra lateral' : 'Colapsar barra lateral'}
+              >
+                {isCollapsed ? (
+                  <PanelLeftOpen className="w-5 h-5 shrink-0" />
+                ) : (
+                  <>
+                    <PanelLeftClose className="w-5 h-5 shrink-0" />
+                    <span>Colapsar menú</span>
+                  </>
+                )}
+              </button>
             </div>
           )}
         </div>
-
-        {/* User Session Footer Badge (Oculto para Promotor y Coordinador de Campaña) */}
-        {!isPromotor && !isCampana && (
-          <div className="p-3.5 border-t border-slate-800/80 bg-slate-950/60">
-            <div className="flex items-center gap-2.5">
-              {currentUser.picture ? (
-                <img src={currentUser.picture} alt={currentUser.name} className="w-8 h-8 rounded-lg object-cover shadow-xs shrink-0" />
-              ) : (
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs ${currentUser.avatarBg || 'bg-slate-700'}`}>
-                  {currentUser.level === 'admin' ? 'A' : currentUser.name.charAt(0)}
-                </div>
-              )}
-              <div className="min-w-0 flex-1">
-                <div className="text-xs font-bold text-white truncate">
-                  {currentUser.name}
-                </div>
-                <div className="text-[10px] text-slate-400 truncate">
-                  {currentUser.accountRoleLabel}
-                </div>
-              </div>
-              <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="Sesión activa" />
-            </div>
-          </div>
-        )}
       </aside>
     </>
   );

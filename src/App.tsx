@@ -679,6 +679,25 @@ export function App() {
   }, []);
   const [structureMode, setStructureMode] = useState<StructureMode>('organigrama');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('vertex_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleToggleSidebarCollapse = useCallback(() => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('vertex_sidebar_collapsed', String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
 
   // RBAC Navigation restrictions:
   // Promotor has no access to maps, estructura, secciones -> lock to allowed promotor pages
@@ -1120,6 +1139,8 @@ export function App() {
         onCloseMobile={() => setIsMobileMenuOpen(false)}
         activeStateName={activeStateData.commonName}
         activeStateAbbr={activeStateData.abbr}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={handleToggleSidebarCollapse}
       />
 
       {/* Área Principal Derecha */}
@@ -1147,6 +1168,8 @@ export function App() {
           onOpenGlobalSearch={currentUser?.level === 'promotor' ? undefined : () => setIsGlobalSearchOpen(true)}
           accounts={accounts}
           onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
+          isSidebarCollapsed={isSidebarCollapsed}
+          onToggleCollapse={handleToggleSidebarCollapse}
         />
 
         {/* Banner de Impersonación Activa (Superadmin auditando cuenta de Coordinador de Campaña) */}
