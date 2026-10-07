@@ -130,7 +130,7 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
                     setIdentifier(e.target.value);
                     setErrorMsg(null);
                   }}
-                  placeholder="ej. usrubenroqueguzman@gmail.com"
+                  placeholder="usuario o correo electrónico"
                   autoComplete="username"
                   className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#9d2449] focus:ring-1 focus:ring-[#9d2449] transition-all"
                 />
