@@ -96,15 +96,12 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
       {/* Tarjeta Limpia de Inicio de Sesión */}
       <main className="w-full max-w-sm my-auto">
         <div className="bg-white border border-slate-200/80 rounded-2xl p-7 sm:p-8 shadow-sm space-y-6">
-          <div className="text-center space-y-2">
+          <div className="text-center">
             <img 
               src="/logo-claro.svg" 
               alt="VERTEX" 
-              className="h-10 mx-auto object-contain" 
+              className="h-14 sm:h-16 mx-auto object-contain" 
             />
-            <p className="text-xs text-slate-500 font-medium tracking-tight">
-              Plataforma de Control Territorial
-            </p>
           </div>
 
           {errorMsg && (
