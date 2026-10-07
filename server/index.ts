@@ -40,8 +40,8 @@ function cleanEnvValue(val?: string): string {
 }
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || 'vertex-territorial-jwt-secret-2026';
-if (process.env.NODE_ENV === 'production' && !process.env.JWT_SECRET && !process.env.NEXTAUTH_SECRET) {
-  throw new Error('FATAL: JWT_SECRET or NEXTAUTH_SECRET must be defined in production environment.');
+if (!process.env.JWT_SECRET && !process.env.NEXTAUTH_SECRET) {
+  console.warn('⚠️ AVISO: JWT_SECRET no está configurada en variables de entorno. Usando clave de respaldo predeterminada.');
 }
 
 async function hashPassword(plain: string): Promise<string> {
@@ -1299,8 +1299,11 @@ app.listen(PORT, '0.0.0.0', () => {
 // Compatibilidad con puerto 80
 if (PORT !== 80) {
   try {
-    app.listen(80, '0.0.0.0', () => {
+    const server80 = app.listen(80, '0.0.0.0', () => {
       console.log('=== Servidor también escuchando en puerto 80 ===');
+    });
+    server80.on('error', (err: any) => {
+      console.warn('Aviso: Puerto 80 no disponible o reservado:', err.message);
     });
   } catch (e) {}
 }

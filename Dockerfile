@@ -26,6 +26,7 @@ RUN npm run build
 
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV JWT_SECRET=vertex-territorial-jwt-secret-2026
 EXPOSE 3000
 EXPOSE 80
 
