@@ -37,6 +37,35 @@ function cleanEnvValue(val?: string): string {
   return val.replace(/^["']|["']$/g, '').trim();
 }
 
+const STORE_DIR = path.join(__dirname, '../data');
+const STORE_FILE = path.join(STORE_DIR, 'leaders_store.json');
+const DELETED_FILE = path.join(STORE_DIR, 'deleted_leaders_store.json');
+const ACCOUNTS_FILE = path.join(STORE_DIR, 'accounts_store.json');
+const TICKETS_FILE = path.join(STORE_DIR, 'tickets_store.json');
+
+function readAccountsStore(): any[] {
+  try {
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    if (fs.existsSync(ACCOUNTS_FILE)) {
+      const content = fs.readFileSync(ACCOUNTS_FILE, 'utf-8');
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (e) {
+    console.warn('Error reading accounts store:', e);
+  }
+  return [];
+}
+
+function writeAccountsStore(accounts: any[]) {
+  try {
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    fs.writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Error writing accounts store:', e);
+  }
+}
+
 const app = express();
 const prisma = new PrismaClient();
 const PORT = Number(process.env.PORT) || 3000;
@@ -56,6 +85,99 @@ app.get('/api/config', (req, res) => {
     authMode: 'closed_system',
     superadminEmail: rawSuperEmail.toLowerCase(),
   });
+});
+
+// --- USER ACCOUNTS API (SISTEMA CERRADO) ---
+app.get('/api/accounts', async (req, res) => {
+  try {
+    let dbAccounts: any[] = [];
+    try {
+      dbAccounts = await prisma.userAccount.findMany({
+        orderBy: { name: 'asc' },
+      });
+    } catch (e) {}
+
+    const fileAccounts = readAccountsStore();
+    const map = new Map<string, any>();
+    for (const a of fileAccounts) map.set(a.id, a);
+    for (const a of dbAccounts) {
+      const prev = map.get(a.id) || {};
+      map.set(a.id, { ...prev, ...a });
+    }
+
+    res.json(Array.from(map.values()));
+  } catch (err: any) {
+    res.json(readAccountsStore());
+  }
+});
+
+app.post('/api/accounts', async (req, res) => {
+  try {
+    const data = req.body;
+    if (!data.id || (!data.email && !data.username)) {
+      return res.status(400).json({ error: 'ID y usuario/correo requeridos' });
+    }
+
+    const cleanPass = cleanEnvValue(data.password);
+    const cleanEmail = String(data.email || `${data.username}@campana.mx`).trim().toLowerCase();
+    const cleanUsername = String(data.username || cleanEmail.split('@')[0]).trim().toLowerCase();
+
+    const accountObj = {
+      ...data,
+      email: cleanEmail,
+      username: cleanUsername,
+      password: cleanPass,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // 1. Guardar en respaldo de archivo
+    const store = readAccountsStore();
+    const idx = store.findIndex((a: any) => a.id === data.id || a.email === cleanEmail);
+    if (idx >= 0) {
+      store[idx] = { ...store[idx], ...accountObj };
+    } else {
+      store.unshift(accountObj);
+    }
+    writeAccountsStore(store);
+
+    // 2. Guardar en PostgreSQL
+    let savedInDb: any = null;
+    try {
+      savedInDb = await prisma.userAccount.upsert({
+        where: { email: cleanEmail },
+        update: {
+          username: cleanUsername,
+          name: data.name,
+          password: cleanPass,
+          leaderId: data.leaderId || null,
+          level: data.level || 'campana',
+          territoryName: data.territoryName || '',
+          accountRoleLabel: data.accountRoleLabel || 'Coordinador de Campaña',
+          avatarBg: data.avatarBg || 'bg-[#9d2449]',
+          isSuperAdmin: Boolean(data.isSuperAdmin),
+        },
+        create: {
+          id: data.id,
+          email: cleanEmail,
+          username: cleanUsername,
+          name: data.name,
+          password: cleanPass,
+          leaderId: data.leaderId || null,
+          level: data.level || 'campana',
+          territoryName: data.territoryName || '',
+          accountRoleLabel: data.accountRoleLabel || 'Coordinador de Campaña',
+          avatarBg: data.avatarBg || 'bg-[#9d2449]',
+          isSuperAdmin: Boolean(data.isSuperAdmin),
+        },
+      });
+    } catch (e: any) {
+      console.warn('Aviso guardando cuenta en PostgreSQL:', e.message);
+    }
+
+    res.status(201).json(savedInDb || accountObj);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al registrar cuenta', message: err.message });
+  }
 });
 
 // Autenticación en Sistema Cerrado
@@ -101,7 +223,7 @@ app.post('/api/auth/login', async (req, res) => {
       });
     }
 
-    // 2. Verificación de usuarios creados en PostgreSQL
+    // 2. Verificación de usuarios creados en PostgreSQL o en accounts_store.json
     let userFromDb: any = null;
     try {
       userFromDb = await prisma.userAccount.findFirst({
@@ -114,12 +236,21 @@ app.post('/api/auth/login', async (req, res) => {
       });
     } catch (e) {}
 
-    if (userFromDb) {
-      const dbPass = cleanEnvValue(userFromDb.password);
-      if (dbPass && dbPass !== cleanPass) {
+    const fileAccounts = readAccountsStore();
+    const userFromFile = fileAccounts.find(
+      (a: any) =>
+        String(a.email || '').toLowerCase() === cleanId ||
+        String(a.username || '').toLowerCase() === cleanId
+    );
+
+    const userCandidate = userFromDb || userFromFile;
+
+    if (userCandidate) {
+      const candidatePass = cleanEnvValue(userCandidate.password);
+      if (candidatePass && candidatePass !== cleanPass) {
         return res.status(401).json({ error: 'Contraseña incorrecta' });
       }
-      return res.json(userFromDb);
+      return res.json(userCandidate);
     }
 
     return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu usuario/correo y contraseña.' });
@@ -186,10 +317,6 @@ app.post('/api/scan-ine-ai', async (req, res) => {
 });
 
 // --- LEADERS API CON RESPALDO RESILIENTE Y CAMPOS COMPLETOS ---
-
-const STORE_DIR = path.join(__dirname, '../data');
-const STORE_FILE = path.join(STORE_DIR, 'leaders_store.json');
-const DELETED_FILE = path.join(STORE_DIR, 'deleted_leaders_store.json');
 
 function readDeletedStore(): Set<string> {
   try {
@@ -728,7 +855,6 @@ app.get('/api/catalog/sections', async (req, res) => {
 });
 
 // --- SUPPORT TICKETS API (SAAS SUPERADMIN <-> COORDINADORES DE CAMPAÑA) ---
-const TICKETS_FILE = path.join(STORE_DIR, 'tickets_store.json');
 
 function readTicketsStore(): any[] {
   try {

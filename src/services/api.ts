@@ -101,3 +101,31 @@ export async function addStructureApi(sectionId: string, structure: SectionStruc
     return structure;
   }
 }
+
+export async function fetchUserAccountsApi(): Promise<any[]> {
+  try {
+    const res = await fetch(`${API_BASE}/api/accounts`);
+    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.warn('Fallo al obtener cuentas en backend:', err);
+    return [];
+  }
+}
+
+export async function saveUserAccountApi(account: any): Promise<any> {
+  try {
+    const res = await fetch(`${API_BASE}/api/accounts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(account),
+    });
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Fallo al guardar cuenta en backend:', err);
+    return account;
+  }
+}
+

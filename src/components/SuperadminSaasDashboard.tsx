@@ -8,7 +8,6 @@ import {
   addTicketMessageApi, 
   updateTicketStatusApi 
 } from '../services/ticketsApi';
-import { CreateCampanaCoordinatorModal } from './CreateCampanaCoordinatorModal';
 import { 
   Building2, 
   Users, 
@@ -33,8 +32,8 @@ interface SuperadminSaasDashboardProps {
   allLeaders: TerritorialLeader[];
   accounts: UserAccount[];
   onImpersonate: (coordinatorAccount: UserAccount) => void;
-  onSaveNewCoordinator: (leader: TerritorialLeader, account: UserAccount) => Promise<void>;
   onDeleteCoordinator: (leaderId: string) => Promise<void> | void;
+  onOpenCreateCoordinatorWizard?: () => void;
 }
 
 export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = ({
@@ -42,12 +41,11 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   allLeaders,
   accounts,
   onImpersonate,
-  onSaveNewCoordinator,
   onDeleteCoordinator,
+  onOpenCreateCoordinatorWizard,
 }) => {
   const [activeTab, setActiveTab] = useState<'campanas' | 'tickets' | 'servidores'>('campanas');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // Tickets State
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
@@ -250,7 +248,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={() => onOpenCreateCoordinatorWizard?.()}
               className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-950/40 transition-all flex items-center gap-2 cursor-pointer active:scale-98"
             >
               <Plus className="w-4 h-4" />
@@ -393,7 +391,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
               </p>
               <button
                 type="button"
-                onClick={() => setIsCreateModalOpen(true)}
+                onClick={() => onOpenCreateCoordinatorWizard?.()}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-indigo-500 cursor-pointer"
               >
                 <Plus className="w-4 h-4" />
@@ -759,16 +757,6 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
           </div>
         </div>
       )}
-
-      {/* Modal Crear Coordinador de Campaña */}
-      <CreateCampanaCoordinatorModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSave={async (leader, account) => {
-          await onSaveNewCoordinator(leader, account);
-          setIsCreateModalOpen(false);
-        }}
-      />
 
       {/* Modal Iniciar Ticket desde Superadmin a un Coordinador */}
       {isSuperadminNewTicketOpen && (

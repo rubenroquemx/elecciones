@@ -35,7 +35,7 @@ import { PromoterNotificationsModal } from './components/PromoterNotificationsMo
 import { PromoterSectionsMapView } from './components/PromoterSectionsMapView';
 import { SuperadminSaasDashboard } from './components/SuperadminSaasDashboard';
 import { CampanaTicketsModal } from './components/CampanaTicketsModal';
-import { CreateCampanaCoordinatorModal } from './components/CreateCampanaCoordinatorModal';
+import { CreateCampanaCoordinatorWizardPage } from './components/CreateCampanaCoordinatorWizardPage';
 import { Users, Bell, CheckCircle2, X, MapPin, ShieldAlert, ArrowLeft } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
@@ -47,6 +47,8 @@ import {
   fetchSectionsApi,
   saveSectionApi,
   addStructureApi,
+  fetchUserAccountsApi,
+  saveUserAccountApi,
 } from './services/api';
 
 const DELETED_LEADERS_KEY = 'territorial_deleted_leader_ids';
@@ -443,7 +445,26 @@ export function App() {
   });
 
   const [isCampanaTicketsModalOpen, setIsCampanaTicketsModalOpen] = useState(false);
-  const [isCreateCampanaModalOpen, setIsCreateCampanaModalOpen] = useState(false);
+
+  // Carga inicial y sincronización de cuentas de usuario desde el servidor (PostgreSQL)
+  useEffect(() => {
+    fetchUserAccountsApi()
+      .then(serverAccounts => {
+        if (serverAccounts && serverAccounts.length > 0) {
+          setAccounts(prev => {
+            const map = new Map<string, UserAccount>();
+            prev.forEach(a => map.set(a.id, a));
+            serverAccounts.forEach(a => map.set(a.id, a));
+            const merged = Array.from(map.values());
+            try {
+              localStorage.setItem('territorial_custom_accounts', JSON.stringify(merged));
+            } catch (e) {}
+            return merged;
+          });
+        }
+      })
+      .catch(e => console.warn('Could not fetch server accounts', e));
+  }, []);
 
   const handleImpersonate = useCallback((coordinatorAccount: UserAccount) => {
     if (currentUser) {
@@ -471,6 +492,7 @@ export function App() {
 
   const handleSaveNewCoordinator = useCallback(async (leader: TerritorialLeader, account: UserAccount) => {
     const savedLeader = await saveLeaderApi(leader, false);
+    await saveUserAccountApi(account);
 
     setLeadersData(prev => {
       const updated = [savedLeader, ...prev.filter(l => l.id !== savedLeader.id)];
@@ -1060,7 +1082,6 @@ export function App() {
         onOpenQuickCapture={() => handleOpenQuickCapture()}
         onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
         onOpenTicketsModal={() => setIsCampanaTicketsModalOpen(true)}
-        onOpenCreateCampanaModal={() => setIsCreateCampanaModalOpen(true)}
         onExportData={handleExportData}
         onImportData={handleImportData}
         isMobileOpen={isMobileMenuOpen}
@@ -1166,6 +1187,15 @@ export function App() {
             />
           ) : (
             <>
+              {/* WIZARD INDEPENDIENTE PARA CREAR COORDINADOR DE CAMPAÑA (NO MODAL) */}
+              {activeNav === 'crear-coordinador' && (
+                <CreateCampanaCoordinatorWizardPage
+                  onBack={() => setActiveNav('escritorio')}
+                  onSaveCoordinator={handleSaveNewCoordinator}
+                  onImpersonate={handleImpersonate}
+                />
+              )}
+
               {/* 1. ESCRITORIO (Tablero SaaS para Superadmin o KPIs para Coordinadores/Promotores) */}
               {activeNav === 'escritorio' && (
                 currentUser?.level === 'admin' ? (
@@ -1174,8 +1204,8 @@ export function App() {
                     allLeaders={leadersData}
                     accounts={accounts}
                     onImpersonate={handleImpersonate}
-                    onSaveNewCoordinator={handleSaveNewCoordinator}
                     onDeleteCoordinator={(id) => handleDeleteLeader(id, false)}
+                    onOpenCreateCoordinatorWizard={() => setActiveNav('crear-coordinador')}
                   />
                 ) : (
                   <ExecutiveKpiDesktop
@@ -1444,12 +1474,6 @@ export function App() {
         />
       )}
 
-      {/* Modal de Alta Exclusiva de Coordinador de Campaña para Superadmin SaaS */}
-      <CreateCampanaCoordinatorModal
-        isOpen={isCreateCampanaModalOpen}
-        onClose={() => setIsCreateCampanaModalOpen(false)}
-        onSave={handleSaveNewCoordinator}
-      />
 
       {/* Barra Inferior Fija para Promotor Territorial en Móvil */}
       {currentUser?.level === 'promotor' && (

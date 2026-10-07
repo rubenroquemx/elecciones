@@ -24,7 +24,8 @@ export type MainNavSection =
   | 'editar-promotor'
   | 'capturar-promovido'
   | 'ver-promovido'
-  | 'editar-promovido';
+  | 'editar-promovido'
+  | 'crear-coordinador';
 export type StructureMode = 'organigrama' | 'lista';
 
 interface SidebarProps {
@@ -41,7 +42,6 @@ interface SidebarProps {
   onOpenQuickCapture?: () => void;
   onOpenCreateUser?: () => void;
   onOpenTicketsModal?: () => void;
-  onOpenCreateCampanaModal?: () => void;
   onExportData: () => void;
   onImportData: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onLogout?: () => void;
@@ -64,7 +64,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenQuickCapture,
   onOpenCreateUser,
   onOpenTicketsModal,
-  onOpenCreateCampanaModal,
   onExportData,
   onImportData,
   isMobileOpen = false,
@@ -372,8 +371,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 type="button"
                 onClick={() => {
-                  if (isAdmin && onOpenCreateCampanaModal) {
-                    onOpenCreateCampanaModal();
+                  if (isAdmin) {
+                    onNavChange('crear-coordinador');
                   } else {
                     onOpenAddModal();
                   }
