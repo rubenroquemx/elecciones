@@ -112,30 +112,36 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
       const carto = CARTOGRAPHY_BY_SECTION.get(norm) || CARTOGRAPHY_BY_SECTION.get(clean);
       if (carto && carto.polygon && carto.polygon.length >= 3) {
         const latLngs: L.LatLngExpression[] = carto.polygon.map(([lon, lat]) => [lat, lon]);
+        const isSat = mapLayer === 'sat';
         const poly = L.polygon(latLngs, {
-          color: mapLayer === 'sat' ? '#38bdf8' : '#4f46e5',
-          weight: 1.5,
-          fillColor: mapLayer === 'sat' ? '#0284c7' : '#6366f1',
-          fillOpacity: mapLayer === 'sat' ? 0.42 : 0.35,
+          color: isSat ? '#38bdf8' : '#4f46e5',
+          weight: 0.8,
+          smoothFactor: 1.0,
+          opacity: 0.85,
+          fillColor: isSat ? '#0284c7' : '#818cf8',
+          fillOpacity: isSat ? 0.24 : 0.16,
         }).addTo(map);
 
         poly.bindTooltip(
-          `<div class="px-1 py-0.5 font-sans"><span class="font-bold text-xs text-slate-900">Sección ${carto.sectionNumber}</span><div class="text-[10px] text-slate-500">${carto.municipio} • ${carto.tipo}</div></div>`,
-          { sticky: true, direction: 'top' }
+          `<div class="px-2 py-1 font-sans text-xs"><span class="font-bold text-slate-900 block">Sección ${carto.sectionNumber}</span><span class="text-[10px] text-slate-500">${carto.municipio} • ${carto.tipo}</span></div>`,
+          { sticky: true, direction: 'top', opacity: 0.95 }
         );
 
         poly.on('mouseover', () => {
           poly.setStyle({
-            weight: 2.5,
-            fillOpacity: 0.65,
+            weight: 2,
+            fillOpacity: 0.48,
+            fillColor: isSat ? '#38bdf8' : '#4f46e5',
             color: '#1e1b4b',
           });
+          poly.bringToFront();
         });
         poly.on('mouseout', () => {
           poly.setStyle({
-            weight: 1.5,
-            fillOpacity: mapLayer === 'sat' ? 0.42 : 0.35,
-            color: mapLayer === 'sat' ? '#38bdf8' : '#4f46e5',
+            weight: 0.8,
+            fillOpacity: isSat ? 0.24 : 0.16,
+            fillColor: isSat ? '#0284c7' : '#818cf8',
+            color: isSat ? '#38bdf8' : '#4f46e5',
           });
         });
 
@@ -233,7 +239,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800">
+    <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-24 sm:pb-16">
       {/* 1. Header Superior */}
       <div className="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 shrink-0">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
