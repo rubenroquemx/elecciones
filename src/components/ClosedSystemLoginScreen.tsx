@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { UserAccount } from '../types/auth';
-import { SUPERADMIN_ACCOUNT } from '../data/mockAuthData';
+import { setAuthToken } from '../services/http';
 import { 
   User, 
   KeyRound, 
@@ -9,12 +9,11 @@ import {
 } from 'lucide-react';
 
 interface ClosedSystemLoginScreenProps {
-  accounts: UserAccount[];
+  accounts?: UserAccount[];
   onLogin: (user: UserAccount) => void;
 }
 
 export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = ({
-  accounts,
   onLogin,
 }) => {
   const [identifier, setIdentifier] = useState('');
@@ -36,7 +35,6 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
 
     setIsSubmitting(true);
 
-    // 1. Intento de autenticación directa con el servidor backend
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -45,47 +43,26 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
       });
 
       if (res.ok) {
-        const user = await res.json();
+        const data = await res.json();
         setIsSubmitting(false);
-        onLogin(user);
+        if (data.token) {
+          setAuthToken(data.token);
+        }
+        onLogin(data.user || data);
         return;
       }
-    } catch {
-      // Fallback local en caso de intermitencia de red
-    }
 
-    // 2. Verificación infalible de credenciales de Super Administrador
-    const isSuperId = 
-      cleanId === 'usrubenroqueguzman@gmail.com' ||
-      cleanId === 'usrubenroqueguzman' ||
-      cleanId === SUPERADMIN_ACCOUNT.email.toLowerCase() ||
-      cleanId === SUPERADMIN_ACCOUNT.username.toLowerCase();
-
-    const isSuperPass = 
-      cleanPass === 'admin123' || 
-      cleanPass === SUPERADMIN_ACCOUNT.password;
-
-    if (isSuperId && isSuperPass) {
       setIsSubmitting(false);
-      onLogin(SUPERADMIN_ACCOUNT);
-      return;
+      if (res.status === 401) {
+        setErrorMsg('Credenciales incorrectas. Verifica tu usuario/correo y contraseña.');
+      } else {
+        const errJson = await res.json().catch(() => ({}));
+        setErrorMsg(errJson.error || 'Error al iniciar sesión en el servidor.');
+      }
+    } catch {
+      setIsSubmitting(false);
+      setErrorMsg('Sin conexión con el servidor. Intenta de nuevo.');
     }
-
-    // 3. Verificación contra cuentas locales autorizadas creadas en el sistema
-    const user = accounts.find(
-      (a) =>
-        a.username.toLowerCase() === cleanId ||
-        a.email.toLowerCase() === cleanId
-    );
-
-    setIsSubmitting(false);
-
-    if (user && user.password === cleanPass) {
-      onLogin(user);
-      return;
-    }
-
-    setErrorMsg('Credenciales incorrectas. Verifica tu usuario/correo y contraseña.');
   };
 
   return (

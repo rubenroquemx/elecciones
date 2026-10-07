@@ -5,6 +5,7 @@ import type { TerritorialLeader } from '../types/territory';
 import type { UserAccount } from '../types/auth';
 import { CARTOGRAPHY_BY_SECTION } from '../data/mockSectionsData';
 import { resetPasswordApi } from '../services/api';
+import { WhatsAppIcon } from './icons/WhatsAppIcon';
 import { 
   ArrowLeft, 
   LogIn, 
@@ -22,31 +23,26 @@ import {
   KeyRound
 } from 'lucide-react';
 
-// Icono Oficial de WhatsApp SVG
-const OfficialWhatsAppIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.886 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-  </svg>
-);
-
-interface CampanaCoordinatorDetailPageProps {
-  coordinator: TerritorialLeader;
+interface UserDetailPageProps {
+  leader: TerritorialLeader;
   account?: UserAccount;
   allLeaders: TerritorialLeader[];
+  currentUser: UserAccount;
   onBack: () => void;
-  onEditCoordinator: (coordinatorId: string) => void;
-  onImpersonate: (coordinatorAccount: UserAccount) => void;
-  onDeleteCoordinator: (leaderId: string) => void;
+  onEdit: (leaderId: string) => void;
+  onImpersonate?: (account: UserAccount) => void;
+  onDelete?: (leaderId: string) => void;
 }
 
-export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPageProps> = ({
-  coordinator,
+export const UserDetailPage: React.FC<UserDetailPageProps> = ({
+  leader,
   account,
   allLeaders,
+  currentUser,
   onBack,
-  onEditCoordinator,
+  onEdit,
   onImpersonate,
-  onDeleteCoordinator,
+  onDelete,
 }) => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const [mapLayer, setMapLayer] = useState<'streets' | 'sat'>('streets');
@@ -57,24 +53,21 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 
-  // Subordinados dependientes
-  const territorialCoordinators = allLeaders.filter(
-    l => l.level === 'territorial' && (l.parentId === coordinator.id || l.territoryName?.includes(coordinator.territoryName))
-  );
-  const territorialIds = new Set(territorialCoordinators.map(t => t.id));
-  
-  const promoters = allLeaders.filter(
-    l => l.level === 'promotor' && (l.parentId === coordinator.id || (l.parentId && territorialIds.has(l.parentId)))
-  );
-  const promoterIds = new Set(promoters.map(p => p.id));
+  // Subordinados directos
+  const directTeam = allLeaders.filter(l => l.parentId === leader.id && l.level !== 'promovido');
+  const directPromovidos = allLeaders.filter(l => l.parentId === leader.id && l.level === 'promovido');
 
-  const promovidos = allLeaders.filter(
-    l => l.level === 'promovido' && (l.parentId && promoterIds.has(l.parentId))
-  );
+  // Promovidos de toda la rama
+  const countBranchPromovidos = (leaderId: string): number => {
+    const directP = allLeaders.filter(l => l.parentId === leaderId && l.level === 'promovido').length;
+    const subs = allLeaders.filter(l => l.parentId === leaderId && l.level !== 'promovido');
+    return directP + subs.reduce((acc, sub) => acc + countBranchPromovidos(sub.id), 0);
+  };
+  const totalPromovidosRama = countBranchPromovidos(leader.id) + (leader.currentCount || 0);
 
-  const username = account?.username || coordinator.username || 'N/A';
-  const phone = coordinator.phone || '';
-  const email = coordinator.email || '';
+  const username = account?.username || leader.username || 'sin-usuario';
+  const phone = leader.phone || account?.phone || '';
+  const email = leader.email || account?.email || '';
   const cleanPhone = phone.replace(/\D/g, '');
 
   // Inicializar y renderizar el mapa de la zona asignada
@@ -102,7 +95,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
       subdomains,
     }).addTo(map);
 
-    const assigned = coordinator.assignedSections || [];
+    const assigned = leader.assignedSections || account?.assignedSections || [];
     const bounds = L.latLngBounds([]);
     let sectionsDrawn = 0;
 
@@ -113,9 +106,9 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
       if (carto && carto.polygon && carto.polygon.length >= 3) {
         const latLngs: L.LatLngExpression[] = carto.polygon.map(([lon, lat]) => [lat, lon]);
         const poly = L.polygon(latLngs, {
-          color: mapLayer === 'sat' ? '#38bdf8' : '#4f46e5',
+          color: mapLayer === 'sat' ? '#38bdf8' : '#9d2449',
           weight: 1.5,
-          fillColor: mapLayer === 'sat' ? '#0284c7' : '#6366f1',
+          fillColor: mapLayer === 'sat' ? '#0284c7' : '#9d2449',
           fillOpacity: mapLayer === 'sat' ? 0.42 : 0.35,
         }).addTo(map);
 
@@ -135,7 +128,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
           poly.setStyle({
             weight: 1.5,
             fillOpacity: mapLayer === 'sat' ? 0.42 : 0.35,
-            color: mapLayer === 'sat' ? '#38bdf8' : '#4f46e5',
+            color: mapLayer === 'sat' ? '#38bdf8' : '#9d2449',
           });
         });
 
@@ -163,14 +156,14 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
         mapInstanceRef.current = null;
       }
     };
-  }, [coordinator.assignedSections, mapLayer]);
+  }, [leader.assignedSections, account?.assignedSections, mapLayer]);
 
   const handleResetPassword = async () => {
     if (!account?.id) {
-      alert('No se encontró una cuenta asociada a este coordinador.');
+      alert('No se encontró una cuenta de usuario vinculada a este integrante.');
       return;
     }
-    if (!window.confirm('¿Deseas restablecer la contraseña de este coordinador? Se generará una nueva clave temporal.')) {
+    if (!window.confirm(`¿Deseas restablecer la contraseña de @${username}? Se generará una nueva clave temporal de 10 caracteres.`)) {
       return;
     }
     setIsResettingPass(true);
@@ -179,11 +172,11 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
       const res = await resetPasswordApi(account.id);
       if (res.success && res.temporaryPassword) {
         setTemporaryPassword(res.temporaryPassword);
-        setResetFeedback('Contraseña restablecida con éxito. Cópiala o envíala ahora.');
+        setResetFeedback('Contraseña restablecida con éxito. Cópiala o compártela ahora.');
       } else {
         alert(res.error || 'Error al restablecer la contraseña.');
       }
-    } catch (err: any) {
+    } catch {
       alert('Error de conexión al restablecer contraseña.');
     } finally {
       setIsResettingPass(false);
@@ -193,12 +186,12 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
   const handleCopyCredentials = () => {
     const passInfo = temporaryPassword ? `\n🔑 *Contraseña temporal:* ${temporaryPassword}` : '';
     const text = `🎉 *ACCESO A PLATAFORMA ELECTORAL*\n\n` +
-      `Estimado(a) *${coordinator.name}*,\n` +
-      `Te compartimos tu acceso a la plataforma:\n\n` +
-      `📍 *Campaña:* ${coordinator.territoryName}\n` +
+      `Estimado(a) *${leader.name}*,\n` +
+      `Te compartimos tu acceso oficial como *${leader.role}*:\n\n` +
+      `📍 *Demarcación:* ${leader.territoryName}\n` +
       `👤 *Usuario:* ${username}${passInfo}\n` +
       `🔗 *Acceso:* ${window.location.origin}\n\n` +
-      `Favor de ingresar para comenzar la administración territorial.`;
+      `Favor de ingresar para comenzar tus actividades de coordinación territorial.`;
     navigator.clipboard.writeText(text);
     setCopiedKey('credentials');
     setTimeout(() => setCopiedKey(null), 3000);
@@ -206,7 +199,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
 
   const handleSendWhatsApp = () => {
     const passInfo = temporaryPassword ? `\n🔑 *Contraseña temporal:* ${temporaryPassword}` : '';
-    const text = `Hola *${coordinator.name}*, te comparto tus datos de acceso a la plataforma:\n\n` +
+    const text = `Hola *${leader.name}*, te comparto tus datos de acceso como *${leader.role}*:\n\n` +
       `🌐 *Enlace:* ${window.location.origin}\n` +
       `👤 *Usuario:* ${username}${passInfo}\n\n` +
       `Cualquier duda, estamos a tu disposición.`;
@@ -220,16 +213,16 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
   };
 
   const targetAccount: UserAccount = account || {
-    id: `usr-${coordinator.id}`,
+    id: `usr-${leader.id}`,
     username,
-    name: coordinator.name,
-    email: email || `${username}@campana.mx`,
-    leaderId: coordinator.id,
-    level: 'campana',
-    territoryName: coordinator.territoryName,
-    accountRoleLabel: 'Jefe de Campaña',
-    avatarBg: 'bg-indigo-600',
-    assignedBy: 'Super Administrador (SaaS)',
+    name: leader.name,
+    email: email || `${username}@plataforma.mx`,
+    leaderId: leader.id,
+    level: leader.level,
+    territoryName: leader.territoryName,
+    accountRoleLabel: leader.role,
+    avatarBg: leader.avatarBg || 'bg-[#9d2449]',
+    assignedBy: currentUser.name,
   };
 
   return (
@@ -242,165 +235,159 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
               type="button"
               onClick={onBack}
               className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-              title="Volver al escritorio"
+              title="Volver al listado"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
-                  Jefe de Campaña
+                  Usuarios › {leader.role}
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                  {coordinator.territoryName}
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-[#9d2449] border border-rose-200">
+                  {leader.territoryName}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                {coordinator.name}
+                {leader.name}
               </h1>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* BOTÓN EDITAR ANTES DE ENTRAR A SU CUENTA */}
+            {/* BOTÓN EDITAR */}
             <button
               type="button"
-              onClick={() => onEditCoordinator(coordinator.id)}
+              onClick={() => onEdit(leader.id)}
               className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
-              title="Editar datos del coordinador"
+              title="Editar datos"
             >
               <Pencil className="w-3.5 h-3.5 text-slate-600" />
               <span>Editar</span>
             </button>
 
-            {/* BOTÓN ENTRAR A SU CUENTA */}
-            <button
-              type="button"
-              onClick={() => onImpersonate(targetAccount)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-98"
-              title="Iniciar sesión en la cuenta del coordinador"
-            >
-              <LogIn className="w-4 h-4" />
-              <span>Entrar a su cuenta</span>
-            </button>
+            {/* BOTÓN RESTABLECER CONTRASEÑA */}
+            {account && (
+              <button
+                type="button"
+                onClick={handleResetPassword}
+                disabled={isResettingPass}
+                className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+                title="Generar nueva contraseña temporal de 10 caracteres"
+              >
+                <KeyRound className="w-3.5 h-3.5 text-amber-700" />
+                <span>{isResettingPass ? 'Generando...' : 'Restablecer Clave'}</span>
+              </button>
+            )}
+
+            {/* BOTÓN ENTRAR A SU CUENTA (IMPERSONAR - ADMIN) */}
+            {currentUser.isSuperAdmin && onImpersonate && (
+              <button
+                type="button"
+                onClick={() => onImpersonate(targetAccount)}
+                className="px-4 py-2 bg-[#9d2449] hover:bg-[#851e3e] text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-98"
+                title="Iniciar sesión en la vista de este usuario"
+              >
+                <LogIn className="w-3.5 h-3.5" />
+                <span>Entrar a su cuenta</span>
+              </button>
+            )}
 
             {/* BOTÓN ELIMINAR */}
-            <button
-              type="button"
-              onClick={() => {
-                if (confirm(`¿Estás seguro de eliminar permanentemente al coordinador "${coordinator.name}"?`)) {
-                  onDeleteCoordinator(coordinator.id);
-                  onBack();
-                }
-              }}
-              className="p-2 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
-              title="Eliminar Coordinador"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(leader.id)}
+                className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 border border-transparent hover:border-rose-200 rounded-xl transition-colors cursor-pointer"
+                title="Eliminar registro"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 2. Contenido Principal */}
+      {/* 2. Cuerpo Principal */}
       <div className="max-w-7xl mx-auto w-full p-4 sm:p-8 space-y-6 flex-1">
         
-        {/* MAPA DE LA ZONA ASIGNADA ANTES DE LOS DATOS QUE OCUPA TODO EL ANCHO */}
+        {/* MAPA A TODO EL ANCHO DE LA DEMARCACIÓN */}
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 flex-wrap gap-2">
+          <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-indigo-600" />
-              <span className="text-xs font-bold text-slate-800">
-                Zona Asignada: {coordinator.territoryName}
-              </span>
+              <MapPin className="w-4 h-4 text-[#9d2449]" />
+              <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                Demarcación Cartográfica Asignada
+              </h3>
             </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-semibold text-slate-500 font-mono">
-                {coordinator.assignedSections?.length || 0} secciones asignadas
-              </span>
-
-              {/* Selector de tipo de capa: Calles vs Satélite */}
-              <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('streets')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
-                    mapLayer === 'streets'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Calles
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('sat')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
-                    mapLayer === 'sat'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Satélite
-                </button>
-              </div>
+            <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setMapLayer('streets')}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                  mapLayer === 'streets' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Calles
+              </button>
+              <button
+                type="button"
+                onClick={() => setMapLayer('sat')}
+                className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                  mapLayer === 'sat' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Satélite
+              </button>
             </div>
           </div>
           <div ref={mapContainerRef} className="w-full h-80 sm:h-96 z-0" />
         </div>
 
-        {/* DISEÑO FLUIDO: DATOS GENERALES, CONTACTO Y MÉTRICAS */}
+        {/* MÉTRICAS Y DATOS GENERALES */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-8">
           
-          {/* Fila 1: Métricas de Equipo y Avance en línea fluida */}
-          <div className="flex flex-wrap items-center justify-between gap-6 pb-6 border-b border-slate-100">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">
-                <Building2 className="w-5 h-5" />
+          {/* Métricas de Equipo y Avance */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pb-6 border-b border-slate-100">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-2 text-slate-400 mb-1">
+                <Users className="w-4 h-4 text-[#9d2449]" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Equipo Directo</span>
               </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Coordinadores</p>
-                <h3 className="text-2xl font-black text-slate-900 font-mono">{territorialCoordinators.length}</h3>
-              </div>
+              <p className="text-2xl font-black text-slate-900 font-mono">{directTeam.length}</p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-black text-sm">
-                <Users className="w-5 h-5" />
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-2 text-slate-400 mb-1">
+                <UserCheck className="w-4 h-4 text-emerald-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Promovidos (Directos)</span>
               </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Promotores</p>
-                <h3 className="text-2xl font-black text-slate-900 font-mono">{promoters.length}</h3>
-              </div>
+              <p className="text-2xl font-black text-emerald-700 font-mono">{directPromovidos.length}</p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm">
-                <UserCheck className="w-5 h-5" />
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-2 text-slate-400 mb-1">
+                <Building2 className="w-4 h-4 text-indigo-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Total en Red</span>
               </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Promovidos</p>
-                <h3 className="text-2xl font-black text-emerald-700 font-mono">{promovidos.length}</h3>
-              </div>
+              <p className="text-2xl font-black text-indigo-700 font-mono">{totalPromovidosRama}</p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm">
-                <Layers className="w-5 h-5" />
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <div className="flex items-center gap-2 text-slate-400 mb-1">
+                <Layers className="w-4 h-4 text-blue-600" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">Secciones</span>
               </div>
-              <div>
-                <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">Secciones</p>
-                <h3 className="text-2xl font-black text-slate-900 font-mono">{coordinator.assignedSections?.length || 0}</h3>
-              </div>
+              <p className="text-2xl font-black text-slate-900 font-mono">{leader.assignedSections?.length || 0}</p>
             </div>
           </div>
 
-          {/* Fila 2: Datos de Acceso, Contacto Directo y Demarcación */}
+          {/* Datos de Acceso, Contacto y Secciones */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             
             {/* Columna Izquierda: Acceso y Credenciales */}
             <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-indigo-700">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-[#9d2449]">
                 Acceso y Comunicación
               </h4>
 
@@ -413,26 +400,26 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
                   <span className="text-slate-500 font-medium">Contraseña</span>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-slate-500 text-xs">
-                      ••••••••••••
-                    </span>
-                    <button
-                      type="button"
-                      onClick={handleResetPassword}
-                      disabled={isResettingPass}
-                      className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                      title="Restablecer contraseña y generar nueva clave temporal"
-                    >
-                      <KeyRound className="w-3 h-3 text-amber-700" />
-                      <span>{isResettingPass ? 'Generando...' : 'Restablecer'}</span>
-                    </button>
+                    <span className="font-mono text-slate-500 text-xs">••••••••••••</span>
+                    {account && (
+                      <button
+                        type="button"
+                        onClick={handleResetPassword}
+                        disabled={isResettingPass}
+                        className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Restablecer clave temporal"
+                      >
+                        <KeyRound className="w-3 h-3 text-amber-700" />
+                        <span>{isResettingPass ? '...' : 'Restablecer'}</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
                 {temporaryPassword && (
                   <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-amber-900">Nueva clave temporal:</span>
+                      <span className="text-[11px] font-bold text-amber-900">Clave temporal generada:</span>
                       <button
                         type="button"
                         onClick={() => {
@@ -455,10 +442,10 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                 )}
 
                 <div className="flex items-center justify-between py-1.5 border-b border-slate-100">
-                  <span className="text-slate-500 font-medium">Teléfono</span>
+                  <span className="text-slate-500 font-medium">Teléfono Móvil</span>
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-slate-800 font-mono">{phone || 'Sin registrar'}</span>
-                    {phone && (
+                    {cleanPhone && (
                       <div className="flex items-center gap-1.5">
                         <a
                           href={`tel:${cleanPhone}`}
@@ -471,9 +458,9 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                           type="button"
                           onClick={handleSendWhatsApp}
                           className="p-1.5 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 rounded-lg transition-colors cursor-pointer"
-                          title="Enviar mensaje por WhatsApp"
+                          title="Enviar WhatsApp"
                         >
-                          <OfficialWhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" />
+                          <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" />
                         </button>
                       </div>
                     )}
@@ -497,7 +484,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                 </div>
               </div>
 
-              {/* Botones de Acción de Contacto */}
+              {/* Botones de Compartir */}
               <div className="flex items-center gap-2.5 pt-2">
                 <button
                   type="button"
@@ -512,33 +499,33 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                   ) : (
                     <>
                       <Copy className="w-3.5 h-3.5 text-slate-600" />
-                      <span>Copiar Accesos</span>
+                      <span>Compartir Accesos</span>
                     </>
                   )}
                 </button>
 
-                {phone && (
+                {cleanPhone && (
                   <button
                     type="button"
                     onClick={handleSendWhatsApp}
                     className="px-4 py-2 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98"
                   >
-                    <OfficialWhatsAppIcon className="w-4 h-4 text-white" />
+                    <WhatsAppIcon className="w-4 h-4 text-white" />
                     <span>WhatsApp</span>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Columna Derecha: Delimitación de Secciones */}
+            {/* Columna Derecha: Secciones Electorales */}
             <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-indigo-700">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-[#9d2449]">
                 Secciones Electorales Asignadas
               </h4>
 
-              {coordinator.assignedSections && coordinator.assignedSections.length > 0 ? (
+              {leader.assignedSections && leader.assignedSections.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-100">
-                  {coordinator.assignedSections.map(sec => (
+                  {leader.assignedSections.map(sec => (
                     <span
                       key={sec}
                       className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[11px] font-mono font-bold text-slate-700"
@@ -550,12 +537,36 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
               ) : (
                 <p className="text-xs text-slate-400 italic">No hay secciones registradas en su demarcación.</p>
               )}
+
+              {/* Subordinados directos resumen */}
+              <div className="pt-2">
+                <h5 className="text-[11px] font-bold text-slate-700 uppercase tracking-wide mb-2">
+                  Equipo Subordinado Directo ({directTeam.length})
+                </h5>
+                {directTeam.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">No ha registrado integrantes en su equipo aún.</p>
+                ) : (
+                  <div className="divide-y divide-slate-100 bg-slate-50 rounded-xl border border-slate-100 max-h-44 overflow-y-auto">
+                    {directTeam.map(sub => (
+                      <div key={sub.id} className="p-2.5 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-slate-800">{sub.name}</p>
+                          <p className="text-[10px] text-slate-400">{sub.role} • {sub.territoryName}</p>
+                        </div>
+                        <span className="font-mono font-bold text-xs text-slate-600 bg-white px-2 py-0.5 rounded border border-slate-200">
+                          @{sub.username || 'sin-usuario'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 3. Pie de página con autoría */}
+      {/* 3. Footer */}
       <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-200/60 bg-white mt-auto">
         <span>Creado por: </span>
         <a

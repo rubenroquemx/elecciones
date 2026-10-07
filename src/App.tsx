@@ -1,10 +1,9 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import type { TerritorialLeader, FilterOptions } from './types/territory';
 import type { ElectoralSection, SectionStructure } from './types/sections';
 import type { UserAccount } from './types/auth';
 import { INITIAL_SECTIONS, CATALOG_BY_SECTION } from './data/mockSectionsData';
 import { MOCK_ACCOUNTS } from './data/mockAuthData';
-import { INITIAL_TERRITORY_DATA } from './data/mockTerritoryData';
 import { 
   calculateHierarchyAggregates, 
   getHierarchyStats, 
@@ -14,36 +13,39 @@ import {
 } from './utils/hierarchy';
 import { Sidebar, type MainNavSection, type StructureMode } from './components/Sidebar';
 import { TopHeader } from './components/TopHeader';
-import { TerritoryFlowCanvas } from './components/TerritoryFlowCanvas';
-import { DirectoryTableView } from './components/DirectoryTableView';
 import { NodeDetailDrawer } from './components/NodeDetailDrawer';
 import { EditLeaderModal } from './components/EditLeaderModal';
 import { LevelSummaryBar } from './components/LevelSummaryBar';
-import { SectionsCatalogView } from './components/SectionsCatalogView';
-import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
-import { SectionDetailPage } from './components/SectionDetailPage';
 import { GlobalSearchModal } from './components/GlobalSearchModal';
 import { QuickFieldCaptureModal } from './components/QuickFieldCaptureModal';
 import { ClosedSystemLoginScreen } from './components/ClosedSystemLoginScreen';
 import { CreateManualUserModal } from './components/CreateManualUserModal';
-import { TerritorialPromotersAdminView } from './components/TerritorialPromotersAdminView';
-import { TerritorialPromoterCreatePage } from './components/TerritorialPromoterCreatePage';
-import { TerritorialPromoterEditPage } from './components/TerritorialPromoterEditPage';
-import { PromoterCitizenCapturePage } from './components/PromoterCitizenCapturePage';
-import { PromoterCitizenDetailPage } from './components/PromoterCitizenDetailPage';
-import { PromoterCitizenEditPage } from './components/PromoterCitizenEditPage';
 import { PromoterNotificationsModal } from './components/PromoterNotificationsModal';
-import { PromoterSectionsMapView } from './components/PromoterSectionsMapView';
-import { SuperadminSaasDashboard } from './components/SuperadminSaasDashboard';
 import { CampanaTicketsModal } from './components/CampanaTicketsModal';
-import { CreateCampanaCoordinatorWizardPage } from './components/CreateCampanaCoordinatorWizardPage';
-import { TerritorialCoordinatorsAdminPage } from './components/TerritorialCoordinatorsAdminPage';
-import { CreateTerritorialCoordinatorPage } from './components/CreateTerritorialCoordinatorPage';
 import { ConfiguracionPlaceholderPage } from './components/ConfiguracionPlaceholderPage';
 import { AcercaDePlaceholderPage } from './components/AcercaDePlaceholderPage';
-import { CampanaCoordinatorDetailPage } from './components/CampanaCoordinatorDetailPage';
-import { CampanaCoordinatorEditPage } from './components/CampanaCoordinatorEditPage';
-import { SuperadminTicketsPage } from './components/SuperadminTicketsPage';
+
+// Code-split heavy views via React.lazy for optimal initial bundle size and PWA responsiveness
+const TerritoryFlowCanvas = lazy(() => import('./components/TerritoryFlowCanvas').then(m => ({ default: m.TerritoryFlowCanvas })));
+const DirectoryTableView = lazy(() => import('./components/DirectoryTableView').then(m => ({ default: m.DirectoryTableView })));
+const SectionsCatalogView = lazy(() => import('./components/SectionsCatalogView').then(m => ({ default: m.SectionsCatalogView })));
+const ExecutiveKpiDesktop = lazy(() => import('./components/ExecutiveKpiDesktop').then(m => ({ default: m.ExecutiveKpiDesktop })));
+const SectionDetailPage = lazy(() => import('./components/SectionDetailPage').then(m => ({ default: m.SectionDetailPage })));
+const TerritorialPromotersAdminView = lazy(() => import('./components/TerritorialPromotersAdminView').then(m => ({ default: m.TerritorialPromotersAdminView })));
+const TerritorialPromoterCreatePage = lazy(() => import('./components/TerritorialPromoterCreatePage').then(m => ({ default: m.TerritorialPromoterCreatePage })));
+const TerritorialPromoterEditPage = lazy(() => import('./components/TerritorialPromoterEditPage').then(m => ({ default: m.TerritorialPromoterEditPage })));
+const PromoterCitizenCapturePage = lazy(() => import('./components/PromoterCitizenCapturePage').then(m => ({ default: m.PromoterCitizenCapturePage })));
+const PromoterCitizenDetailPage = lazy(() => import('./components/PromoterCitizenDetailPage').then(m => ({ default: m.PromoterCitizenDetailPage })));
+const PromoterCitizenEditPage = lazy(() => import('./components/PromoterCitizenEditPage').then(m => ({ default: m.PromoterCitizenEditPage })));
+const PromoterSectionsMapView = lazy(() => import('./components/PromoterSectionsMapView').then(m => ({ default: m.PromoterSectionsMapView })));
+const SuperadminSaasDashboard = lazy(() => import('./components/SuperadminSaasDashboard').then(m => ({ default: m.SuperadminSaasDashboard })));
+const CreateCampanaCoordinatorWizardPage = lazy(() => import('./components/CreateCampanaCoordinatorWizardPage').then(m => ({ default: m.CreateCampanaCoordinatorWizardPage })));
+const TerritorialCoordinatorsAdminPage = lazy(() => import('./components/TerritorialCoordinatorsAdminPage').then(m => ({ default: m.TerritorialCoordinatorsAdminPage })));
+const CampanaCoordinatorDetailPage = lazy(() => import('./components/CampanaCoordinatorDetailPage').then(m => ({ default: m.CampanaCoordinatorDetailPage })));
+const CampanaCoordinatorEditPage = lazy(() => import('./components/CampanaCoordinatorEditPage').then(m => ({ default: m.CampanaCoordinatorEditPage })));
+const SuperadminTicketsPage = lazy(() => import('./components/SuperadminTicketsPage').then(m => ({ default: m.SuperadminTicketsPage })));
+const SubordinateCreatePage = lazy(() => import('./components/SubordinateCreatePage').then(m => ({ default: m.SubordinateCreatePage })));
+const UserDetailPage = lazy(() => import('./components/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
 import { Users, Bell, CheckCircle2, X, MapPin, ShieldAlert, ArrowLeft } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
@@ -57,6 +59,7 @@ import {
   addStructureApi,
   fetchUserAccountsApi,
   saveUserAccountApi,
+  deleteUserAccountApi,
 } from './services/api';
 
 const DELETED_LEADERS_KEY = 'territorial_deleted_leader_ids';
@@ -150,12 +153,6 @@ export function App() {
               .filter((l: TerritorialLeader) => !deletedSet.has(l.id))
               .map((l: TerritorialLeader) => [l.id, l])
           );
-          // Asegurar que el Jefe de Campaña oficial esté presente si no se ha eliminado
-          INITIAL_TERRITORY_DATA.forEach(init => {
-            if (!deletedSet.has(init.id) && !map.has(init.id)) {
-              map.set(init.id, init);
-            }
-          });
           // Vincular promovidos huérfanos dinámicamente al promotor responsable de su sección
           map.forEach(l => {
             if (l.level === 'promovido' && (!l.parentId || l.parentId === 'null')) {
@@ -177,8 +174,7 @@ export function App() {
     } catch (e) {
       console.warn('Error reading saved leaders', e);
     }
-    const initialList = INITIAL_TERRITORY_DATA.filter(l => !deletedSet.has(l.id));
-    return calculateHierarchyAggregates(initialList);
+    return [];
   });
 
   // Sincronización bidireccional continua en tiempo real (móvil <-> servidor central <-> PC)
@@ -208,13 +204,7 @@ export function App() {
 
       if (!serverLeaders || serverLeaders.length === 0) {
         setLeadersData(prev => {
-          const base = prev.length > 0 ? [...prev] : [...INITIAL_TERRITORY_DATA];
-          const filtered = base.filter(l => !currentDeletedSet.has(l.id));
-          INITIAL_TERRITORY_DATA.forEach(init => {
-            if (!currentDeletedSet.has(init.id) && !filtered.some(f => f.id === init.id)) {
-              filtered.push(init);
-            }
-          });
+          const filtered = prev.filter(l => !currentDeletedSet.has(l.id));
           try {
             localStorage.setItem('territorial_leaders_data', JSON.stringify(filtered));
           } catch (e) {}
@@ -245,13 +235,6 @@ export function App() {
           }
           combinedMap.set(item.id, item);
         }
-
-        // 2. Asegurar que el Jefe de Campaña oficial esté presente si no se ha eliminado
-        INITIAL_TERRITORY_DATA.forEach(init => {
-          if (!deletedSet.has(init.id) && !combinedMap.has(init.id)) {
-            combinedMap.set(init.id, init);
-          }
-        });
 
         // 3. Registros locales pendientes (ÚNICAMENTE capturas creadas localmente offline que aún no han subido)
         const pendingOfflineIds = getPendingOfflineIds();
@@ -306,11 +289,20 @@ export function App() {
   useEffect(() => {
     syncLeadersWithServer();
 
-    // Sincronización automática periódica (cada 4 seg) y al enfocar la ventana
-    const interval = setInterval(syncLeadersWithServer, 4000);
-    const handleFocus = () => syncLeadersWithServer();
-    window.addEventListener('focus', handleFocus);
-    window.addEventListener('visibilitychange', handleFocus);
+    // Sincronización automática periódica (cada 30 seg) pausando si la pestaña está oculta
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'hidden') {
+        syncLeadersWithServer();
+      }
+    }, 30000);
+
+    const handleSyncTrigger = () => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+        syncLeadersWithServer();
+      }
+    };
+    window.addEventListener('focus', handleSyncTrigger);
+    document.addEventListener('visibilitychange', handleSyncTrigger);
 
     fetchSectionsApi().then((data) => {
       if (data && data.length > 0) {
@@ -333,8 +325,8 @@ export function App() {
 
     return () => {
       clearInterval(interval);
-      window.removeEventListener('focus', handleFocus);
-      window.removeEventListener('visibilitychange', handleFocus);
+      window.removeEventListener('focus', handleSyncTrigger);
+      document.removeEventListener('visibilitychange', handleSyncTrigger);
     };
   }, [syncLeadersWithServer]);
 
@@ -347,8 +339,7 @@ export function App() {
       const savedAuth = localStorage.getItem('territorial_auth_user');
       if (savedAuth && (
         savedAuth.includes('estrategia-territorial.mx') || 
-        savedAuth.includes('usr-prom-ruben-roque') ||
-        savedAuth.includes('promotor2026')
+        savedAuth.includes('usr-prom-ruben-roque')
       )) {
         localStorage.removeItem('territorial_auth_user');
       }
@@ -398,11 +389,17 @@ export function App() {
             'usr-resp-zona', 'usr-resp-seccion', 'usr-promotor',
             'usr-prom-ruben-roque', 'usr-coord-estatal', 'usr-coord-seccional'
           ]);
-          const cleaned = parsed.filter((a: UserAccount) => 
-            !legacyDemoIds.has(a.id) &&
-            !a.email?.includes('estrategia-territorial.mx') &&
-            a.email !== 'admin@estrategia-territorial.mx'
-          );
+          const cleaned = parsed
+            .filter((a: UserAccount) => 
+              !legacyDemoIds.has(a.id) &&
+              !a.email?.includes('estrategia-territorial.mx') &&
+              a.email !== 'admin@estrategia-territorial.mx'
+            )
+            .map((a: UserAccount) => {
+              const copy = { ...a };
+              delete copy.password;
+              return copy;
+            });
           try {
             localStorage.setItem('territorial_custom_accounts', JSON.stringify(cleaned));
           } catch {}
@@ -443,6 +440,15 @@ export function App() {
     return null;
   });
 
+  // Listener para cerrar sesión automática si el servidor responde 401
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setCurrentUser(null);
+    };
+    window.addEventListener('territorial:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('territorial:unauthorized', handleUnauthorized);
+  }, []);
+
   const handleSelectUser = useCallback((user: UserAccount) => {
     setCurrentUser(user);
     try {
@@ -457,6 +463,7 @@ export function App() {
   const handleLogout = useCallback(() => {
     try {
       localStorage.removeItem('territorial_auth_user');
+      localStorage.removeItem('territorial_auth_token');
     } catch (e) {
       console.error('Error removing auth user', e);
     }
@@ -543,7 +550,7 @@ export function App() {
       return updated;
     });
 
-    setTopSuccessNotice(`¡Coordinador de Campaña "${leader.name}" dado de alta con éxito!`);
+    setTopSuccessNotice(`¡Jefe de Campaña "${leader.name}" dado de alta con éxito!`);
   }, []);
 
   const handleSaveNewTerritorialCoordinator = useCallback(async (leader: TerritorialLeader, account: UserAccount) => {
@@ -704,12 +711,16 @@ export function App() {
   const [activeNav, setActiveNav] = useState<MainNavSection>('escritorio');
   const [selectedCoordinatorDetailId, setSelectedCoordinatorDetailId] = useState<string | null>(null);
   const [editingCoordinatorId, setEditingCoordinatorId] = useState<string | null>(null);
+  const [selectedUserDetailId, setSelectedUserDetailId] = useState<string | null>(null);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
 
   const handleNavChange = useCallback((nav: MainNavSection) => {
     setActiveNav(nav);
     setDetailSectionNumber(null);
     setSelectedCoordinatorDetailId(null);
     setEditingCoordinatorId(null);
+    setSelectedUserDetailId(null);
+    setEditingUserId(null);
   }, []);
   const [structureMode, setStructureMode] = useState<StructureMode>('organigrama');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -977,15 +988,19 @@ export function App() {
   }, [currentUser, syncLeadersWithServer]);
 
   const handleDeleteLeader = useCallback((id: string, skipConfirm = false) => {
+    // 1. Regla de negocio estricta: Bloquear eliminación si tiene subordinados directos
+    const target = leadersData.find(l => l.id === id);
+    const directSubs = leadersData.filter(l => l.parentId === id);
+    if (directSubs.length > 0) {
+      alert(`No se puede eliminar a "${target?.name || 'este integrante'}": tiene ${directSubs.length} subordinado(s) directo(s). Reasigna o elimina primero a sus subordinados.`);
+      return;
+    }
+
     if (skipConfirm || window.confirm('¿Seguro que deseas eliminar este registro de la estructura territorial?')) {
       saveLocalDeletedId(id);
       clearPendingOfflineId(id);
       setLeadersData(prev => {
-        const target = prev.find(l => l.id === id);
-        const newParentId = target?.parentId || null;
-        const updated = prev
-          .filter(l => l.id !== id)
-          .map(l => (l.parentId === id ? { ...l, parentId: newParentId } : l));
+        const updated = prev.filter(l => l.id !== id);
         try {
           localStorage.setItem('territorial_leaders_data', JSON.stringify(updated));
         } catch (e) {
@@ -993,6 +1008,20 @@ export function App() {
         }
         return calculateHierarchyAggregates(updated);
       });
+
+      // 2. Eliminar cuenta de usuario asociada en el cliente y servidor (Phase 2 item 2.8)
+      const accountToDelete = accounts.find(a => a.leaderId === id);
+      if (accountToDelete) {
+        setAccounts(prev => {
+          const updated = prev.filter(a => a.leaderId !== id);
+          try {
+            localStorage.setItem('territorial_custom_accounts', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+        deleteUserAccountApi(accountToDelete.id).catch(() => {});
+      }
+
       if (selectedLeaderId === id) {
         setSelectedLeaderId(null);
       }
@@ -1006,7 +1035,7 @@ export function App() {
         .then(() => syncLeadersWithServer())
         .catch(e => console.warn('Delete API error:', e));
     }
-  }, [selectedLeaderId, selectedPromovidoId, filters.focusNodeId, syncLeadersWithServer]);
+  }, [leadersData, accounts, selectedLeaderId, selectedPromovidoId, filters.focusNodeId, syncLeadersWithServer]);
 
   // Sections handlers
   const handleSaveSection = useCallback((savedSection: ElectoralSection) => {
@@ -1333,6 +1362,64 @@ export function App() {
                 />
               );
             })()
+          ) : editingUserId ? (
+            (() => {
+              const targetLeader = visibleLeaders.find(l => l.id === editingUserId);
+              const targetAcc = accounts.find(a => a.leaderId === editingUserId || a.username === targetLeader?.username);
+              if (!targetLeader) return null;
+              return (
+                <Suspense fallback={<div className="flex-1 flex items-center justify-center p-8 text-slate-400 font-sans text-xs">Cargando formulario...</div>}>
+                  <SubordinateCreatePage
+                    currentUser={currentUser!}
+                    availableSections={scopedSections}
+                    accounts={accounts}
+                    isEditing={true}
+                    initialLeader={targetLeader}
+                    initialAccount={targetAcc}
+                    onSaveCoordinator={async (leader, account) => {
+                      await handleSaveNewTerritorialCoordinator(leader, account);
+                      setEditingUserId(null);
+                      setActiveNav('usuarios');
+                    }}
+                    onBack={() => {
+                      setEditingUserId(null);
+                      setActiveNav('usuarios');
+                    }}
+                  />
+                </Suspense>
+              );
+            })()
+          ) : selectedUserDetailId ? (
+            (() => {
+              const targetLeader = visibleLeaders.find(l => l.id === selectedUserDetailId);
+              const targetAcc = accounts.find(a => a.leaderId === selectedUserDetailId || a.username === targetLeader?.username);
+              if (!targetLeader) return null;
+              return (
+                <Suspense fallback={<div className="flex-1 flex items-center justify-center p-8 text-slate-400 font-sans text-xs">Cargando detalle...</div>}>
+                  <UserDetailPage
+                    leader={targetLeader}
+                    account={targetAcc}
+                    allLeaders={visibleLeaders}
+                    currentUser={currentUser!}
+                    onBack={() => {
+                      setSelectedUserDetailId(null);
+                      setActiveNav('usuarios');
+                    }}
+                    onEdit={(id) => {
+                      setSelectedUserDetailId(null);
+                      setEditingUserId(id);
+                      setActiveNav('editar-usuario');
+                    }}
+                    onImpersonate={handleImpersonate}
+                    onDelete={(id) => {
+                      setSelectedUserDetailId(null);
+                      handleDeleteLeader(id, false);
+                      setActiveNav('usuarios');
+                    }}
+                  />
+                </Suspense>
+              );
+            })()
           ) : detailSectionNumber ? (
             <SectionDetailPage
               sectionNumber={detailSectionNumber}
@@ -1342,7 +1429,7 @@ export function App() {
               onAddStructure={handleAddStructureToSection}
             />
           ) : (
-            <>
+            <Suspense fallback={<div className="flex-1 flex items-center justify-center p-8 text-slate-400 font-sans text-xs">Cargando vista...</div>}>
               {/* WIZARD INDEPENDIENTE PARA CREAR COORDINADOR DE CAMPAÑA (NO MODAL) */}
               {activeNav === 'crear-coordinador' && (
                 <CreateCampanaCoordinatorWizardPage
@@ -1565,7 +1652,7 @@ export function App() {
                 />
               )}
 
-              {/* 10. USUARIOS: ADMINISTRACIÓN DE COORDINADORES TERRITORIALES */}
+              {/* 10. USUARIOS: ADMINISTRACIÓN DE COORDINADORES Y SUBORDINADOS */}
               {activeNav === 'usuarios' && currentUser && (
                 <TerritorialCoordinatorsAdminPage
                   currentUser={currentUser}
@@ -1574,14 +1661,24 @@ export function App() {
                   scopedSections={scopedSections}
                   onNavigate={setActiveNav}
                   onDeleteCoordinator={(id) => handleDeleteLeader(id, false)}
+                  onViewDetails={(id) => {
+                    setSelectedUserDetailId(id);
+                    setActiveNav('detalle-usuario');
+                  }}
+                  onEditUser={(id) => {
+                    setEditingUserId(id);
+                    setActiveNav('editar-usuario');
+                  }}
                 />
               )}
 
-              {/* 11. ALTA DE COORDINADOR TERRITORIAL (PÁGINA COMPLETA, NO MODAL) */}
-              {activeNav === 'crear-coordinador-territorial' && currentUser && (
-                <CreateTerritorialCoordinatorPage
+              {/* 11. ALTA DE SUBORDINADO DIRECTO (PÁGINA COMPLETA, NO MODAL) */}
+              {(activeNav === 'crear-coordinador-territorial' || activeNav === 'crear-usuario') && currentUser && (
+                <SubordinateCreatePage
                   currentUser={currentUser}
                   availableSections={scopedSections}
+                  accounts={accounts}
+                  isEditing={false}
                   onSaveCoordinator={handleSaveNewTerritorialCoordinator}
                   onBack={() => setActiveNav('usuarios')}
                 />
@@ -1596,7 +1693,7 @@ export function App() {
               {activeNav === 'acerca-de' && (
                 <AcercaDePlaceholderPage />
               )}
-            </>
+            </Suspense>
           )}
 
           {/* Expediente Territorial Lateral (Drawer) */}

@@ -3,29 +3,20 @@ import type { TerritorialLeader, TerritorialLevel } from '../types/territory';
 import type { UserAccount } from '../types/auth';
 import type { ElectoralSection } from '../types/sections';
 import type { MainNavSection } from './Sidebar';
-import { getAllowedChildLevel, getDefaultRoleForLevel } from '../utils/hierarchy';
+import { getAllowedChildLevel, getDefaultRoleForLevel, getVisibleSubtree } from '../utils/hierarchy';
 import { LEVEL_CONFIG } from '../data/mockTerritoryData';
+import { WhatsAppIcon } from './icons/WhatsAppIcon';
 import { 
   Users, 
   UserPlus, 
   Search, 
-  MapPin, 
   Phone, 
-  Mail, 
-  Copy, 
-  Check, 
   Trash2, 
   ShieldCheck, 
-  Layers, 
-  Eye, 
-  EyeOff
+  Pencil,
+  Layers,
+  MapPin
 } from 'lucide-react';
-
-const OfficialWhatsAppIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" className={className} fill="currentColor">
-    <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.15c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.82 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.23 8.23zm4.52-6.17c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.12-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.12-1.05-.39-1.99-1.23-.74-.66-1.23-1.47-1.38-1.72-.14-.25-.02-.38.11-.51.11-.11.25-.29.37-.43.12-.14.17-.25.25-.41.08-.17.04-.31-.02-.43s-.56-1.34-.76-1.84c-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.22.25-.86.84-.86 2.05s.88 2.38 1 2.55c.12.17 1.74 2.65 4.21 3.72.59.25 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.07-.1-.23-.17-.47-.29z"/>
-  </svg>
-);
 
 interface TerritorialCoordinatorsAdminPageProps {
   currentUser: UserAccount;
@@ -34,6 +25,8 @@ interface TerritorialCoordinatorsAdminPageProps {
   scopedSections: ElectoralSection[];
   onNavigate: (nav: MainNavSection) => void;
   onDeleteCoordinator: (id: string) => void;
+  onViewDetails?: (leaderId: string) => void;
+  onEditUser?: (leaderId: string) => void;
 }
 
 export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsAdminPageProps> = ({
@@ -43,10 +36,10 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
   scopedSections,
   onNavigate,
   onDeleteCoordinator,
+  onViewDetails,
+  onEditUser,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
-  const [revealedPasswords, setRevealedPasswords] = useState<Set<string>>(new Set());
 
   // 1. Determinar nivel subordinado inmediato permitido
   const targetChildLevel: TerritorialLevel = useMemo(() => {
@@ -81,11 +74,11 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
     };
   }, [targetChildLevel]);
 
-  // 3. Subordinados directos dependientes de este usuario
+  // 3. Subordinados directos dependientes de este usuario (sin '|| !l.parentId')
   const directSubordinates = useMemo(() => {
     return allLeaders.filter(l => 
       l.level === targetChildLevel && 
-      (currentUser.isSuperAdmin || l.parentId === currentUser.leaderId || !l.parentId)
+      (currentUser.isSuperAdmin ? true : l.parentId === currentUser.leaderId)
     );
   }, [allLeaders, targetChildLevel, currentUser]);
 
@@ -101,21 +94,30 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
 
   // 5. Métricas acumuladas del equipo de cada subordinado
   const metricsByLeader = useMemo(() => {
-    const map = new Map<string, { directTeamCount: number; promovidosCount: number }>();
-    
-    // Función recursiva para contar promovidos en la rama inferior
-    const countBranchPromovidos = (leaderId: string): number => {
-      const directPromovidos = allLeaders.filter(l => l.parentId === leaderId && l.level === 'promovido').length;
-      const subLeaders = allLeaders.filter(l => l.parentId === leaderId && l.level !== 'promovido');
-      return directPromovidos + subLeaders.reduce((acc, sub) => acc + countBranchPromovidos(sub.id), 0);
-    };
+    const map = new Map<string, { directTeamCount: number; promovidosCount: number; summary: string }>();
 
     directSubordinates.forEach(sub => {
+      const subtree = getVisibleSubtree(sub.id, allLeaders).filter(l => l.id !== sub.id);
       const directTeam = allLeaders.filter(l => l.parentId === sub.id && l.level !== 'promovido');
-      const totalPromovidos = countBranchPromovidos(sub.id) + (sub.currentCount || 0);
+      const totalPromovidos = subtree.filter(l => l.level === 'promovido').length + (sub.currentCount || 0);
+
+      const parts: string[] = [];
+      const dists = subtree.filter(l => l.level === 'distrital').length;
+      if (dists > 0) parts.push(`${dists} Dist.`);
+      const zonas = subtree.filter(l => l.level === 'zona').length;
+      if (zonas > 0) parts.push(`${zonas} Zona`);
+      const rzonas = subtree.filter(l => l.level === 'responsable_zona').length;
+      if (rzonas > 0) parts.push(`${rzonas} R.Zona`);
+      const rsecs = subtree.filter(l => l.level === 'territorial' || l.level === 'seccional').length;
+      if (rsecs > 0) parts.push(`${rsecs} Secc.`);
+      const proms = subtree.filter(l => l.level === 'promotor').length;
+      if (proms > 0) parts.push(`${proms} Prom.`);
+      if (totalPromovidos > 0) parts.push(`${totalPromovidos} Promov.`);
+
       map.set(sub.id, {
         directTeamCount: directTeam.length,
         promovidosCount: totalPromovidos,
+        summary: parts.length > 0 ? parts.join(' · ') : `${directTeam.length} directos`,
       });
     });
     return map;
@@ -149,38 +151,7 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
     return secSet.size;
   }, [directSubordinates]);
 
-  const togglePasswordVisibility = (id: string) => {
-    setRevealedPasswords(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
 
-  const handleCopyCredentials = (sub: TerritorialLeader, acc?: UserAccount) => {
-    const username = acc?.username || sub.username || 'N/A';
-    const password = acc?.password || 'admin123';
-    const text = `Credenciales de Acceso (${roleConfig.singular}):\nPlataforma: ${window.location.origin}\nUsuario: ${username}\nContraseña: ${password}`;
-    navigator.clipboard.writeText(text);
-    setCopiedKey(sub.id);
-    setTimeout(() => setCopiedKey(null), 3000);
-  };
-
-  const handleSendWhatsApp = (sub: TerritorialLeader, acc?: UserAccount) => {
-    const username = acc?.username || sub.username || 'N/A';
-    const password = acc?.password || 'admin123';
-    const msg = `Hola *${sub.name}*, te comparto tu acceso oficial a la plataforma como *${roleConfig.singular}*:\n\n🌐 *Acceso:* ${window.location.origin}\n👤 *Usuario:* ${username}\n🔑 *Contraseña:* ${password}\n\nFavor de ingresar para comenzar tus actividades de coordinación.`;
-    const cleanPhone = (sub.phone || '').replace(/\D/g, '');
-    if (cleanPhone) {
-      window.open(`https://wa.me/52${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-    } else {
-      navigator.clipboard.writeText(msg);
-      setCopiedKey(sub.id);
-      setTimeout(() => setCopiedKey(null), 3000);
-      alert('Mensaje copiado al portapapeles. Agrega el número de teléfono para enviar por WhatsApp.');
-    }
-  };
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto font-sans">
@@ -321,75 +292,42 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
                     <th className="py-3.5 px-4">{roleConfig.singular}</th>
-                    <th className="py-3.5 px-4">Usuario y Acceso</th>
                     <th className="py-3.5 px-4">Territorio / Secciones</th>
                     <th className="py-3.5 px-4 text-center">Equipo y Avance</th>
-                    <th className="py-3.5 px-4 text-right">Contacto y Acciones</th>
+                    <th className="py-3.5 px-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredSubordinates.map((sub) => {
                     const acc = accountsByLeaderId.get(sub.id) || accounts.find(a => a.username === sub.username);
-                    const metrics = metricsByLeader.get(sub.id) || { directTeamCount: 0, promovidosCount: 0 };
-                    const isCopied = copiedKey === sub.id;
-                    const isPasswordRevealed = revealedPasswords.has(sub.id);
+                    const metrics = metricsByLeader.get(sub.id) || { directTeamCount: 0, promovidosCount: 0, summary: '0 directos' };
                     const sections = sub.assignedSections || [];
                     const cleanPhone = (sub.phone || '').replace(/\D/g, '');
 
                     return (
-                      <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
-                        {/* Integrante Info */}
+                      <tr 
+                        key={sub.id} 
+                        onClick={() => onViewDetails ? onViewDetails(sub.id) : onNavigate('detalle-usuario')}
+                        className="hover:bg-rose-50/30 transition-colors cursor-pointer group"
+                      >
+                        {/* 1. Nombre + @usuario en pequeño debajo */}
                         <td className="py-3.5 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-[#9d2449]/10 text-[#9d2449] flex items-center justify-center font-bold text-xs shrink-0 border border-[#9d2449]/20">
+                            <div className="w-9 h-9 rounded-xl bg-[#9d2449]/10 text-[#9d2449] flex items-center justify-center font-bold text-xs shrink-0 border border-[#9d2449]/20 group-hover:scale-105 transition-transform">
                               {sub.name.charAt(0).toUpperCase()}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-bold text-slate-900 truncate">{sub.name}</p>
-                              <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500 mt-0.5">
-                                {sub.phone && (
-                                  <span className="flex items-center gap-1 font-mono">
-                                    <Phone className="w-3 h-3 text-slate-400" />
-                                    <span>{sub.phone}</span>
-                                  </span>
-                                )}
-                                {sub.email && (
-                                  <span className="flex items-center gap-1">
-                                    <Mail className="w-3 h-3 text-slate-400" />
-                                    <span className="truncate max-w-[140px]">{sub.email}</span>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Usuario y Acceso */}
-                        <td className="py-3.5 px-4">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-mono font-bold text-slate-800 bg-slate-100 px-2 py-0.5 rounded text-[11px] border border-slate-200">
+                              <p className="font-bold text-slate-900 group-hover:text-[#9d2449] transition-colors truncate">
+                                {sub.name}
+                              </p>
+                              <p className="text-[11px] text-slate-400 font-mono mt-0.5">
                                 @{acc?.username || sub.username || 'sin-usuario'}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1.5 text-slate-500 text-[11px]">
-                              <span>Clave:</span>
-                              <span className="font-mono text-slate-700 font-semibold">
-                                {isPasswordRevealed ? (acc?.password || 'admin123') : '••••••••'}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => togglePasswordVisibility(sub.id)}
-                                className="text-slate-400 hover:text-slate-700 cursor-pointer p-0.5"
-                                title={isPasswordRevealed ? 'Ocultar' : 'Ver'}
-                              >
-                                {isPasswordRevealed ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                              </button>
+                              </p>
                             </div>
                           </div>
                         </td>
 
-                        {/* Territorio y Secciones */}
+                        {/* 2. Territorio y Secciones */}
                         <td className="py-3.5 px-4">
                           <div className="space-y-1">
                             {sub.territoryName && (
@@ -414,72 +352,56 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
                                 )}
                               </div>
                             ) : !sub.territoryName ? (
-                              <span className="text-slate-400 italic text-[11px]">Sin asignación territorial</span>
+                              <span className="text-slate-400 italic text-[11px]">Sin demarcación</span>
                             ) : null}
                           </div>
                         </td>
 
-                        {/* Equipo Subordinado */}
+                        {/* 3. Equipo y Avance (Desglose de jerarquía) */}
                         <td className="py-3.5 px-4 text-center">
                           <div className="inline-flex items-center gap-2 bg-slate-50 border border-slate-200/80 px-2.5 py-1 rounded-xl text-[11px]">
-                            <span className="text-indigo-700 font-bold">
-                              {metrics.directTeamCount} Equipo
-                            </span>
-                            <span className="text-slate-300">•</span>
-                            <span className="text-emerald-700 font-bold">
-                              {metrics.promovidosCount} Promovidos
-                            </span>
+                            <span className="font-mono text-slate-700 font-medium">{metrics.summary}</span>
                           </div>
                         </td>
 
-                        {/* Contacto y Acciones */}
-                        <td className="py-3.5 px-4 text-right">
+                        {/* 4. Acciones: WhatsApp, Llamar, Editar, Eliminar */}
+                        <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-center justify-end gap-1.5">
                             {/* WhatsApp Oficial */}
-                            {cleanPhone && (
+                            {cleanPhone ? (
                               <a
                                 href={`https://wa.me/52${cleanPhone}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1.5 text-[#25D366] hover:bg-emerald-50 border border-emerald-200/70 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                                className="p-2 text-[#25D366] hover:bg-emerald-50 border border-emerald-200/70 rounded-xl transition-all inline-flex items-center justify-center cursor-pointer active:scale-95 shadow-2xs"
                                 title={`WhatsApp a ${sub.name}`}
                               >
-                                <OfficialWhatsAppIcon className="w-3.5 h-3.5" />
+                                <WhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" />
                               </a>
-                            )}
+                            ) : null}
 
                             {/* Llamada Telefónica */}
-                            {cleanPhone && (
+                            {cleanPhone ? (
                               <a
                                 href={`tel:${cleanPhone}`}
-                                className="p-1.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors inline-flex items-center justify-center cursor-pointer"
+                                className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 border border-blue-200/70 rounded-xl transition-all inline-flex items-center justify-center cursor-pointer active:scale-95 shadow-2xs"
                                 title={`Llamar a ${sub.name}`}
                               >
                                 <Phone className="w-3.5 h-3.5" />
                               </a>
-                            )}
+                            ) : null}
 
-                            {/* Enviar Credenciales por WhatsApp / Mensaje */}
+                            {/* Editar */}
                             <button
                               type="button"
-                              onClick={() => handleSendWhatsApp(sub, acc)}
-                              className="p-1.5 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/80 rounded-lg transition-colors cursor-pointer"
-                              title="Compartir credenciales de acceso"
+                              onClick={() => onEditUser ? onEditUser(sub.id) : onNavigate('crear-coordinador-territorial')}
+                              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all cursor-pointer active:scale-95 shadow-2xs"
+                              title={`Editar ${roleConfig.singular}`}
                             >
-                              <Users className="w-3.5 h-3.5" />
+                              <Pencil className="w-3.5 h-3.5 text-slate-600" />
                             </button>
 
-                            {/* Copiar Credenciales */}
-                            <button
-                              type="button"
-                              onClick={() => handleCopyCredentials(sub, acc)}
-                              className="p-1.5 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
-                              title="Copiar credenciales al portapapeles"
-                            >
-                              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                            </button>
-
-                            {/* Eliminar */}
+                            {/* Eliminar (una sola confirmación) */}
                             <button
                               type="button"
                               onClick={() => {
@@ -487,7 +409,7 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
                                   onDeleteCoordinator(sub.id);
                                 }
                               }}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 border border-rose-200/60 rounded-xl transition-all cursor-pointer active:scale-95 shadow-2xs"
                               title={`Eliminar ${roleConfig.singular}`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />

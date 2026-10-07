@@ -270,7 +270,7 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
             <div className="p-6 sm:p-8 max-w-2xl mx-auto w-full my-auto bg-white rounded-2xl border border-slate-200 shadow-xs space-y-5">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-sm font-bold text-slate-900">
-                  Nuevo Ticket hacia Coordinador de Campaña
+                  Nuevo Ticket hacia Jefe de Campaña
                 </h3>
                 <button
                   type="button"
@@ -430,7 +430,7 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
             <div className="m-auto text-center p-8 space-y-2 text-slate-400">
               <LifeBuoy className="w-12 h-12 text-slate-300 mx-auto" />
               <p className="font-bold text-slate-600 text-sm">Selecciona un ticket para ver la conversación</p>
-              <p className="text-xs">O redacta un nuevo mensaje hacia cualquier coordinador de campaña.</p>
+              <p className="text-xs">O redacta un nuevo mensaje hacia cualquier jefe de campaña.</p>
             </div>
           )}
         </div>

@@ -68,12 +68,21 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
   const [loadingGeo, setLoadingGeo] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
 
+  const generateSecurePassword = () => {
+    const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    let res = '';
+    for (let i = 0; i < 10; i++) {
+      res += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return res;
+  };
+
   // 3. Datos del Coordinador y Credenciales
   const [coordinatorName, setCoordinatorName] = useState('');
   const [coordinatorPhone, setCoordinatorPhone] = useState('');
   const [coordinatorEmail, setCoordinatorEmail] = useState('');
   const [coordinatorUsername, setCoordinatorUsername] = useState('');
-  const [coordinatorPassword, setCoordinatorPassword] = useState('campana2026');
+  const [coordinatorPassword, setCoordinatorPassword] = useState(() => generateSecurePassword());
   const metaGoal = 5000;
 
   // 4. Estado de envío y éxito
@@ -248,7 +257,7 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
     const newLeader: TerritorialLeader = {
       id: safeCoordId,
       name: coordinatorName.trim(),
-      role: 'Coordinador de Campaña',
+      role: 'Jefe de Campaña',
       level: 'campana',
       levelIndex: 0,
       parentId: null,
@@ -280,7 +289,7 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
       territoryName: territoryFullName,
       assignedSections: assignedSectionsList,
       avatarBg: 'bg-[#9d2449]',
-      accountRoleLabel: 'Coordinador de Campaña',
+      accountRoleLabel: 'Jefe de Campaña',
       isSuperAdmin: false,
     };
 
@@ -289,7 +298,7 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
       setSavedResult({ leader: newLeader, account: newAccount });
       setCurrentStep(4);
     } catch (err: any) {
-      alert('Error al registrar coordinador: ' + err.message);
+      alert('Error al registrar jefe de campaña: ' + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -300,7 +309,7 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
     const { leader, account } = savedResult;
     const text = `🗳️ *CREDENCIALES DE ACCESO - SISTEMA ELECTORAL TERRITORIAL* 🗳️
 
-👤 *Coordinador:* ${leader.name}
+👤 *Jefe de Campaña:* ${leader.name}
 🚩 *Campaña:* ${campaignName} (${resolvedPartyName})
 📍 *Territorio Asignado:* ${leader.territoryName}
 📊 *Secciones Bajo tu Mando:* ${leader.assignedSections?.length || 0} secciones
@@ -336,7 +345,7 @@ _Por favor guarda este mensaje y mantén seguras tus credenciales._`;
         {/* Título de la Página */}
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Nuevo Coordinador de Campaña
+            Nuevo Jefe de Campaña
           </h1>
           <p className="text-xs text-slate-500">
             Asigna el ámbito territorial, partido político y genera los accesos oficiales para el titular de la campaña.
@@ -787,9 +796,18 @@ _Por favor guarda este mensaje y mantén seguras tus credenciales._`;
 
               {/* Contraseña */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  5. Contraseña de Acceso *
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block font-bold text-slate-700">
+                    5. Contraseña de Acceso *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setCoordinatorPassword(generateSecurePassword())}
+                    className="text-[11px] text-[#9d2449] hover:underline font-bold cursor-pointer"
+                  >
+                    Generar segura
+                  </button>
+                </div>
                 <input
                   type="text"
                   required
@@ -824,7 +842,7 @@ _Por favor guarda este mensaje y mantén seguras tus credenciales._`;
                 ) : (
                   <>
                     <ShieldCheck className="w-4 h-4" />
-                    <span>Dar de Alta Coordinador Oficial</span>
+                    <span>Dar de Alta Jefe de Campaña Oficial</span>
                   </>
                 )}
               </button>
@@ -840,7 +858,7 @@ _Por favor guarda este mensaje y mantén seguras tus credenciales._`;
                 <CheckCircle2 className="w-8 h-8" />
               </div>
               <h2 className="text-xl font-bold text-slate-900">
-                ¡Coordinador de Campaña Creado Exitosamente!
+                ¡Jefe de Campaña Creado Exitosamente!
               </h2>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
                 La cuenta y su estructura han sido registradas en la base de datos real. Ya puede ingresar inmediatamente con sus credenciales.

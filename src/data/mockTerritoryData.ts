@@ -58,31 +58,7 @@ export const LEVEL_CONFIG: Record<TerritorialLevel, { label: string; color: stri
   },
 };
 
-// Registro oficial único de Jefe de Campaña
-export const MANUEL_GURRIA_LEADER: TerritorialLeader = {
-  id: 'lead-jefe-campana',
-  name: 'Lic. Manuel Gurría Reséndez',
-  role: 'Jefe de Campaña',
-  level: 'campana',
-  levelIndex: 1,
-  territoryName: 'Campaña General (Tabasco)',
-  parentId: null,
-  phone: '9933123456',
-  email: 'jefe.campana@vertex.mx',
-  username: 'jefe.campana',
-  hasAccount: true,
-  metaGoal: 150000,
-  currentCount: 0,
-  status: 'en_progreso',
-  validationStatus: 'validado',
-  assignedSections: [],
-  avatarBg: 'bg-[#9d2449]',
-  notes: 'Jefe de Campaña General',
-  directTeamCount: 0,
-};
+// Estructura territorial inicial en blanco (Cero datos de ejemplo)
+export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [];
 
-// Estructura territorial inicial con el Jefe de Campaña oficial
-export const INITIAL_TERRITORY_DATA: TerritorialLeader[] = [
-  MANUEL_GURRIA_LEADER,
-];
 

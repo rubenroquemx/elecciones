@@ -193,14 +193,28 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 {activeNav === 'usuarios' && (
                   <>
                     <Users className="w-5 h-5 text-[#9d2449]" />
-                    <span>Coordinadores Territoriales</span>
+                    <span>Usuarios</span>
                   </>
                 )}
 
-                {activeNav === 'crear-coordinador-territorial' && (
+                {(activeNav === 'crear-usuario' || activeNav === 'crear-coordinador-territorial') && (
                   <>
                     <UserPlus className="w-5 h-5 text-[#9d2449]" />
-                    <span>Nuevo Coordinador Territorial</span>
+                    <span>Usuarios › Nuevo Subordinado</span>
+                  </>
+                )}
+
+                {activeNav === 'detalle-usuario' && (
+                  <>
+                    <Users className="w-5 h-5 text-[#9d2449]" />
+                    <span>Usuarios › Detalle de Usuario</span>
+                  </>
+                )}
+
+                {activeNav === 'editar-usuario' && (
+                  <>
+                    <Edit3 className="w-5 h-5 text-[#9d2449]" />
+                    <span>Usuarios › Editar Usuario</span>
                   </>
                 )}
 

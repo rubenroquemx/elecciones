@@ -30,7 +30,7 @@ export const CampanaCoordinatorEditPage: React.FC<CampanaCoordinatorEditPageProp
   const [phone, setPhone] = useState(coordinator.phone || '');
   const [email, setEmail] = useState(coordinator.email || '');
   const [username, setUsername] = useState(account?.username || coordinator.username || '');
-  const [password, setPassword] = useState(account?.password || 'campana2026');
+  const [password, setPassword] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
@@ -55,7 +55,7 @@ export const CampanaCoordinatorEditPage: React.FC<CampanaCoordinatorEditPageProp
         territoryName: territoryName.trim(),
         email: email.trim(),
         username: username.trim().toLowerCase(),
-        password: password.trim(),
+        ...(password.trim() ? { password: password.trim() } : {}),
       } : undefined;
 
       await onSave(updatedLeader, updatedAccount);
@@ -82,7 +82,7 @@ export const CampanaCoordinatorEditPage: React.FC<CampanaCoordinatorEditPageProp
             <span>Volver</span>
           </button>
           <h1 className="text-sm sm:text-base font-bold text-slate-900">
-            Editar Coordinador de Campaña
+            Editar Jefe de Campaña
           </h1>
           <div className="w-16" />
         </div>
@@ -96,7 +96,7 @@ export const CampanaCoordinatorEditPage: React.FC<CampanaCoordinatorEditPageProp
               Datos de {coordinator.name}
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Actualiza la información general, de contacto y credenciales del coordinador.
+              Actualiza la información general, de contacto y credenciales del jefe de campaña.
             </p>
           </div>
 
@@ -196,10 +196,10 @@ export const CampanaCoordinatorEditPage: React.FC<CampanaCoordinatorEditPageProp
                 <div className="relative">
                   <KeyRound className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
                   <input
-                    type="text"
-                    required
+                    type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Dejar vacío para conservar actual"
                     className="w-full pl-9 pr-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 font-mono focus:outline-none focus:border-indigo-600 focus:bg-white"
                   />
                 </div>

@@ -8,6 +8,7 @@ import { SectionCard } from './SectionCard';
 import { CARTOGRAPHY_BY_SECTION } from '../data/mockSectionsData';
 import { getStateById, DEFAULT_STATE } from '../data/statesData';
 import tabascoCatalog from '../data/tabascoCatalog.json';
+import { getDefaultRoleForLevel } from '../utils/hierarchy';
 import {
   Users,
   Target,
@@ -155,7 +156,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
       const parsed = parseInt(match[1], 10);
       if (parsed > 0) return parsed;
     }
-    return 6;
+    return undefined;
   }, [currentUser, isSuperAdmin, isTerritorial, isPromotor]);
 
   const userAssignedSections = useMemo(() => {
@@ -166,12 +167,13 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     if (match && match.length > 0) {
       return match;
     }
-    return ['0416', '0417'];
+    return [];
   }, [currentUser]);
 
   const userDistrictLabel = useMemo(() => {
     if (isTerritorial) {
-      return `${currentUser?.territoryName || 'Zona Territorial'} (Secciones ${userAssignedSections.join(', ')})`;
+      const secText = userAssignedSections.length > 0 ? ` (Secciones ${userAssignedSections.join(', ')})` : ' (Sin secciones asignadas)';
+      return `${currentUser?.territoryName || 'Zona Territorial'}${secText}`;
     }
     if (userDistrictNumber) {
       return isFederal ? `Distrito Federal 0${userDistrictNumber}` : `Distrito Local 0${userDistrictNumber}`;
@@ -390,7 +392,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   // Totales de Lista Nominal filtrada según selección
   const activeNominalMetrics = useMemo(() => {
     if (isPromotor) {
-      const secMatch = stateCatalogSections.find(s => s.section === '0416');
+      const match = currentUser?.territoryName?.match(/\b\d{3,4}\b/)?.[0] || currentUser?.assignedSections?.[0];
+      const secMatch = match ? stateCatalogSections.find(s => s.section === match) : undefined;
       if (secMatch) {
         return {
           total: secMatch.nominalTotal,
@@ -400,7 +403,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
           sectionCount: 1,
         };
       }
-      return { total: 2450, men: 1180, women: 1270, nonBinary: 0, sectionCount: 1 };
+      return { total: 0, men: 0, women: 0, nonBinary: 0, sectionCount: 0 };
     }
 
     if (isTerritorial) {
@@ -520,11 +523,7 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
 
   const userLevelLabel = currentUser.level === 'admin'
     ? 'Super Administrador (Acceso Total)'
-    : currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital'
-    ? 'Coordinador de Campaña'
-    : currentUser.level === 'territorial' || currentUser.level === 'seccional'
-    ? 'Coordinador Territorial'
-    : 'Promotor Territorial';
+    : getDefaultRoleForLevel(currentUser.level);
 
   // Instancia o superior que asignó al usuario actual
   const assignedByLabel = useMemo(() => {
@@ -553,17 +552,17 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
   }, [isPromotor, visibleLeaders, currentUser.leaderId]);
 
   const promotorSection = useMemo(() => {
-    if (!isPromotor) return '0416';
+    if (!isPromotor) return '';
     return (
       promotorNode?.electoralSection ||
       promotorNode?.assignedSections?.[0] ||
       currentUser.territoryName.match(/\d{3,4}/)?.[0] ||
-      '0416'
+      ''
     );
   }, [isPromotor, promotorNode, currentUser.territoryName]);
 
-  // Meta fijada por el Coordinador Territorial (en alta o edición)
-  const promotorAssignedGoal = promotorNode?.metaGoal || 150;
+  // Meta fijada por el Responsable de Sección (en alta o edición)
+  const promotorAssignedGoal = promotorNode?.metaGoal || 0;
 
   // Promovidos reales capturados vinculados
   const promotorAchievedCount = promovidosList.length;

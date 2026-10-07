@@ -1,29 +1,18 @@
 import React, { useState, useMemo } from 'react';
 import type { TerritorialLeader } from '../types/territory';
 import type { UserAccount } from '../types/auth';
+import { getVisibleSubtree } from '../utils/hierarchy';
+import { WhatsAppIcon } from './icons/WhatsAppIcon';
 import { 
   Building2, 
-  Users, 
-  UserCheck, 
   LogIn, 
   Plus, 
   Search, 
-  Copy, 
-  Check, 
   Trash2, 
-  Sparkles,
-  Phone,
-  Pencil,
-  Layers,
-  Shield
+  Sparkles, 
+  Phone, 
+  Pencil 
 } from 'lucide-react';
-
-// Icono Oficial de WhatsApp SVG
-const OfficialWhatsAppIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.886 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-  </svg>
-);
 
 interface SuperadminSaasDashboardProps {
   currentUser: UserAccount;
@@ -46,12 +35,11 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   onEditCoordinator,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  // Coordinadores de Campaña registrados
+  // Jefes de Campaña registrados (nivel campana o alias estatal)
   const campanaCoordinators = useMemo(() => {
     return allLeaders.filter(
-      l => l.level === 'campana' || l.level === 'estatal' || l.level === 'distrital'
+      l => l.level === 'campana' || l.level === 'estatal'
     );
   }, [allLeaders]);
 
@@ -64,40 +52,38 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
     return map;
   }, [accounts]);
 
-  // Métricas de los 3 niveles por coordinador de campaña
+  // Métricas completas recorriendo el subárbol con getVisibleSubtree
   const statsByCoordinator = useMemo(() => {
-    const map = new Map<string, { coordinadoresCount: number; promotoresCount: number; promovidosCount: number }>();
+    const map = new Map<string, {
+      distritales: number;
+      zona: number;
+      responsableZona: number;
+      responsableSeccion: number;
+      promotores: number;
+      promovidos: number;
+    }>();
+
     campanaCoordinators.forEach(c => {
-      // 1. Coordinadores Territoriales dependientes
-      const territoriales = allLeaders.filter(
-        l => l.level === 'territorial' && (l.parentId === c.id || l.territoryName?.includes(c.territoryName))
-      );
-      const territorialIds = new Set(territoriales.map(t => t.id));
-
-      // 2. Promotores Territoriales dependientes
-      const promotores = allLeaders.filter(
-        l => l.level === 'promotor' && (l.parentId === c.id || (l.parentId && territorialIds.has(l.parentId)))
-      );
-      const promoterIds = new Set(promotores.map(p => p.id));
-
-      // 3. Promovidos dependientes
-      const promovidos = allLeaders.filter(
-        l => l.level === 'promovido' && (l.parentId && promoterIds.has(l.parentId))
-      );
-
+      const subtree = getVisibleSubtree(c.id, allLeaders).filter(l => l.id !== c.id);
       map.set(c.id, {
-        coordinadoresCount: territoriales.length,
-        promotoresCount: promotores.length,
-        promovidosCount: promovidos.length,
+        distritales: subtree.filter(l => l.level === 'distrital').length,
+        zona: subtree.filter(l => l.level === 'zona').length,
+        responsableZona: subtree.filter(l => l.level === 'responsable_zona').length,
+        responsableSeccion: subtree.filter(l => l.level === 'territorial' || l.level === 'seccional').length,
+        promotores: subtree.filter(l => l.level === 'promotor').length,
+        promovidos: subtree.filter(l => l.level === 'promovido').length,
       });
     });
     return map;
   }, [campanaCoordinators, allLeaders]);
 
-  // TOTALES PRINCIPALES GLOBALES
+  // TOTALES PRINCIPALES GLOBALES (8 NIVELES)
   const totalCampaigns = new Set(campanaCoordinators.map(c => c.territoryName)).size || campanaCoordinators.length;
   const totalCampanaCoordinators = campanaCoordinators.length;
-  const totalTerritorialCoordinators = allLeaders.filter(l => l.level === 'territorial').length;
+  const totalDistritales = allLeaders.filter(l => l.level === 'distrital').length;
+  const totalZona = allLeaders.filter(l => l.level === 'zona').length;
+  const totalRespZona = allLeaders.filter(l => l.level === 'responsable_zona').length;
+  const totalRespSeccion = allLeaders.filter(l => l.level === 'territorial' || l.level === 'seccional').length;
   const totalPromotoresTerritoriales = allLeaders.filter(l => l.level === 'promotor').length;
   const totalPromovidos = allLeaders.filter(l => l.level === 'promovido').length;
 
@@ -112,19 +98,6 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
       (c.username && c.username.toLowerCase().includes(q))
     );
   }, [campanaCoordinators, searchQuery]);
-
-  const handleCopyCredentials = (coord: TerritorialLeader, acc?: UserAccount) => {
-    const text = `🎉 *ACCESO A PLATAFORMA ELECTORAL*\n\n` +
-      `Estimado(a) *${coord.name}*,\n` +
-      `Tu cuenta como *Coordinador de Campaña*:\n` +
-      `📍 *Campaña:* ${coord.territoryName}\n` +
-      `👤 *Usuario:* ${acc?.username || coord.username || 'usuario'}\n` +
-      `🔑 *Contraseña:* ${acc?.password || 'campana2026'}\n` +
-      `🔗 *Acceso:* ${window.location.origin}`;
-    navigator.clipboard.writeText(text);
-    setCopiedKey(coord.id);
-    setTimeout(() => setCopiedKey(null), 2500);
-  };
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col min-h-screen font-sans text-slate-800">
@@ -155,69 +128,62 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
               className="px-5 py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-800 hover:from-indigo-500 hover:to-indigo-700 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-950/40 transition-all flex items-center gap-2 cursor-pointer active:scale-98"
             >
               <Plus className="w-4 h-4" />
-              <span>Nuevo Coordinador de Campaña</span>
+              <span>Nuevo Jefe de Campaña</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* 2. DATOS PRINCIPALES TOTALES (5 MÉTRICAS SOLICITADAS) */}
+      {/* 2. DATOS PRINCIPALES TOTALES (8 NIVELES EN CUADRÍCULA RESPONSIVA: 4 MÓVIL, 8 ESCRITORIO) */}
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 -mt-4 z-10 shrink-0">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 sm:gap-3">
           
           {/* 1. Campañas */}
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <Building2 className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Campañas</p>
-              <h3 className="text-xl font-black text-slate-900 font-mono">{totalCampaigns}</h3>
-            </div>
+          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Campañas</span>
+            <h3 className="text-xl font-black text-slate-900 font-mono mt-1">{totalCampaigns}</h3>
           </div>
 
-          {/* 2. Coordinadores de campaña */}
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <Shield className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Coord. de Campaña</p>
-              <h3 className="text-xl font-black text-slate-900 font-mono">{totalCampanaCoordinators}</h3>
-            </div>
+          {/* 2. Jefes de Campaña */}
+          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Jefes Campaña</span>
+            <h3 className="text-xl font-black text-purple-700 font-mono mt-1">{totalCampanaCoordinators}</h3>
           </div>
 
-          {/* 3. Coordinadores Territoriales */}
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Coord. Territoriales</p>
-              <h3 className="text-xl font-black text-slate-900 font-mono">{totalTerritorialCoordinators}</h3>
-            </div>
+          {/* 3. Coord. Distritales */}
+          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Distritales</span>
+            <h3 className="text-xl font-black text-indigo-700 font-mono mt-1">{totalDistritales}</h3>
           </div>
 
-          {/* 4. Promotores Territoriales */}
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center shrink-0">
-              <Users className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Promotores Territoriales</p>
-              <h3 className="text-xl font-black text-slate-900 font-mono">{totalPromotoresTerritoriales}</h3>
-            </div>
+          {/* 4. Coord. de Zona */}
+          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Coord. Zona</span>
+            <h3 className="text-xl font-black text-indigo-600 font-mono mt-1">{totalZona}</h3>
           </div>
 
-          {/* 5. Promovidos */}
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs flex items-center gap-3.5 col-span-2 sm:col-span-1">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <UserCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Promovidos</p>
-              <h3 className="text-xl font-black text-emerald-700 font-mono">{totalPromovidos}</h3>
-            </div>
+          {/* 5. Resp. de Zona */}
+          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Resp. Zona</span>
+            <h3 className="text-xl font-black text-blue-700 font-mono mt-1">{totalRespZona}</h3>
+          </div>
+
+          {/* 6. Resp. de Sección */}
+          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Resp. Secc.</span>
+            <h3 className="text-xl font-black text-blue-600 font-mono mt-1">{totalRespSeccion}</h3>
+          </div>
+
+          {/* 7. Promotores */}
+          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Promotores</span>
+            <h3 className="text-xl font-black text-sky-700 font-mono mt-1">{totalPromotoresTerritoriales}</h3>
+          </div>
+
+          {/* 8. Promovidos */}
+          <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+            <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider truncate">Promovidos</span>
+            <h3 className="text-xl font-black text-emerald-700 font-mono mt-1">{totalPromovidos}</h3>
           </div>
 
         </div>
@@ -255,7 +221,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-xs hover:bg-indigo-500 cursor-pointer"
             >
               <Plus className="w-4 h-4" />
-              <span>Crear Primer Coordinador de Campaña</span>
+              <span>Crear Primer Jefe de Campaña</span>
             </button>
           </div>
         ) : (
@@ -264,17 +230,23 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4">Coordinador & Campaña</th>
+                    <th className="py-3 px-4">Jefe de Campaña & Demarcación</th>
                     <th className="py-3 px-4 text-center">Contacto Directo</th>
-                    <th className="py-3 px-4 text-center">Equipo & Avance (3 Niveles)</th>
+                    <th className="py-3 px-4 text-center">Equipo & Avance (Jerarquía)</th>
                     <th className="py-3 px-4 text-right">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {filteredCoordinators.map((coord) => {
                     const acc = accountsByLeaderId.get(coord.id) || accounts.find(a => a.username === coord.username);
-                    const stats = statsByCoordinator.get(coord.id) || { coordinadoresCount: 0, promotoresCount: 0, promovidosCount: 0 };
-                    const isCopied = copiedKey === coord.id;
+                    const stats = statsByCoordinator.get(coord.id) || {
+                      distritales: 0,
+                      zona: 0,
+                      responsableZona: 0,
+                      responsableSeccion: 0,
+                      promotores: 0,
+                      promovidos: 0,
+                    };
                     const cleanPhone = (coord.phone || '').replace(/\D/g, '');
 
                     const targetAccount: UserAccount = acc || {
@@ -282,11 +254,10 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                       username: coord.username || 'usuario',
                       name: coord.name,
                       email: coord.email || `${coord.username}@campana.mx`,
-                      password: 'campana2026',
                       leaderId: coord.id,
                       level: 'campana',
                       territoryName: coord.territoryName,
-                      accountRoleLabel: 'Coordinador de Campaña',
+                      accountRoleLabel: 'Jefe de Campaña',
                       avatarBg: 'bg-indigo-600',
                       assignedBy: 'Super Administrador (SaaS)',
                     };
@@ -340,7 +311,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                                   className="p-2 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#25D366] rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
                                   title={`Abrir WhatsApp con ${coord.name}`}
                                 >
-                                  <OfficialWhatsAppIcon className="w-4 h-4 text-[#25D366]" />
+                                  <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
                                 </a>
                               </>
                             ) : (
@@ -349,25 +320,37 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                           </div>
                         </td>
 
-                        {/* 3. Equipo & Avance: 3 NIVELES (Coordinadores, Promotores, Promovidos) */}
+                        {/* 3. Equipo & Avance: Desglose completo por niveles */}
                         <td className="py-3.5 px-4 text-center">
-                          <div className="inline-flex items-center gap-4 bg-slate-50 px-3.5 py-1.5 rounded-xl border border-slate-100">
-                            {/* Nivel 1: Coordinadores (Territoriales) */}
-                            <div className="text-center" title="Coordinadores Territoriales">
-                              <span className="text-[10px] text-slate-400 uppercase font-bold block">Coordinadores</span>
-                              <span className="font-mono font-bold text-indigo-700 text-xs">{stats.coordinadoresCount}</span>
+                          <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-slate-50 px-2.5 py-1.5 rounded-xl border border-slate-100 font-mono text-[11px]">
+                            <div title="Coordinadores Distritales">
+                              <span className="text-[9px] text-slate-400 uppercase font-bold block">Dist.</span>
+                              <span className="font-bold text-slate-800">{stats.distritales}</span>
                             </div>
-                            <div className="w-px h-6 bg-slate-200" />
-                            {/* Nivel 2: Promotores */}
-                            <div className="text-center" title="Promotores Territoriales">
-                              <span className="text-[10px] text-slate-400 uppercase font-bold block">Promotores</span>
-                              <span className="font-mono font-bold text-slate-800 text-xs">{stats.promotoresCount}</span>
+                            <span className="text-slate-300">·</span>
+                            <div title="Coordinadores de Zona">
+                              <span className="text-[9px] text-slate-400 uppercase font-bold block">Zona</span>
+                              <span className="font-bold text-slate-800">{stats.zona}</span>
                             </div>
-                            <div className="w-px h-6 bg-slate-200" />
-                            {/* Nivel 3: Promovidos */}
-                            <div className="text-center" title="Ciudadanos Promovidos">
-                              <span className="text-[10px] text-slate-400 uppercase font-bold block">Promovidos</span>
-                              <span className="font-mono font-bold text-emerald-700 text-xs">{stats.promovidosCount}</span>
+                            <span className="text-slate-300">·</span>
+                            <div title="Responsables de Zona">
+                              <span className="text-[9px] text-slate-400 uppercase font-bold block">R.Zona</span>
+                              <span className="font-bold text-slate-800">{stats.responsableZona}</span>
+                            </div>
+                            <span className="text-slate-300">·</span>
+                            <div title="Responsables de Sección">
+                              <span className="text-[9px] text-slate-400 uppercase font-bold block">Secc.</span>
+                              <span className="font-bold text-indigo-700">{stats.responsableSeccion}</span>
+                            </div>
+                            <span className="text-slate-300">·</span>
+                            <div title="Promotores Territoriales">
+                              <span className="text-[9px] text-slate-400 uppercase font-bold block">Prom.</span>
+                              <span className="font-bold text-sky-700">{stats.promotores}</span>
+                            </div>
+                            <span className="text-slate-300">·</span>
+                            <div title="Ciudadanos Promovidos">
+                              <span className="text-[9px] text-emerald-600 uppercase font-bold block">Promov.</span>
+                              <span className="font-bold text-emerald-700">{stats.promovidos}</span>
                             </div>
                           </div>
                         </td>
@@ -397,26 +380,16 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                               <span className="hidden sm:inline">Entrar</span>
                             </button>
 
-                            {/* Copiar Credenciales */}
-                            <button
-                              type="button"
-                              onClick={() => handleCopyCredentials(coord, acc)}
-                              className="p-1.5 bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-                              title="Copiar credenciales de acceso"
-                            >
-                              {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                            </button>
-
                             {/* Eliminar */}
                             <button
                               type="button"
                               onClick={() => {
-                                if (confirm(`¿Estás seguro de eliminar permanentemente al Coordinador "${coord.name}"?`)) {
+                                if (window.confirm(`¿Estás seguro de eliminar permanentemente al Jefe de Campaña "${coord.name}"?`)) {
                                   onDeleteCoordinator(coord.id);
                                 }
                               }}
                               className="p-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg transition-colors cursor-pointer"
-                              title="Eliminar Coordinador"
+                              title="Eliminar Jefe de Campaña"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

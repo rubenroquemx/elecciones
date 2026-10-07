@@ -465,7 +465,7 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
                     <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wide block">
                       Sección Vacante
                     </span>
-                    <span className="text-xs text-slate-600">Requiere designación de coordinador territorial</span>
+                    <span className="text-xs text-slate-600">Requiere designación de responsable de sección</span>
                   </div>
                 </>
               )}

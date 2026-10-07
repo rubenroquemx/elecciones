@@ -1,12 +1,13 @@
 import type { TerritorialLeader } from '../types/territory';
 import type { ElectoralSection, SectionStructure } from '../types/sections';
 import { INITIAL_SECTIONS } from '../data/mockSectionsData';
+import { authFetch } from './http';
 
 const API_BASE = ''; // Relative to origin in production or proxy
 
 export async function fetchLeadersApi(): Promise<TerritorialLeader[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/leaders`);
+    const res = await authFetch(`${API_BASE}/api/leaders`);
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const data = await res.json();
     if (Array.isArray(data)) {
@@ -23,7 +24,7 @@ export async function saveLeaderApi(leader: TerritorialLeader, isExisting: boole
   try {
     const method = isExisting ? 'PUT' : 'POST';
     const url = isExisting ? `${API_BASE}/api/leaders/${leader.id}` : `${API_BASE}/api/leaders`;
-    const res = await fetch(url, {
+    const res = await authFetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(leader),
@@ -38,7 +39,7 @@ export async function saveLeaderApi(leader: TerritorialLeader, isExisting: boole
 
 export async function deleteLeaderApi(id: string): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/api/leaders/${id}`, { method: 'DELETE' });
+    const res = await authFetch(`${API_BASE}/api/leaders/${id}`, { method: 'DELETE' });
     return res.ok;
   } catch (err) {
     console.warn('Fallo eliminación en backend, operando en memoria:', err);
@@ -46,9 +47,19 @@ export async function deleteLeaderApi(id: string): Promise<boolean> {
   }
 }
 
+export async function restoreLeaderApi(id: string): Promise<boolean> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/leaders/${id}/restore`, { method: 'POST' });
+    return res.ok;
+  } catch (err) {
+    console.warn('Fallo restauración en backend:', err);
+    return false;
+  }
+}
+
 export async function fetchDeletedLeaderIdsApi(): Promise<string[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/deleted-leaders`);
+    const res = await authFetch(`${API_BASE}/api/deleted-leaders`);
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -59,7 +70,7 @@ export async function fetchDeletedLeaderIdsApi(): Promise<string[]> {
 
 export async function fetchSectionsApi(): Promise<ElectoralSection[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/sections`);
+    const res = await authFetch(`${API_BASE}/api/sections`);
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const data = await res.json();
     if (Array.isArray(data) && data.length > 0) {
@@ -74,7 +85,7 @@ export async function fetchSectionsApi(): Promise<ElectoralSection[]> {
 
 export async function saveSectionApi(section: ElectoralSection): Promise<ElectoralSection> {
   try {
-    const res = await fetch(`${API_BASE}/api/sections`, {
+    const res = await authFetch(`${API_BASE}/api/sections`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(section),
@@ -89,7 +100,7 @@ export async function saveSectionApi(section: ElectoralSection): Promise<Elector
 
 export async function addStructureApi(sectionId: string, structure: SectionStructure): Promise<SectionStructure> {
   try {
-    const res = await fetch(`${API_BASE}/api/sections/${sectionId}/structures`, {
+    const res = await authFetch(`${API_BASE}/api/sections/${sectionId}/structures`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(structure),
@@ -104,7 +115,7 @@ export async function addStructureApi(sectionId: string, structure: SectionStruc
 
 export async function fetchUserAccountsApi(): Promise<any[]> {
   try {
-    const res = await fetch(`${API_BASE}/api/accounts`);
+    const res = await authFetch(`${API_BASE}/api/accounts`);
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const data = await res.json();
     return Array.isArray(data) ? data : [];
@@ -116,7 +127,7 @@ export async function fetchUserAccountsApi(): Promise<any[]> {
 
 export async function saveUserAccountApi(account: any): Promise<any> {
   try {
-    const res = await fetch(`${API_BASE}/api/accounts`, {
+    const res = await authFetch(`${API_BASE}/api/accounts`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(account),
@@ -129,3 +140,31 @@ export async function saveUserAccountApi(account: any): Promise<any> {
   }
 }
 
+export async function deleteUserAccountApi(id: string): Promise<boolean> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/accounts/${id}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('Fallo al eliminar cuenta en backend:', err);
+    return false;
+  }
+}
+
+export async function resetPasswordApi(accountId: string): Promise<{ success: boolean; temporaryPassword?: string; error?: string }> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/accounts/${accountId}/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error || `Error ${res.status}` };
+    }
+    return await res.json();
+  } catch (err: any) {
+    console.warn('Fallo al restablecer contraseña en backend:', err);
+    return { success: false, error: err.message };
+  }
+}
