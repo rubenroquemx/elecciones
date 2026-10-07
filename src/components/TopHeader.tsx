@@ -15,6 +15,7 @@ import {
   Edit3,
   Settings,
   HelpCircle,
+  LifeBuoy,
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react';
@@ -116,6 +117,13 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   <>
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
                     <span>Escritorio</span>
+                  </>
+                )}
+
+                {activeNav === 'mesa-de-ayuda' && (
+                  <>
+                    <LifeBuoy className="w-5 h-5 text-indigo-600" />
+                    <span>Mesa de Ayuda & Tickets</span>
                   </>
                 )}
 

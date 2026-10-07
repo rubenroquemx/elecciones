@@ -11,6 +11,7 @@ import {
   Users,
   Settings,
   HelpCircle,
+  LifeBuoy,
   PanelLeftClose,
   PanelLeftOpen
 } from 'lucide-react';
@@ -19,6 +20,7 @@ import type { UserAccount } from '../types/auth';
 
 export type MainNavSection = 
   | 'escritorio' 
+  | 'mesa-de-ayuda'
   | 'mis-secciones'
   | 'estructura' 
   | 'secciones' 
@@ -156,6 +158,28 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <span>{isPromotor ? 'Mi Escritorio' : 'Escritorio'}</span>
               )}
             </button>
+
+            {/* 1b. MESA DE AYUDA (Para Superadmin) */}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  onNavChange('mesa-de-ayuda');
+                  onCloseMobile?.();
+                }}
+                title="Mesa de Ayuda"
+                className={`w-full flex items-center rounded-xl text-xs font-semibold transition-[background-color,color] duration-140 cursor-pointer ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                } ${
+                  activeNav === 'mesa-de-ayuda'
+                    ? 'bg-white/[0.14] text-white shadow-xs'
+                    : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                }`}
+              >
+                <LifeBuoy className={`w-5 h-5 shrink-0 ${activeNav === 'mesa-de-ayuda' ? 'text-indigo-400' : 'text-slate-400'}`} />
+                {!isCollapsed && <span>Mesa de Ayuda</span>}
+              </button>
+            )}
 
             {/* 1b. MIS SECCIONES (Promotor Territorial) */}
             {isPromotor && (

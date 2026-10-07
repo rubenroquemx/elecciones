@@ -41,6 +41,8 @@ import { CreateTerritorialCoordinatorPage } from './components/CreateTerritorial
 import { ConfiguracionPlaceholderPage } from './components/ConfiguracionPlaceholderPage';
 import { AcercaDePlaceholderPage } from './components/AcercaDePlaceholderPage';
 import { CampanaCoordinatorDetailPage } from './components/CampanaCoordinatorDetailPage';
+import { CampanaCoordinatorEditPage } from './components/CampanaCoordinatorEditPage';
+import { SuperadminTicketsPage } from './components/SuperadminTicketsPage';
 import { Users, Bell, CheckCircle2, X, MapPin, ShieldAlert, ArrowLeft } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
@@ -675,11 +677,13 @@ export function App() {
   // Active navigation: 'escritorio' | 'estructura' | 'secciones'
   const [activeNav, setActiveNav] = useState<MainNavSection>('escritorio');
   const [selectedCoordinatorDetailId, setSelectedCoordinatorDetailId] = useState<string | null>(null);
+  const [editingCoordinatorId, setEditingCoordinatorId] = useState<string | null>(null);
 
   const handleNavChange = useCallback((nav: MainNavSection) => {
     setActiveNav(nav);
     setDetailSectionNumber(null);
     setSelectedCoordinatorDetailId(null);
+    setEditingCoordinatorId(null);
   }, []);
   const [structureMode, setStructureMode] = useState<StructureMode>('organigrama');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -703,6 +707,18 @@ export function App() {
     });
   }, []);
 
+  const handleSaveCoordinatorEdit = useCallback(async (updatedLeader: TerritorialLeader, updatedAccount?: UserAccount) => {
+    await saveLeaderApi(updatedLeader, false);
+    setLeadersData(prev => prev.map(l => l.id === updatedLeader.id ? updatedLeader : l));
+
+    if (updatedAccount) {
+      await saveUserAccountApi(updatedAccount);
+      setAccounts(prev => prev.map(a => a.id === updatedAccount.id ? updatedAccount : a));
+    }
+    setTopSuccessNotice(`Coordinador "${updatedLeader.name}" actualizado correctamente.`);
+    setTimeout(() => setTopSuccessNotice(null), 4000);
+  }, []);
+
   // RBAC Navigation restrictions:
   // Promotor has no access to maps, estructura, secciones -> lock to allowed promotor pages
   // Coordinador Territorial only sees lista de promotores -> lock mode to 'lista'
@@ -715,6 +731,11 @@ export function App() {
     const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital';
     const allowedCampanaPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'configuracion', 'acerca-de'];
     if (isCampana && !allowedCampanaPages.includes(activeNav)) {
+      setActiveNav('escritorio');
+    }
+    const isAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;
+    const allowedAdminPages: MainNavSection[] = ['escritorio', 'mesa-de-ayuda', 'crear-coordinador'];
+    if (isAdmin && !allowedAdminPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
     if (currentUser.level === 'territorial' && structureMode === 'organigrama') {
@@ -1235,8 +1256,25 @@ export function App() {
         <main className={`flex-1 relative flex ${
           currentUser?.level === 'promotor' ? 'overflow-visible md:overflow-hidden pb-16 md:pb-0' : 'overflow-hidden'
         }`}>
-          {/* Vista de Página Completa de Detalle de Coordinador de Campaña (NO MODAL) */}
-          {selectedCoordinatorDetailId ? (
+          {/* Vista de Página Completa de Edición de Coordinador de Campaña (NO MODAL) */}
+          {editingCoordinatorId ? (
+            (() => {
+              const targetCoord = leadersData.find(l => l.id === editingCoordinatorId);
+              const targetAcc = accounts.find(a => a.leaderId === editingCoordinatorId || a.username === targetCoord?.username);
+              if (!targetCoord) return null;
+              return (
+                <CampanaCoordinatorEditPage
+                  coordinator={targetCoord}
+                  account={targetAcc}
+                  onBack={() => setEditingCoordinatorId(null)}
+                  onSave={async (updatedLeader, updatedAccount) => {
+                    await handleSaveCoordinatorEdit(updatedLeader, updatedAccount);
+                    setEditingCoordinatorId(null);
+                  }}
+                />
+              );
+            })()
+          ) : selectedCoordinatorDetailId ? (
             (() => {
               const targetCoord = leadersData.find(l => l.id === selectedCoordinatorDetailId);
               const targetAcc = accounts.find(a => a.leaderId === selectedCoordinatorDetailId || a.username === targetCoord?.username);
@@ -1247,6 +1285,7 @@ export function App() {
                   account={targetAcc}
                   allLeaders={leadersData}
                   onBack={() => setSelectedCoordinatorDetailId(null)}
+                  onEditCoordinator={(id) => setEditingCoordinatorId(id)}
                   onImpersonate={(acc) => {
                     setSelectedCoordinatorDetailId(null);
                     handleImpersonate(acc);
@@ -1277,6 +1316,14 @@ export function App() {
                 />
               )}
 
+              {/* MESA DE AYUDA Y TICKETS PARA SUPERADMIN (PANTALLA COMPLETA) */}
+              {activeNav === 'mesa-de-ayuda' && (
+                <SuperadminTicketsPage
+                  currentUser={currentUser}
+                  allLeaders={leadersData}
+                />
+              )}
+
               {/* 1. ESCRITORIO (Tablero SaaS para Superadmin o KPIs para Coordinadores/Promotores) */}
               {activeNav === 'escritorio' && (
                 currentUser?.level === 'admin' ? (
@@ -1288,6 +1335,7 @@ export function App() {
                     onDeleteCoordinator={(id) => handleDeleteLeader(id, false)}
                     onOpenCreateCoordinatorWizard={() => setActiveNav('crear-coordinador')}
                     onViewCoordinatorDetails={(id) => setSelectedCoordinatorDetailId(id)}
+                    onEditCoordinator={(id) => setEditingCoordinatorId(id)}
                   />
                 ) : (
                   <ExecutiveKpiDesktop
