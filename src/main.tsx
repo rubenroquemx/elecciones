@@ -3,10 +3,12 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 
-// Registro de Service Worker para habilitar instalación PWA "Vertex"
+// Registro de Service Worker para habilitar instalación PWA "Vertex" y auto-actualización
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      reg.update().catch(() => {});
+    }).catch((err) => {
       console.warn('Error al registrar Service Worker PWA:', err);
     });
   });

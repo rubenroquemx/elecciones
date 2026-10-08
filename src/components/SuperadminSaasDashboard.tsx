@@ -192,7 +192,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   }, [campanaCoordinators, mapLayer]);
 
   return (
-    <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-24 sm:pb-16">
+    <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-32 sm:pb-16">
       {/* 1. Header SaaS */}
       <div className="bg-slate-900 text-white border-b border-slate-800 p-5 sm:p-7 shrink-0">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -256,7 +256,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
       </div>
 
       {/* 3. LISTA DE JEFES DE CAMPAÑA (SIN BORDER-RADIUS, SIN INICIAL) */}
-      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 pb-24 sm:pb-16 space-y-4 flex-1">
+      <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 pb-32 sm:pb-16 space-y-4 flex-1">
         {campanaCoordinators.length === 0 ? (
           <div className="bg-white rounded-none p-12 text-center border border-slate-200 space-y-3 mb-8">
             <Building2 className="w-12 h-12 text-slate-300 mx-auto" />

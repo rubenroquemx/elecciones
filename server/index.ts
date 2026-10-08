@@ -2271,6 +2271,9 @@ app.use((req, res) => {
       const envTag = `<script>window.__ENV__ = ${JSON.stringify(envData)};</script>`;
       html = html.replace('</head>', `${envTag}</head>`);
       res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
       res.send(html);
       return;
     }
