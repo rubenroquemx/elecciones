@@ -22,6 +22,8 @@ import {
   KeyRound
 } from 'lucide-react';
 
+import { fetchStateGeoJson } from '../services/geoService';
+
 // Icono Oficial de WhatsApp SVG
 const OfficialWhatsAppIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -77,7 +79,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
   const email = coordinator.email || '';
   const cleanPhone = phone.replace(/\D/g, '');
 
-  // Inicializar y renderizar el mapa de la zona asignada
+  // Inicializar y renderizar el mapa de la zona asignada con GeoJSON oficial
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -89,6 +91,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
     const map = L.map(mapContainerRef.current, {
       zoomControl: true,
       attributionControl: false,
+      preferCanvas: true,
     });
     mapInstanceRef.current = map;
 
@@ -103,66 +106,98 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
     }).addTo(map);
 
     const assigned = coordinator.assignedSections || [];
-    const bounds = L.latLngBounds([]);
-    let sectionsDrawn = 0;
+    const assignedSet = new Set(assigned.map(s => String(s).trim().padStart(4, '0')));
+    assigned.forEach(s => assignedSet.add(String(s).trim()));
 
-    assigned.forEach(secNum => {
-      const clean = String(secNum).trim();
-      const norm = clean.padStart(4, '0');
-      const carto = CARTOGRAPHY_BY_SECTION.get(norm) || CARTOGRAPHY_BY_SECTION.get(clean);
-      if (carto && carto.polygon && carto.polygon.length >= 3) {
-        const latLngs: L.LatLngExpression[] = carto.polygon.map(([lon, lat]) => [lat, lon]);
-        const isSat = mapLayer === 'sat';
-        const poly = L.polygon(latLngs, {
-          color: isSat ? '#38bdf8' : '#4f46e5',
-          weight: 0.8,
-          smoothFactor: 1.0,
-          opacity: 0.85,
-          fillColor: isSat ? '#0284c7' : '#818cf8',
-          fillOpacity: isSat ? 0.24 : 0.16,
+    const isSat = mapLayer === 'sat';
+    let isCancelled = false;
+
+    // Intentar cargar la cartografía GeoJSON oficial sin cruces de líneas
+    fetchStateGeoJson('tab').then(geoData => {
+      if (isCancelled || !mapInstanceRef.current) return;
+
+      if (geoData && geoData.features) {
+        const geoLayer = L.geoJSON(geoData, {
+          filter: (feature) => {
+            const sec = String(feature.properties?.seccion || '').padStart(4, '0');
+            return assignedSet.has(sec) || assignedSet.has(String(Number(sec)));
+          },
+          style: () => ({
+            color: isSat ? '#38bdf8' : '#4f46e5',
+            weight: 0.8,
+            smoothFactor: 1.0,
+            opacity: 0.85,
+            fillColor: isSat ? '#0284c7' : '#818cf8',
+            fillOpacity: isSat ? 0.24 : 0.16,
+          }),
+          onEachFeature: (feature, layer) => {
+            const p = feature.properties || {};
+            layer.bindTooltip(
+              `<div class="px-2 py-1 font-sans text-xs">
+                <span class="font-bold text-slate-900 block">Sección ${p.seccion}</span>
+                <span class="text-[10px] text-slate-500">${p.municipio || ''}</span>
+              </div>`,
+              { sticky: true, direction: 'top', opacity: 0.95 }
+            );
+
+            layer.on('mouseover', () => {
+              (layer as L.Path).setStyle({
+                weight: 2,
+                fillOpacity: 0.48,
+                fillColor: isSat ? '#38bdf8' : '#4f46e5',
+                color: '#1e1b4b',
+              });
+              (layer as any).bringToFront?.();
+            });
+
+            layer.on('mouseout', () => {
+              geoLayer.resetStyle(layer as any);
+            });
+          }
         }).addTo(map);
 
-        poly.bindTooltip(
-          `<div class="px-2 py-1 font-sans text-xs"><span class="font-bold text-slate-900 block">Sección ${carto.sectionNumber}</span><span class="text-[10px] text-slate-500">${carto.municipio} • ${carto.tipo}</span></div>`,
-          { sticky: true, direction: 'top', opacity: 0.95 }
-        );
+        if (geoLayer.getLayers().length > 0) {
+          map.fitBounds(geoLayer.getBounds(), { padding: [30, 30] });
+          return;
+        }
+      }
 
-        poly.on('mouseover', () => {
-          poly.setStyle({
-            weight: 2,
-            fillOpacity: 0.48,
-            fillColor: isSat ? '#38bdf8' : '#4f46e5',
-            color: '#1e1b4b',
-          });
-          poly.bringToFront();
-        });
-        poly.on('mouseout', () => {
-          poly.setStyle({
-            weight: 0.8,
-            fillOpacity: isSat ? 0.24 : 0.16,
-            fillColor: isSat ? '#0284c7' : '#818cf8',
+      // Fallback a coordenadas locales si el GeoJSON no tuvo matches
+      const bounds = L.latLngBounds([]);
+      let sectionsDrawn = 0;
+      assigned.forEach(secNum => {
+        const clean = String(secNum).trim();
+        const norm = clean.padStart(4, '0');
+        const carto = CARTOGRAPHY_BY_SECTION.get(norm) || CARTOGRAPHY_BY_SECTION.get(clean);
+        if (carto && carto.polygon && carto.polygon.length >= 3) {
+          const latLngs: L.LatLngExpression[] = carto.polygon.map(([lon, lat]) => [lat, lon]);
+          const poly = L.polygon(latLngs, {
             color: isSat ? '#38bdf8' : '#4f46e5',
-          });
-        });
-
-        bounds.extend(poly.getBounds());
-        sectionsDrawn++;
+            weight: 0.8,
+            smoothFactor: 1.0,
+            opacity: 0.85,
+            fillColor: isSat ? '#0284c7' : '#818cf8',
+            fillOpacity: isSat ? 0.24 : 0.16,
+          }).addTo(map);
+          bounds.extend(poly.getBounds());
+          sectionsDrawn++;
+        }
+      });
+      if (sectionsDrawn > 0 && bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [30, 30] });
+      } else {
+        map.setView([17.9892, -92.9281], 11);
       }
     });
-
-    if (sectionsDrawn > 0 && bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [30, 30] });
-    } else {
-      map.setView([17.9892, -92.9281], 11);
-    }
 
     const timer = setTimeout(() => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.invalidateSize();
       }
-    }, 200);
+    }, 250);
 
     return () => {
+      isCancelled = true;
       clearTimeout(timer);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();

@@ -1,13 +1,24 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import type { TerritorialLeader } from '../types/territory';
 import type { UserAccount } from '../types/auth';
 import { WhatsAppIcon } from './icons/WhatsAppIcon';
+import { fetchStateGeoJson } from '../services/geoService';
 import { 
   Building2, 
   LogIn, 
   Trash2, 
   Phone, 
-  Pencil 
+  Pencil,
+  Flag,
+  Award,
+  Compass,
+  MapPin,
+  Shield,
+  Layers,
+  Users,
+  CheckCircle2
 } from 'lucide-react';
 
 interface SuperadminSaasDashboardProps {
@@ -29,6 +40,10 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   onViewCoordinatorDetails,
   onEditCoordinator,
 }) => {
+  const [mapLayer, setMapLayer] = useState<'streets' | 'sat'>('streets');
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+
   // Jefes de Campaña registrados (nivel campana o alias estatal)
   const campanaCoordinators = useMemo(() => {
     return allLeaders.filter(
@@ -55,71 +70,225 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   const totalPromotoresTerritoriales = allLeaders.filter(l => l.level === 'promotor').length;
   const totalPromovidos = allLeaders.filter(l => l.level === 'promovido').length;
 
+  // Lista de cifras con iconos asignados para integrar en el cuadro azul
+  const metricsList = [
+    { label: 'Campañas', value: totalCampaigns, icon: Flag, iconColor: 'text-indigo-400' },
+    { label: 'Jefes Campaña', value: totalCampanaCoordinators, icon: Award, iconColor: 'text-purple-400' },
+    { label: 'Distritales', value: totalDistritales, icon: Compass, iconColor: 'text-indigo-400' },
+    { label: 'Coord. Zona', value: totalZona, icon: MapPin, iconColor: 'text-indigo-400' },
+    { label: 'Resp. Zona', value: totalRespZona, icon: Shield, iconColor: 'text-blue-400' },
+    { label: 'Resp. Secc.', value: totalRespSeccion, icon: Layers, iconColor: 'text-blue-400' },
+    { label: 'Promotores', value: totalPromotoresTerritoriales, icon: Users, iconColor: 'text-sky-400' },
+    { label: 'Promovidos', value: totalPromovidos, icon: CheckCircle2, iconColor: 'text-emerald-400' },
+  ];
+
+  // Cálculo de secciones asignadas en todas las campañas
+  const totalAssignedSectionsCount = useMemo(() => {
+    const allSecs = new Set<string>();
+    campanaCoordinators.forEach(c => {
+      (c.assignedSections || []).forEach(s => allSecs.add(String(s).trim()));
+    });
+    return allSecs.size;
+  }, [campanaCoordinators]);
+
+  // Mapa de campañas asignadas en Leaflet con GeoJSON oficial
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+
+    const map = L.map(mapContainerRef.current, {
+      zoomControl: true,
+      attributionControl: false,
+      preferCanvas: true,
+    });
+    mapInstanceRef.current = map;
+
+    const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+    const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
+    const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c'];
+
+    L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      subdomains,
+    }).addTo(map);
+
+    // Mapear cada sección al Jefe de Campaña correspondiente
+    const sectionToCampaign = new Map<string, TerritorialLeader>();
+    const assignedSet = new Set<string>();
+
+    campanaCoordinators.forEach(c => {
+      (c.assignedSections || []).forEach(s => {
+        const clean = String(s).trim();
+        const norm = clean.padStart(4, '0');
+        assignedSet.add(clean);
+        assignedSet.add(norm);
+        sectionToCampaign.set(clean, c);
+        sectionToCampaign.set(norm, c);
+      });
+    });
+
+    const isSat = mapLayer === 'sat';
+    let isCancelled = false;
+
+    // Paleta de colores para distinguir campañas si hay varias
+    const campaignColors = ['#4f46e5', '#9d2449', '#0284c7', '#059669', '#d97706'];
+
+    fetchStateGeoJson('tab').then(geoData => {
+      if (isCancelled || !mapInstanceRef.current) return;
+
+      if (geoData && geoData.features) {
+        const geoLayer = L.geoJSON(geoData, {
+          filter: (feature) => {
+            const sec = String(feature.properties?.seccion || '').padStart(4, '0');
+            return assignedSet.has(sec) || assignedSet.has(String(Number(sec)));
+          },
+          style: (feature) => {
+            const sec = String(feature?.properties?.seccion || '').padStart(4, '0');
+            const coord = sectionToCampaign.get(sec) || sectionToCampaign.get(String(Number(sec)));
+            const colorIdx = coord ? Math.abs(coord.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % campaignColors.length : 0;
+            const chosenColor = campaignColors[colorIdx];
+
+            return {
+              color: isSat ? '#38bdf8' : chosenColor,
+              weight: 0.8,
+              smoothFactor: 1.0,
+              opacity: 0.85,
+              fillColor: isSat ? '#0284c7' : chosenColor,
+              fillOpacity: isSat ? 0.24 : 0.16,
+            };
+          },
+          onEachFeature: (feature, layer) => {
+            const p = feature.properties || {};
+            const sec = String(p.seccion || '').padStart(4, '0');
+            const coord = sectionToCampaign.get(sec) || sectionToCampaign.get(String(Number(sec)));
+
+            layer.bindTooltip(
+              `<div class="px-2 py-1 font-sans text-xs">
+                <span class="font-bold text-slate-900 block">Sección ${p.seccion} (${p.municipio || ''})</span>
+                ${coord ? `<span class="text-[10px] text-indigo-700 font-semibold block">${coord.name} • ${coord.territoryName}</span>` : ''}
+              </div>`,
+              { sticky: true, direction: 'top', opacity: 0.95 }
+            );
+
+            layer.on('mouseover', () => {
+              (layer as L.Path).setStyle({
+                weight: 2,
+                fillOpacity: 0.48,
+                color: '#1e1b4b',
+              });
+              (layer as any).bringToFront?.();
+            });
+
+            layer.on('mouseout', () => {
+              geoLayer.resetStyle(layer as any);
+            });
+          }
+        }).addTo(map);
+
+        if (geoLayer.getLayers().length > 0) {
+          map.fitBounds(geoLayer.getBounds(), { padding: [30, 30] });
+          return;
+        }
+      }
+
+      // Si no hay secciones o no se cargó el layer, centrar en Tabasco
+      map.setView([17.9892, -92.9281], 10);
+    });
+
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 250);
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timer);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [campanaCoordinators, mapLayer]);
+
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-24 sm:pb-16">
-      {/* 1. Header SaaS */}
-      <div className="bg-slate-900 text-white border-b border-slate-800 p-6 sm:p-8 shrink-0">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+      {/* 1. Header SaaS con Cifras Integradas en el Cuadro Azul */}
+      <div className="bg-slate-900 text-white border-b border-slate-800 p-5 sm:p-7 shrink-0">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
             Gestión Central de Campañas
           </h1>
+
+          {/* Cifras Integradas: en móvil se muestra icono + número, en desktop icono + etiqueta + número */}
+          <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-2.5 pt-3 border-t border-slate-800/80">
+            {metricsList.map((m, idx) => (
+              <div 
+                key={idx}
+                className="bg-slate-800/60 hover:bg-slate-800/90 border border-slate-700/60 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between transition-colors"
+              >
+                <div className="flex items-center gap-1.5 text-slate-300">
+                  <m.icon className={`w-3.5 h-3.5 ${m.iconColor} shrink-0`} />
+                  {/* Oculto en móvil, visible en escritorio */}
+                  <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-slate-300 truncate">
+                    {m.label}
+                  </span>
+                </div>
+                <div className="text-sm sm:text-lg font-black font-mono text-white mt-1">
+                  {m.value}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* 2. DATOS PRINCIPALES TOTALES (8 NIVELES EN UN SOLO BLOQUE UNIFICADO) */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 -mt-4 z-10 shrink-0">
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 divide-x divide-y lg:divide-y-0 divide-slate-100">
-            
-            {/* 1. Campañas */}
-            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Campañas</span>
-              <h3 className="text-xl font-black text-slate-900 font-mono mt-1">{totalCampaigns}</h3>
+      {/* 2. MAPA DE CAMPAÑAS ASIGNADAS (DIRECTAMENTE ARRIBA DEL BLOQUE DE JEFE DE CAMPAÑA) */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6 shrink-0">
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-indigo-600" />
+              <span className="text-xs font-bold text-slate-900">
+                Demarcación Territorial de Campañas Asignadas
+              </span>
             </div>
-
-            {/* 2. Jefes de Campaña */}
-            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Jefes Campaña</span>
-              <h3 className="text-xl font-black text-purple-700 font-mono mt-1">{totalCampanaCoordinators}</h3>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-semibold text-slate-500 font-mono">
+                {totalAssignedSectionsCount} secciones en {campanaCoordinators.length} {campanaCoordinators.length === 1 ? 'campaña' : 'campañas'}
+              </span>
+              <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setMapLayer('streets')}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                    mapLayer === 'streets'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Calles
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapLayer('sat')}
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                    mapLayer === 'sat'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Satélite
+                </button>
+              </div>
             </div>
-
-            {/* 3. Coord. Distritales */}
-            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Distritales</span>
-              <h3 className="text-xl font-black text-indigo-700 font-mono mt-1">{totalDistritales}</h3>
-            </div>
-
-            {/* 4. Coord. de Zona */}
-            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Coord. Zona</span>
-              <h3 className="text-xl font-black text-indigo-600 font-mono mt-1">{totalZona}</h3>
-            </div>
-
-            {/* 5. Resp. de Zona */}
-            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Resp. Zona</span>
-              <h3 className="text-xl font-black text-blue-700 font-mono mt-1">{totalRespZona}</h3>
-            </div>
-
-            {/* 6. Resp. de Sección */}
-            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Resp. Secc.</span>
-              <h3 className="text-xl font-black text-blue-600 font-mono mt-1">{totalRespSeccion}</h3>
-            </div>
-
-            {/* 7. Promotores */}
-            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider truncate">Promotores</span>
-              <h3 className="text-xl font-black text-sky-700 font-mono mt-1">{totalPromotoresTerritoriales}</h3>
-            </div>
-
-            {/* 8. Promovidos */}
-            <div className="p-3.5 sm:p-4 flex flex-col justify-between">
-              <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider truncate">Promovidos</span>
-              <h3 className="text-xl font-black text-emerald-700 font-mono mt-1">{totalPromovidos}</h3>
-            </div>
-
           </div>
+          <div ref={mapContainerRef} className="w-full h-72 sm:h-80 z-0" />
         </div>
       </div>
 
@@ -140,7 +309,8 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     <th className="py-3 px-4">Jefe de Campaña & Demarcación</th>
-                    <th className="py-3 px-4 text-center">Contacto Directo</th>
+                    {/* Botones de llamada y whats alineados a la derecha */}
+                    <th className="py-3 px-4 text-right pr-6">Contacto Directo</th>
                     <th className="py-3 px-4 text-right">Acciones</th>
                   </tr>
                 </thead>
@@ -192,9 +362,9 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                           </div>
                         </td>
 
-                        {/* 2. Contacto Directo: SOLO BOTONES (Llamar y WhatsApp con logo oficial) */}
-                        <td className="py-3.5 px-4 text-center" onClick={(e) => e.stopPropagation()}>
-                          <div className="inline-flex items-center gap-2 justify-center">
+                        {/* 2. Contacto Directo: BOTONES ALINEADOS A LA DERECHA */}
+                        <td className="py-3.5 px-4 text-right pr-6" onClick={(e) => e.stopPropagation()}>
+                          <div className="inline-flex items-center gap-2 justify-end">
                             {cleanPhone ? (
                               <>
                                 <a
