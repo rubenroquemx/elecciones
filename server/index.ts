@@ -240,14 +240,40 @@ app.post('/api/accounts', async (req, res) => {
 
     const rawPass = cleanEnvValue(data.password);
     const cleanEmail = String(data.email || `${data.username}@campana.mx`).trim().toLowerCase();
-    const cleanUsername = String(data.username || cleanEmail.split('@')[0]).trim().toLowerCase();
+    const rawUser = String(data.username || cleanEmail.split('@')[0]).trim().toLowerCase().replace(/^@+/, '');
+    const cleanUsername = rawUser || 'usuario';
 
-    // Hashear contraseña con bcrypt
+    // Manejo de contraseña: si no se provee contraseña nueva, conservar la contraseña anterior
     let hashedPassword = '';
     if (rawPass) {
       hashedPassword = rawPass.startsWith('$2a$') || rawPass.startsWith('$2b$') 
         ? rawPass 
         : await hashPassword(rawPass);
+    } else {
+      // Buscar si ya existía contraseña en store de archivo o en DB
+      const storeExisting = readAccountsStore().find((a: any) => 
+        a.id === data.id || 
+        a.email === cleanEmail || 
+        (data.leaderId && a.leaderId === data.leaderId)
+      );
+      if (storeExisting && storeExisting.password) {
+        hashedPassword = storeExisting.password;
+      } else {
+        try {
+          const dbExisting = await prisma.userAccount.findFirst({
+            where: {
+              OR: [
+                { id: data.id },
+                { email: cleanEmail },
+                ...(data.leaderId ? [{ leaderId: data.leaderId }] : []),
+              ]
+            }
+          });
+          if (dbExisting && dbExisting.password) {
+            hashedPassword = dbExisting.password;
+          }
+        } catch {}
+      }
     }
 
     const accountObj = {
@@ -260,9 +286,13 @@ app.post('/api/accounts', async (req, res) => {
 
     // 1. Guardar en respaldo de archivo
     const store = readAccountsStore();
-    const idx = store.findIndex((a: any) => a.id === data.id || a.email === cleanEmail);
+    const idx = store.findIndex((a: any) => 
+      a.id === data.id || 
+      a.email === cleanEmail ||
+      (data.leaderId && a.leaderId === data.leaderId)
+    );
     if (idx >= 0) {
-      store[idx] = { ...store[idx], ...accountObj };
+      store[idx] = { ...store[idx], ...accountObj, password: hashedPassword || store[idx].password };
     } else {
       store.unshift(accountObj);
     }
@@ -276,7 +306,7 @@ app.post('/api/accounts', async (req, res) => {
         update: {
           username: cleanUsername,
           name: data.name,
-          password: hashedPassword,
+          ...(hashedPassword ? { password: hashedPassword } : {}),
           leaderId: data.leaderId || null,
           level: data.level || 'campana',
           territoryName: data.territoryName || '',
@@ -289,7 +319,7 @@ app.post('/api/accounts', async (req, res) => {
           email: cleanEmail,
           username: cleanUsername,
           name: data.name,
-          password: hashedPassword,
+          password: hashedPassword || null,
           leaderId: data.leaderId || null,
           level: data.level || 'campana',
           territoryName: data.territoryName || '',
@@ -318,12 +348,19 @@ app.delete('/api/accounts/:id', async (req, res) => {
 
     // Eliminar de PostgreSQL
     try {
-      await prisma.userAccount.deleteMany({ where: { id } });
+      await prisma.userAccount.deleteMany({ 
+        where: { 
+          OR: [
+            { id },
+            { leaderId: id }
+          ]
+        } 
+      });
     } catch (e) {}
 
     // Eliminar de archivo local
     const store = readAccountsStore();
-    const filtered = store.filter((a: any) => a.id !== id);
+    const filtered = store.filter((a: any) => a.id !== id && a.leaderId !== id);
     writeAccountsStore(filtered);
 
     res.json({ success: true, deletedId: id });
@@ -338,6 +375,11 @@ app.post('/api/accounts/:id/reset-password', async (req, res) => {
     const { id } = req.params;
     if (!id) return res.status(400).json({ error: 'ID requerido' });
 
+    const rawId = String(id).trim();
+    const cleanId = rawId.toLowerCase();
+    const unprefixedId = cleanId.replace(/^@+/, '');
+    const prefixedId = '@' + unprefixedId;
+
     // Generar contraseña aleatoria de 10 caracteres segura
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
     let tempPass = '';
@@ -347,19 +389,136 @@ app.post('/api/accounts/:id/reset-password', async (req, res) => {
 
     const hashed = await hashPassword(tempPass);
 
-    // Actualizar en PostgreSQL
+    // 1. Actualizar en PostgreSQL
+    let updatedInDbCount = 0;
     try {
-      await prisma.userAccount.updateMany({
-        where: { id },
+      const updateResult = await prisma.userAccount.updateMany({
+        where: {
+          OR: [
+            { id: rawId },
+            { id: cleanId },
+            { id: `usr-${rawId}` },
+            { leaderId: rawId },
+            { leaderId: cleanId },
+            { email: { equals: cleanId, mode: 'insensitive' } },
+            { email: { equals: unprefixedId, mode: 'insensitive' } },
+            { username: { equals: cleanId, mode: 'insensitive' } },
+            { username: { equals: unprefixedId, mode: 'insensitive' } },
+            { username: { equals: prefixedId, mode: 'insensitive' } },
+          ]
+        },
         data: { password: hashed },
       });
-    } catch (e) {}
+      updatedInDbCount = updateResult.count;
+    } catch (e: any) {
+      console.warn('Aviso al actualizar contraseña en PostgreSQL:', e.message);
+    }
 
-    // Actualizar en archivo local
+    // 2. Actualizar en archivo local
     const store = readAccountsStore();
-    const accIdx = store.findIndex((a: any) => a.id === id);
-    if (accIdx >= 0) {
-      store[accIdx].password = hashed;
+    let updatedInStore = false;
+    for (let i = 0; i < store.length; i++) {
+      const a = store[i];
+      const match = 
+        a.id === rawId || 
+        a.id === cleanId || 
+        a.id === `usr-${rawId}` ||
+        a.leaderId === rawId || 
+        a.leaderId === cleanId ||
+        String(a.email || '').toLowerCase() === cleanId ||
+        String(a.email || '').toLowerCase() === unprefixedId ||
+        String(a.username || '').toLowerCase() === cleanId ||
+        String(a.username || '').toLowerCase() === unprefixedId ||
+        String(a.username || '').toLowerCase().replace(/^@+/, '') === unprefixedId;
+      if (match) {
+        store[i].password = hashed;
+        store[i].updatedAt = new Date().toISOString();
+        updatedInStore = true;
+      }
+    }
+
+    // 3. Si no existía aún en userAccount pero sí como Líder, sintetizar y guardar la cuenta
+    if (updatedInDbCount === 0 && !updatedInStore) {
+      let leader: any = null;
+      try {
+        leader = await prisma.leader.findFirst({
+          where: {
+            OR: [
+              { id: rawId },
+              { email: { equals: cleanId, mode: 'insensitive' } },
+              { username: { equals: cleanId, mode: 'insensitive' } },
+              { username: { equals: unprefixedId, mode: 'insensitive' } },
+            ]
+          }
+        });
+      } catch (e) {}
+
+      if (!leader) {
+        const backupStore = readBackupStore();
+        leader = backupStore.find((l: any) => 
+          l.id === rawId || 
+          String(l.email || '').toLowerCase() === cleanId ||
+          String(l.username || '').toLowerCase() === cleanId ||
+          String(l.username || '').toLowerCase().replace(/^@+/, '') === unprefixedId
+        );
+      }
+
+      if (leader) {
+        const newAccId = `usr-${leader.id}`;
+        const newAccEmail = (leader.email || `${unprefixedId || 'usuario'}@campana.mx`).toLowerCase();
+        const newAccUsername = (leader.username || unprefixedId || 'usuario').toLowerCase().replace(/^@+/, '');
+        const newAccountObj = {
+          id: newAccId,
+          email: newAccEmail,
+          username: newAccUsername,
+          name: leader.name,
+          password: hashed,
+          leaderId: leader.id,
+          level: leader.level || 'campana',
+          territoryName: leader.territoryName || '',
+          accountRoleLabel: leader.role || 'Jefe de Campaña',
+          avatarBg: leader.avatarBg || 'bg-[#9d2449]',
+          isSuperAdmin: false,
+          phone: leader.phone,
+          updatedAt: new Date().toISOString(),
+        };
+
+        store.unshift(newAccountObj);
+        updatedInStore = true;
+
+        try {
+          await prisma.userAccount.upsert({
+            where: { email: newAccEmail },
+            update: {
+              username: newAccUsername,
+              name: leader.name,
+              password: hashed,
+              leaderId: leader.id,
+              level: leader.level || 'campana',
+              territoryName: leader.territoryName || '',
+              accountRoleLabel: leader.role || 'Jefe de Campaña',
+              avatarBg: leader.avatarBg || 'bg-[#9d2449]',
+            },
+            create: {
+              id: newAccId,
+              email: newAccEmail,
+              username: newAccUsername,
+              name: leader.name,
+              password: hashed,
+              leaderId: leader.id,
+              level: leader.level || 'campana',
+              territoryName: leader.territoryName || '',
+              accountRoleLabel: leader.role || 'Jefe de Campaña',
+              avatarBg: leader.avatarBg || 'bg-[#9d2449]',
+            }
+          });
+        } catch (e: any) {
+          console.warn('Aviso creando cuenta en reset-password:', e.message);
+        }
+      }
+    }
+
+    if (updatedInStore) {
       writeAccountsStore(store);
     }
 
@@ -377,7 +536,11 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Usuario o correo y contraseña requeridos' });
     }
 
-    const cleanId = String(identifier).trim().toLowerCase();
+    const rawId = String(identifier).trim();
+    const cleanId = rawId.toLowerCase();
+    const unprefixedId = cleanId.replace(/^@+/, '').trim();
+    const prefixedId = '@' + unprefixedId;
+    const phoneDigits = rawId.replace(/\D/g, '');
     const cleanPass = String(password).trim();
 
     const rawSuperEmail = cleanEnvValue(process.env.SUPERADMIN_EMAIL) || cleanEnvValue(process.env.VITE_SUPERADMIN_EMAIL) || 'usrubenroqueguzman@gmail.com';
@@ -388,9 +551,9 @@ app.post('/api/auth/login', async (req, res) => {
     // 1. Verificación de credenciales de Super Administrador (desde env)
     const isSuperIdMatch = 
       cleanId === envSuperadminEmail || 
-      cleanId === envSuperadminUsername || 
+      unprefixedId === envSuperadminUsername || 
       cleanId === 'usrubenroqueguzman@gmail.com' || 
-      cleanId === 'usrubenroqueguzman';
+      unprefixedId === 'usrubenroqueguzman';
 
     if (isSuperIdMatch) {
       if (!envSuperadminPass) {
@@ -417,51 +580,139 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // 2. Verificación de usuarios creados en PostgreSQL o en accounts_store.json
-    let userFromDb: any = null;
+    let usersFromDb: any[] = [];
     try {
-      userFromDb = await prisma.userAccount.findFirst({
+      usersFromDb = await prisma.userAccount.findMany({
         where: {
           OR: [
-            { email: cleanId },
-            { username: cleanId }
+            { email: { equals: cleanId, mode: 'insensitive' } },
+            { email: { equals: unprefixedId, mode: 'insensitive' } },
+            { username: { equals: cleanId, mode: 'insensitive' } },
+            { username: { equals: unprefixedId, mode: 'insensitive' } },
+            { username: { equals: prefixedId, mode: 'insensitive' } },
+            { id: rawId },
+            { leaderId: rawId },
           ]
         }
       });
-    } catch (e) {}
+    } catch (e: any) {
+      console.warn('Aviso consultando userAccount en PostgreSQL:', e.message);
+    }
 
     const fileAccounts = readAccountsStore();
-    const userFromFile = fileAccounts.find(
-      (a: any) =>
-        String(a.email || '').toLowerCase() === cleanId ||
-        String(a.username || '').toLowerCase() === cleanId
-    );
+    const usersFromFile = fileAccounts.filter((a: any) => {
+      const aEmail = String(a.email || '').toLowerCase();
+      const aUser = String(a.username || '').toLowerCase();
+      const aUserClean = aUser.replace(/^@+/, '');
+      const aPhone = String(a.phone || '').replace(/\D/g, '');
+      return (
+        aEmail === cleanId ||
+        aEmail === unprefixedId ||
+        aUser === cleanId ||
+        aUser === unprefixedId ||
+        aUserClean === unprefixedId ||
+        a.id === rawId ||
+        a.leaderId === rawId ||
+        (phoneDigits.length >= 7 && aPhone.includes(phoneDigits))
+      );
+    });
 
-    const userCandidate = userFromDb || userFromFile;
+    // Si aún no encontramos registros de cuenta, buscar en la tabla de Líderes por teléfono, email o usuario
+    if (usersFromDb.length === 0 && usersFromFile.length === 0) {
+      let leadersFound: any[] = [];
+      try {
+        leadersFound = await prisma.leader.findMany({
+          where: {
+            OR: [
+              { email: { equals: cleanId, mode: 'insensitive' } },
+              { email: { equals: unprefixedId, mode: 'insensitive' } },
+              { username: { equals: cleanId, mode: 'insensitive' } },
+              { username: { equals: unprefixedId, mode: 'insensitive' } },
+              { username: { equals: prefixedId, mode: 'insensitive' } },
+              ...(phoneDigits.length >= 7 ? [{ phone: { contains: phoneDigits } }] : [])
+            ]
+          }
+        });
+      } catch (e) {}
 
-    if (userCandidate) {
-      const candidatePass = cleanEnvValue(userCandidate.password);
-      const isPassMatch = await verifyPassword(cleanPass, candidatePass);
-      if (!isPassMatch) {
-        return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu usuario/correo y contraseña.' });
+      if (leadersFound.length === 0) {
+        const backupStore = readBackupStore();
+        leadersFound = backupStore.filter((l: any) => {
+          const lEmail = String(l.email || '').toLowerCase();
+          const lUser = String(l.username || '').toLowerCase();
+          const lUserClean = lUser.replace(/^@+/, '');
+          const lPhone = String(l.phone || '').replace(/\D/g, '');
+          return (
+            lEmail === cleanId ||
+            lEmail === unprefixedId ||
+            lUser === cleanId ||
+            lUser === unprefixedId ||
+            lUserClean === unprefixedId ||
+            (phoneDigits.length >= 7 && lPhone.includes(phoneDigits))
+          );
+        });
       }
 
-      // Migración transparente: si la contraseña estaba en texto plano, hashearla de inmediato
-      if (candidatePass && !candidatePass.startsWith('$2a$') && !candidatePass.startsWith('$2b$')) {
-        const hashed = await hashPassword(cleanPass);
-        try {
-          await prisma.userAccount.updateMany({
-            where: { id: userCandidate.id },
-            data: { password: hashed },
-          });
-        } catch {}
-        const storeIdx = fileAccounts.findIndex((a: any) => a.id === userCandidate.id);
-        if (storeIdx >= 0) {
-          fileAccounts[storeIdx].password = hashed;
-          writeAccountsStore(fileAccounts);
+      for (const ld of leadersFound) {
+        const matchAcc = fileAccounts.find((a: any) => a.leaderId === ld.id || a.email === ld.email);
+        if (matchAcc && !usersFromFile.includes(matchAcc)) {
+          usersFromFile.push(matchAcc);
         }
       }
+    }
 
-      const safeUser = { ...userCandidate };
+    // Reunir todos los candidatos encontrados
+    const candidateMap = new Map<string, any>();
+    for (const u of [...usersFromDb, ...usersFromFile]) {
+      if (u && u.id) candidateMap.set(u.id, { ...(candidateMap.get(u.id) || {}), ...u });
+    }
+    const candidates = Array.from(candidateMap.values());
+
+    // Probar contraseña contra los candidatos
+    let validUser: any = null;
+    let matchedHash = '';
+
+    for (const cand of candidates) {
+      const candidatePass = cleanEnvValue(cand.password);
+      if (!candidatePass) continue;
+      const isMatch = await verifyPassword(cleanPass, candidatePass);
+      if (isMatch) {
+        validUser = cand;
+        matchedHash = candidatePass;
+        break;
+      }
+    }
+
+    if (validUser) {
+      let currentHash = matchedHash;
+      if (!currentHash.startsWith('$2a$') && !currentHash.startsWith('$2b$')) {
+        currentHash = await hashPassword(cleanPass);
+      }
+
+      // Sincronizar de inmediato la contraseña correcta a PostgreSQL y al store de archivo
+      try {
+        await prisma.userAccount.updateMany({
+          where: {
+            OR: [
+              { id: validUser.id },
+              { email: validUser.email },
+              ...(validUser.leaderId ? [{ leaderId: validUser.leaderId }] : [])
+            ]
+          },
+          data: { password: currentHash }
+        });
+      } catch {}
+
+      const storeIdx = fileAccounts.findIndex((a: any) => a.id === validUser.id || a.email === validUser.email);
+      if (storeIdx >= 0) {
+        fileAccounts[storeIdx].password = currentHash;
+        writeAccountsStore(fileAccounts);
+      } else {
+        fileAccounts.unshift({ ...validUser, password: currentHash });
+        writeAccountsStore(fileAccounts);
+      }
+
+      const safeUser = { ...validUser };
       delete safeUser.password;
 
       const tokenPayload: AuthTokenPayload = {
@@ -469,12 +720,12 @@ app.post('/api/auth/login', async (req, res) => {
         username: safeUser.username,
         name: safeUser.name,
         email: safeUser.email,
-        level: safeUser.level,
+        level: safeUser.level || 'campana',
         leaderId: safeUser.leaderId || null,
         isSuperAdmin: Boolean(safeUser.isSuperAdmin),
-        territoryName: safeUser.territoryName,
-        accountRoleLabel: safeUser.accountRoleLabel,
-        avatarBg: safeUser.avatarBg,
+        territoryName: safeUser.territoryName || '',
+        accountRoleLabel: safeUser.accountRoleLabel || 'Jefe de Campaña',
+        avatarBg: safeUser.avatarBg || 'bg-[#9d2449]',
       };
 
       const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '12h' });
@@ -484,6 +735,84 @@ app.post('/api/auth/login', async (req, res) => {
     return res.status(401).json({ error: 'Credenciales incorrectas. Verifica tu usuario/correo y contraseña.' });
   } catch (err: any) {
     res.status(500).json({ error: 'Error en autenticación', message: err.message });
+  }
+});
+
+// Endpoint para que el Super Administrador obtenga un token firmado para impersonar
+app.post('/api/auth/impersonate', async (req, res) => {
+  try {
+    if (!req.user || (!req.user.isSuperAdmin && req.user.level !== 'admin')) {
+      return res.status(403).json({ error: 'Solo el Super Administrador puede impersonar cuentas.' });
+    }
+
+    const { accountId, leaderId } = req.body;
+    if (!accountId && !leaderId) {
+      return res.status(400).json({ error: 'accountId o leaderId requerido' });
+    }
+
+    let targetAcc: any = null;
+    try {
+      targetAcc = await prisma.userAccount.findFirst({
+        where: {
+          OR: [
+            ...(accountId ? [{ id: accountId }] : []),
+            ...(leaderId ? [{ leaderId: leaderId }, { id: leaderId }] : [])
+          ]
+        }
+      });
+    } catch {}
+
+    if (!targetAcc) {
+      const fileStore = readAccountsStore();
+      targetAcc = fileStore.find((a: any) => 
+        (accountId && a.id === accountId) || 
+        (leaderId && (a.leaderId === leaderId || a.id === leaderId))
+      );
+    }
+
+    if (!targetAcc && leaderId) {
+      const leadersStore = readBackupStore();
+      const leader = leadersStore.find((l: any) => l.id === leaderId);
+      if (leader) {
+        targetAcc = {
+          id: `usr-${leader.id}`,
+          username: leader.username || 'usuario',
+          name: leader.name,
+          email: leader.email || `${leader.username || 'usuario'}@campana.mx`,
+          leaderId: leader.id,
+          level: leader.level || 'campana',
+          territoryName: leader.territoryName || '',
+          accountRoleLabel: leader.role || 'Jefe de Campaña',
+          avatarBg: leader.avatarBg || 'bg-[#9d2449]',
+          isSuperAdmin: false,
+        };
+      }
+    }
+
+    if (!targetAcc) {
+      return res.status(404).json({ error: 'Usuario no encontrado para impersonar' });
+    }
+
+    const safeUser = { ...targetAcc };
+    delete safeUser.password;
+
+    const tokenPayload: AuthTokenPayload = {
+      id: safeUser.id,
+      username: safeUser.username,
+      name: safeUser.name,
+      email: safeUser.email,
+      level: safeUser.level || 'campana',
+      leaderId: safeUser.leaderId || null,
+      isSuperAdmin: false,
+      territoryName: safeUser.territoryName || '',
+      accountRoleLabel: safeUser.accountRoleLabel || 'Jefe de Campaña',
+      avatarBg: safeUser.avatarBg || 'bg-[#9d2449]',
+    };
+
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: '6h' });
+    res.json({ user: safeUser, token });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al impersonar usuario', message: err.message });
   }
 });
 

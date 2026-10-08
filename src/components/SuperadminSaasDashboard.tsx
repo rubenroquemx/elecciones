@@ -10,15 +10,7 @@ import {
   LogIn, 
   Trash2, 
   Phone, 
-  Pencil,
-  Flag,
-  Award,
-  Compass,
-  MapPin,
-  Shield,
-  Layers,
-  Users,
-  CheckCircle2
+  Pencil
 } from 'lucide-react';
 
 interface SuperadminSaasDashboardProps {
@@ -60,27 +52,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
     return map;
   }, [accounts]);
 
-  // TOTALES PRINCIPALES GLOBALES (8 NIVELES)
-  const totalCampaigns = new Set(campanaCoordinators.map(c => c.territoryName)).size || campanaCoordinators.length;
-  const totalCampanaCoordinators = campanaCoordinators.length;
-  const totalDistritales = allLeaders.filter(l => l.level === 'distrital').length;
-  const totalZona = allLeaders.filter(l => l.level === 'zona').length;
-  const totalRespZona = allLeaders.filter(l => l.level === 'responsable_zona').length;
-  const totalRespSeccion = allLeaders.filter(l => l.level === 'territorial' || l.level === 'seccional').length;
-  const totalPromotoresTerritoriales = allLeaders.filter(l => l.level === 'promotor').length;
-  const totalPromovidos = allLeaders.filter(l => l.level === 'promovido').length;
 
-  // Lista de cifras con iconos asignados para integrar en el cuadro azul
-  const metricsList = [
-    { label: 'Campañas', value: totalCampaigns, icon: Flag, iconColor: 'text-[#e05375]' },
-    { label: 'Jefes Campaña', value: totalCampanaCoordinators, icon: Award, iconColor: 'text-amber-400' },
-    { label: 'Distritales', value: totalDistritales, icon: Compass, iconColor: 'text-rose-400' },
-    { label: 'Coord. Zona', value: totalZona, icon: MapPin, iconColor: 'text-orange-400' },
-    { label: 'Resp. Zona', value: totalRespZona, icon: Shield, iconColor: 'text-cyan-400' },
-    { label: 'Resp. Secc.', value: totalRespSeccion, icon: Layers, iconColor: 'text-blue-400' },
-    { label: 'Promotores', value: totalPromotoresTerritoriales, icon: Users, iconColor: 'text-sky-400' },
-    { label: 'Promovidos', value: totalPromovidos, icon: CheckCircle2, iconColor: 'text-emerald-400' },
-  ];
 
   // Cálculo de secciones asignadas en todas las campañas
   const totalAssignedSectionsCount = useMemo(() => {
@@ -218,43 +190,12 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-24 sm:pb-16">
-      {/* 1. Header SaaS con Cifras Integradas en el Cuadro Azul (Sin tarjetas, sin bordes) */}
+      {/* 1. Header SaaS */}
       <div className="bg-slate-900 text-white border-b border-slate-800 p-5 sm:p-7 shrink-0">
-        <div className="max-w-7xl mx-auto space-y-4">
+        <div className="max-w-7xl mx-auto">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
             Gestión Central de Campañas
           </h1>
-
-          {/* Cifras Integradas: Sin tarjetas ni bordes. En escritorio centradas, en móvil icono a la izquierda */}
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4 pt-4 border-t border-slate-800/80">
-            {metricsList.map((m, idx) => (
-              <div 
-                key={idx}
-                className="flex flex-col items-center justify-center text-center py-1 sm:py-1.5"
-              >
-                {/* Versión móvil: Icono del lado izquierdo y cifra */}
-                <div className="flex sm:hidden items-center justify-center gap-1.5">
-                  <m.icon className={`w-4 h-4 ${m.iconColor} shrink-0`} />
-                  <span className="text-sm font-black font-mono text-white">
-                    {m.value}
-                  </span>
-                </div>
-
-                {/* Versión escritorio: Concepto y cantidad centradas */}
-                <div className="hidden sm:flex flex-col items-center justify-center text-center w-full">
-                  <div className="flex items-center justify-center gap-1.5 text-slate-300 mb-1">
-                    <m.icon className={`w-3.5 h-3.5 ${m.iconColor} shrink-0`} />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300 truncate">
-                      {m.label}
-                    </span>
-                  </div>
-                  <div className="text-xl lg:text-2xl font-black font-mono text-white text-center">
-                    {m.value}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 

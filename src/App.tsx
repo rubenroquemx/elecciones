@@ -60,7 +60,9 @@ import {
   fetchUserAccountsApi,
   saveUserAccountApi,
   deleteUserAccountApi,
+  impersonateUserApi,
 } from './services/api';
+import { getAuthToken, setAuthToken } from './services/http';
 
 const DELETED_LEADERS_KEY = 'territorial_deleted_leader_ids';
 const PENDING_OFFLINE_KEY = 'territorial_pending_offline_sync_ids';
@@ -506,26 +508,50 @@ export function App() {
       .catch(e => console.warn('Could not fetch server accounts', e));
   }, []);
 
-  const handleImpersonate = useCallback((coordinatorAccount: UserAccount) => {
+  const handleImpersonate = useCallback(async (coordinatorAccount: UserAccount) => {
     if (currentUser) {
       setImpersonatingAdminUser(currentUser);
       sessionStorage.setItem('saas_impersonating_admin', JSON.stringify(currentUser));
+      const currentToken = getAuthToken();
+      if (currentToken) {
+        sessionStorage.setItem('saas_admin_auth_token', currentToken);
+      }
     }
-    setCurrentUser(coordinatorAccount);
+
     try {
-      localStorage.setItem('territorial_auth_user', JSON.stringify(coordinatorAccount));
-    } catch (e) {}
+      const impRes = await impersonateUserApi(coordinatorAccount.id, coordinatorAccount.leaderId);
+      if (impRes?.token) {
+        setAuthToken(impRes.token);
+        const resolvedUser = { ...coordinatorAccount, ...impRes.user };
+        setCurrentUser(resolvedUser);
+        localStorage.setItem('territorial_auth_user', JSON.stringify(resolvedUser));
+      } else {
+        setCurrentUser(coordinatorAccount);
+        localStorage.setItem('territorial_auth_user', JSON.stringify(coordinatorAccount));
+      }
+    } catch {
+      setCurrentUser(coordinatorAccount);
+      try {
+        localStorage.setItem('territorial_auth_user', JSON.stringify(coordinatorAccount));
+      } catch (e) {}
+    }
+
     setActiveNav('escritorio');
   }, [currentUser]);
 
   const handleExitImpersonation = useCallback(() => {
     if (impersonatingAdminUser) {
+      const adminToken = sessionStorage.getItem('saas_admin_auth_token');
+      if (adminToken) {
+        setAuthToken(adminToken);
+      }
       setCurrentUser(impersonatingAdminUser);
       try {
         localStorage.setItem('territorial_auth_user', JSON.stringify(impersonatingAdminUser));
       } catch (e) {}
       setImpersonatingAdminUser(null);
       sessionStorage.removeItem('saas_impersonating_admin');
+      sessionStorage.removeItem('saas_admin_auth_token');
       setActiveNav('escritorio');
     }
   }, [impersonatingAdminUser]);
@@ -1137,6 +1163,7 @@ export function App() {
 
   // Handler para dar de alta un usuario manualmente en el sistema cerrado
   const handleCreateManualUser = useCallback((newUser: UserAccount, newLeader: TerritorialLeader) => {
+    saveUserAccountApi(newUser).catch(() => {});
     setAccounts(prev => {
       const updated = [...prev, newUser];
       try {
@@ -1153,6 +1180,7 @@ export function App() {
 
   // Handlers para gestión de promotores territoriales (Coordinador Territorial)
   const handleSaveNewPromoter = useCallback((newLeader: TerritorialLeader, newUserAccount: UserAccount) => {
+    saveUserAccountApi(newUserAccount).catch(() => {});
     setAccounts(prev => {
       const updated = [...prev, newUserAccount];
       try {
@@ -1171,6 +1199,7 @@ export function App() {
     handleSaveLeader(updatedLeader);
 
     if (updatedAccount) {
+      saveUserAccountApi(updatedAccount).catch(() => {});
       setAccounts(prev => {
         const updated = prev.map(a => a.id === updatedAccount.id || a.leaderId === updatedLeader.id ? updatedAccount : a);
         try {
@@ -1187,6 +1216,10 @@ export function App() {
   const handleDeletePromoter = useCallback((promoterId: string) => {
     handleDeleteLeader(promoterId);
     setAccounts(prev => {
+      const accountToDelete = prev.find(a => a.leaderId === promoterId);
+      if (accountToDelete) {
+        deleteUserAccountApi(accountToDelete.id).catch(() => {});
+      }
       const updated = prev.filter(a => a.leaderId !== promoterId);
       try {
         const customOnly = updated.filter(a => !MOCK_ACCOUNTS.some(m => m.id === a.id));

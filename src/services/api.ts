@@ -168,3 +168,17 @@ export async function resetPasswordApi(accountId: string): Promise<{ success: bo
     return { success: false, error: err.message };
   }
 }
+
+export async function impersonateUserApi(accountId?: string, leaderId?: string | null): Promise<{ user: any; token: string } | null> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/auth/impersonate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accountId, leaderId }),
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
