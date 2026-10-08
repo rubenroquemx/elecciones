@@ -1003,9 +1003,9 @@ app.delete('/api/leaders/:id', async (req, res) => {
     const filteredAcc = accStore.filter((a: any) => a.leaderId !== id);
     writeAccountsStore(filteredAcc);
 
-    // 4. Eliminar de PostgreSQL si existe
+    // 4. Eliminar de PostgreSQL si existe (usando deleteMany para no fallar si no existe en la BD)
     try {
-      await prisma.leader.delete({ where: { id } });
+      await prisma.leader.deleteMany({ where: { id } });
     } catch (dbErr: any) {
       console.warn('Aviso eliminando en PostgreSQL:', dbErr.message);
     }
