@@ -753,6 +753,7 @@ export function App() {
 
   // Active navigation: 'escritorio' | 'estructura' | 'secciones'
   const [activeNav, setActiveNav] = useState<MainNavSection>('escritorio');
+  const [settingsInitialTab, setSettingsInitialTab] = useState<'mi-perfil' | 'whatsapp-evolution'>('mi-perfil');
   const [selectedCoordinatorDetailId, setSelectedCoordinatorDetailId] = useState<string | null>(null);
   const [editingCoordinatorId, setEditingCoordinatorId] = useState<string | null>(null);
   const [selectedUserDetailId, setSelectedUserDetailId] = useState<string | null>(null);
@@ -760,6 +761,9 @@ export function App() {
 
   const handleNavChange = useCallback((nav: MainNavSection) => {
     setActiveNav(nav);
+    if (nav !== 'configuracion') {
+      setSettingsInitialTab('mi-perfil');
+    }
     setDetailSectionNumber(null);
     setSelectedCoordinatorDetailId(null);
     setEditingCoordinatorId(null);
@@ -805,7 +809,7 @@ export function App() {
   // Coordinador Territorial only sees lista de promotores -> lock mode to 'lista'
   useEffect(() => {
     if (!currentUser) return;
-    const allowedPromotorPages: MainNavSection[] = ['escritorio', 'mis-secciones', 'capturar-promovido', 'ver-promovido', 'editar-promovido'];
+    const allowedPromotorPages: MainNavSection[] = ['escritorio', 'mis-secciones', 'capturar-promovido', 'ver-promovido', 'editar-promovido', 'configuracion', 'acerca-de'];
     if (currentUser.level === 'promotor' && !allowedPromotorPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
@@ -820,12 +824,12 @@ export function App() {
       setActiveNav('escritorio');
     }
     const isTerritorial = currentUser.level === 'territorial' || currentUser.level === 'seccional';
-    const allowedTerritorialPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'promotores', 'crear-promotor', 'editar-promotor', 'secciones'];
+    const allowedTerritorialPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'promotores', 'crear-promotor', 'editar-promotor', 'secciones', 'configuracion', 'acerca-de'];
     if (isTerritorial && !allowedTerritorialPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
     const isAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;
-    const allowedAdminPages: MainNavSection[] = ['escritorio', 'mesa-de-ayuda', 'usuarios', 'crear-coordinador', 'crear-coordinador-territorial'];
+    const allowedAdminPages: MainNavSection[] = ['escritorio', 'mesa-de-ayuda', 'usuarios', 'crear-coordinador', 'crear-coordinador-territorial', 'configuracion', 'acerca-de'];
     if (isAdmin && !allowedAdminPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
@@ -1511,6 +1515,10 @@ export function App() {
                     onOpenCreateCoordinatorWizard={() => setActiveNav('crear-coordinador')}
                     onViewCoordinatorDetails={(id) => setSelectedCoordinatorDetailId(id)}
                     onEditCoordinator={(id) => setEditingCoordinatorId(id)}
+                    onOpenWhatsAppConfig={() => {
+                      setSettingsInitialTab('whatsapp-evolution');
+                      setActiveNav('configuracion');
+                    }}
                   />
                 ) : (
                   <ExecutiveKpiDesktop
@@ -1740,6 +1748,7 @@ export function App() {
               {activeNav === 'configuracion' && (
                 <ConfiguracionPage
                   currentUser={currentUser}
+                  initialTab={settingsInitialTab}
                   onUpdateCurrentUser={(updated) => {
                     setCurrentUser(updated);
                     setAccounts((prev) =>

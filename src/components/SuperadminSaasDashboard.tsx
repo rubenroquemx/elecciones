@@ -10,7 +10,8 @@ import {
   LogIn, 
   Trash2, 
   Phone, 
-  Pencil
+  Pencil,
+  MessageSquare
 } from 'lucide-react';
 
 interface SuperadminSaasDashboardProps {
@@ -22,6 +23,7 @@ interface SuperadminSaasDashboardProps {
   onOpenCreateCoordinatorWizard?: () => void;
   onViewCoordinatorDetails?: (coordinatorId: string) => void;
   onEditCoordinator?: (coordinatorId: string) => void;
+  onOpenWhatsAppConfig?: () => void;
 }
 
 export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = ({
@@ -31,6 +33,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   onDeleteCoordinator,
   onViewCoordinatorDetails,
   onEditCoordinator,
+  onOpenWhatsAppConfig,
 }) => {
   const [mapLayer, setMapLayer] = useState<'streets' | 'sat'>('streets');
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -192,10 +195,25 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
     <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-24 sm:pb-16">
       {/* 1. Header SaaS */}
       <div className="bg-slate-900 text-white border-b border-slate-800 p-5 sm:p-7 shrink-0">
-        <div className="max-w-7xl mx-auto">
-          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
-            Gestión Central de Campañas
-          </h1>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+              Gestión Central de Campañas
+            </h1>
+            <p className="text-xs text-slate-400 mt-0.5">
+              Panel Superadmin • Control territorial y configuración de infraestructura
+            </p>
+          </div>
+          {onOpenWhatsAppConfig && (
+            <button
+              type="button"
+              onClick={onOpenWhatsAppConfig}
+              className="px-4 py-2.5 bg-[#9d2449] hover:bg-[#831e3d] text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer self-start sm:self-auto rounded-none"
+            >
+              <MessageSquare className="w-4 h-4 text-emerald-300" />
+              <span>Validación WhatsApp (QR & Evolution API)</span>
+            </button>
+          )}
         </div>
       </div>
 
