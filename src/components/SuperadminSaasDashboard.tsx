@@ -72,11 +72,11 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
 
   // Lista de cifras con iconos asignados para integrar en el cuadro azul
   const metricsList = [
-    { label: 'Campañas', value: totalCampaigns, icon: Flag, iconColor: 'text-indigo-400' },
-    { label: 'Jefes Campaña', value: totalCampanaCoordinators, icon: Award, iconColor: 'text-purple-400' },
-    { label: 'Distritales', value: totalDistritales, icon: Compass, iconColor: 'text-indigo-400' },
-    { label: 'Coord. Zona', value: totalZona, icon: MapPin, iconColor: 'text-indigo-400' },
-    { label: 'Resp. Zona', value: totalRespZona, icon: Shield, iconColor: 'text-blue-400' },
+    { label: 'Campañas', value: totalCampaigns, icon: Flag, iconColor: 'text-[#e05375]' },
+    { label: 'Jefes Campaña', value: totalCampanaCoordinators, icon: Award, iconColor: 'text-amber-400' },
+    { label: 'Distritales', value: totalDistritales, icon: Compass, iconColor: 'text-rose-400' },
+    { label: 'Coord. Zona', value: totalZona, icon: MapPin, iconColor: 'text-orange-400' },
+    { label: 'Resp. Zona', value: totalRespZona, icon: Shield, iconColor: 'text-cyan-400' },
     { label: 'Resp. Secc.', value: totalRespSeccion, icon: Layers, iconColor: 'text-blue-400' },
     { label: 'Promotores', value: totalPromotoresTerritoriales, icon: Users, iconColor: 'text-sky-400' },
     { label: 'Promovidos', value: totalPromovidos, icon: CheckCircle2, iconColor: 'text-emerald-400' },
@@ -135,8 +135,8 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
     const isSat = mapLayer === 'sat';
     let isCancelled = false;
 
-    // Paleta de colores para distinguir campañas si hay varias
-    const campaignColors = ['#4f46e5', '#9d2449', '#0284c7', '#059669', '#d97706'];
+    // Paleta de colores para distinguir campañas si hay varias (con #9d2449 de base)
+    const campaignColors = ['#9d2449', '#0284c7', '#059669', '#d97706', '#dc2626'];
 
     fetchStateGeoJson('tab').then(geoData => {
       if (isCancelled || !mapInstanceRef.current) return;
@@ -170,7 +170,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
             layer.bindTooltip(
               `<div class="px-2 py-1 font-sans text-xs">
                 <span class="font-bold text-slate-900 block">Sección ${p.seccion} (${p.municipio || ''})</span>
-                ${coord ? `<span class="text-[10px] text-indigo-700 font-semibold block">${coord.name} • ${coord.territoryName}</span>` : ''}
+                ${coord ? `<span class="text-[10px] text-[#9d2449] font-semibold block">${coord.name} • ${coord.territoryName}</span>` : ''}
               </div>`,
               { sticky: true, direction: 'top', opacity: 0.95 }
             );
@@ -218,29 +218,39 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-24 sm:pb-16">
-      {/* 1. Header SaaS con Cifras Integradas en el Cuadro Azul */}
+      {/* 1. Header SaaS con Cifras Integradas en el Cuadro Azul (Sin tarjetas, sin bordes) */}
       <div className="bg-slate-900 text-white border-b border-slate-800 p-5 sm:p-7 shrink-0">
         <div className="max-w-7xl mx-auto space-y-4">
           <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
             Gestión Central de Campañas
           </h1>
 
-          {/* Cifras Integradas: en móvil se muestra icono + número, en desktop icono + etiqueta + número */}
-          <div className="grid grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-2.5 pt-3 border-t border-slate-800/80">
+          {/* Cifras Integradas: Sin tarjetas ni bordes. En escritorio centradas, en móvil icono a la izquierda */}
+          <div className="grid grid-cols-4 lg:grid-cols-8 gap-3 sm:gap-4 pt-4 border-t border-slate-800/80">
             {metricsList.map((m, idx) => (
               <div 
                 key={idx}
-                className="bg-slate-800/60 hover:bg-slate-800/90 border border-slate-700/60 rounded-xl p-2 sm:p-2.5 flex flex-col justify-between transition-colors"
+                className="flex flex-col items-center justify-center text-center py-1 sm:py-1.5"
               >
-                <div className="flex items-center gap-1.5 text-slate-300">
-                  <m.icon className={`w-3.5 h-3.5 ${m.iconColor} shrink-0`} />
-                  {/* Oculto en móvil, visible en escritorio */}
-                  <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-wider text-slate-300 truncate">
-                    {m.label}
+                {/* Versión móvil: Icono del lado izquierdo y cifra */}
+                <div className="flex sm:hidden items-center justify-center gap-1.5">
+                  <m.icon className={`w-4 h-4 ${m.iconColor} shrink-0`} />
+                  <span className="text-sm font-black font-mono text-white">
+                    {m.value}
                   </span>
                 </div>
-                <div className="text-sm sm:text-lg font-black font-mono text-white mt-1">
-                  {m.value}
+
+                {/* Versión escritorio: Concepto y cantidad centradas */}
+                <div className="hidden sm:flex flex-col items-center justify-center text-center w-full">
+                  <div className="flex items-center justify-center gap-1.5 text-slate-300 mb-1">
+                    <m.icon className={`w-3.5 h-3.5 ${m.iconColor} shrink-0`} />
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-300 truncate">
+                      {m.label}
+                    </span>
+                  </div>
+                  <div className="text-xl lg:text-2xl font-black font-mono text-white text-center">
+                    {m.value}
+                  </div>
                 </div>
               </div>
             ))}
@@ -248,54 +258,48 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
         </div>
       </div>
 
-      {/* 2. MAPA DE CAMPAÑAS ASIGNADAS (DIRECTAMENTE ARRIBA DEL BLOQUE DE JEFE DE CAMPAÑA) */}
+      {/* 2. MAPA DE CAMPAÑAS ASIGNADAS (SIN TÍTULO, SIN BORDER-RADIUS) */}
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6 shrink-0">
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-indigo-600" />
-              <span className="text-xs font-bold text-slate-900">
-                Demarcación Territorial de Campañas Asignadas
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
+        <div className="bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs">
+          <div className="px-5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 flex-wrap gap-2">
+            <div>
               <span className="text-[11px] font-semibold text-slate-500 font-mono">
                 {totalAssignedSectionsCount} secciones en {campanaCoordinators.length} {campanaCoordinators.length === 1 ? 'campaña' : 'campañas'}
               </span>
-              <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('streets')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
-                    mapLayer === 'streets'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Calles
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('sat')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
-                    mapLayer === 'sat'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Satélite
-                </button>
-              </div>
+            </div>
+            <div className="flex items-center bg-white border border-slate-200 rounded-none p-0.5 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setMapLayer('streets')}
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
+                  mapLayer === 'streets'
+                    ? 'bg-[#9d2449] text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Calles
+              </button>
+              <button
+                type="button"
+                onClick={() => setMapLayer('sat')}
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
+                  mapLayer === 'sat'
+                    ? 'bg-[#9d2449] text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Satélite
+              </button>
             </div>
           </div>
           <div ref={mapContainerRef} className="w-full h-72 sm:h-80 z-0" />
         </div>
       </div>
 
-      {/* 3. LISTA DE JEFES DE CAMPAÑA */}
+      {/* 3. LISTA DE JEFES DE CAMPAÑA (SIN BORDER-RADIUS, SIN INICIAL) */}
       <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 pb-24 sm:pb-16 space-y-4 flex-1">
         {campanaCoordinators.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-slate-200 space-y-3 mb-8">
+          <div className="bg-white rounded-none p-12 text-center border border-slate-200 space-y-3 mb-8">
             <Building2 className="w-12 h-12 text-slate-300 mx-auto" />
             <h4 className="text-base font-bold text-slate-700">No hay Jefes de Campaña registrados</h4>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
@@ -303,7 +307,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
             </p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs mb-8">
+          <div className="bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs mb-8">
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
@@ -328,7 +332,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                       level: 'campana',
                       territoryName: coord.territoryName,
                       accountRoleLabel: 'Jefe de Campaña',
-                      avatarBg: 'bg-indigo-600',
+                      avatarBg: 'bg-[#9d2449]',
                       assignedBy: 'Super Administrador (SaaS)',
                     };
 
@@ -336,28 +340,23 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                       <tr 
                         key={coord.id} 
                         onClick={() => onViewCoordinatorDetails?.(coord.id)}
-                        className="hover:bg-indigo-50/40 transition-colors cursor-pointer group"
+                        className="hover:bg-slate-50 transition-colors cursor-pointer group"
                       >
-                        {/* 1. Jefe de Campaña & Demarcación con @usuario */}
+                        {/* 1. Jefe de Campaña & Demarcación (SIN INICIAL JUNTO AL NOMBRE) */}
                         <td className="py-3.5 px-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-                              {coord.name.charAt(0)}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-bold text-slate-900 group-hover:text-[#9d2449] transition-colors">
+                                {coord.name}
+                              </span>
+                              <span className="text-xs text-slate-400 font-mono font-normal">
+                                @{acc?.username || coord.username || 'usuario'}
+                              </span>
                             </div>
-                            <div className="min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                                  {coord.name}
-                                </span>
-                                <span className="text-xs text-slate-400 font-mono font-normal">
-                                  @{acc?.username || coord.username || 'usuario'}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="inline-block px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/80 truncate max-w-[220px]">
-                                  {coord.territoryName}
-                                </span>
-                              </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="inline-block px-2 py-0.5 rounded-none text-[10px] font-semibold bg-[#9d2449]/10 text-[#9d2449] border border-[#9d2449]/20 truncate max-w-[260px]">
+                                {coord.territoryName}
+                              </span>
                             </div>
                           </div>
                         </td>
@@ -369,7 +368,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                               <>
                                 <a
                                   href={`tel:${cleanPhone}`}
-                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
+                                  className="p-2 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-none transition-all shadow-2xs cursor-pointer active:scale-95"
                                   title={`Llamar a ${coord.name}`}
                                 >
                                   <Phone className="w-4 h-4" />
@@ -378,7 +377,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                                   href={`https://wa.me/52${cleanPhone}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="p-2 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#25D366] rounded-xl transition-all shadow-2xs cursor-pointer active:scale-95"
+                                  className="p-2 bg-[#25D366]/15 hover:bg-[#25D366]/25 text-[#25D366] rounded-none transition-all shadow-2xs cursor-pointer active:scale-95"
                                   title={`Abrir WhatsApp con ${coord.name}`}
                                 >
                                   <WhatsAppIcon className="w-4 h-4 text-[#25D366]" />
@@ -397,18 +396,18 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                             <button
                               type="button"
                               onClick={() => onEditCoordinator?.(coord.id)}
-                              className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                              className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-none text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                               title="Editar datos del jefe de campaña"
                             >
                               <Pencil className="w-3.5 h-3.5 text-slate-500" />
                               <span className="hidden sm:inline">Editar</span>
                             </button>
 
-                            {/* BOTÓN ENTRAR A SU CUENTA */}
+                            {/* BOTÓN ENTRAR A SU CUENTA (COLOR #9d2449, NO MORADO) */}
                             <button
                               type="button"
                               onClick={() => onImpersonate(targetAccount)}
-                              className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors shadow-2xs cursor-pointer active:scale-98"
+                              className="px-2.5 py-1.5 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-none text-xs font-semibold flex items-center gap-1 transition-colors shadow-2xs cursor-pointer active:scale-98"
                               title="Iniciar sesión en la cuenta del jefe de campaña"
                             >
                               <LogIn className="w-3.5 h-3.5" />
@@ -423,7 +422,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                                   onDeleteCoordinator(coord.id);
                                 }
                               }}
-                              className="p-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-none transition-colors cursor-pointer"
                               title="Eliminar Jefe de Campaña"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

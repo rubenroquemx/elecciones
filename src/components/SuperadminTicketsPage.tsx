@@ -164,7 +164,7 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
         <button
           type="button"
           onClick={() => setIsCreatingTicket(true)}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98"
+          className="px-4 py-2 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-none text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98"
         >
           <Plus className="w-4 h-4" />
           <span>Redactar Ticket / Notificación</span>
@@ -339,7 +339,7 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-2"
+                    className="px-5 py-2 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-none text-xs font-bold flex items-center gap-2"
                   >
                     <Send className="w-3.5 h-3.5" />
                     <span>Enviar Ticket</span>
@@ -357,7 +357,7 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
                     <h3 className="text-sm font-bold text-slate-900">
                       {selectedTicket.subject}
                     </h3>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-[#9d2449]/10 text-[#9d2449] border border-[#9d2449]/20">
                       {selectedTicket.campanaTerritory}
                     </span>
                   </div>
@@ -371,7 +371,7 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
                   <select
                     value={selectedTicket.status}
                     onChange={(e) => handleChangeStatus(e.target.value)}
-                    className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:border-indigo-600"
+                    className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-none text-xs font-bold text-slate-800 focus:outline-none focus:border-[#9d2449]"
                   >
                     <option value="abierto">Abierto</option>
                     <option value="en_proceso">En Proceso</option>
@@ -394,10 +394,10 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
                         <span>•</span>
                         <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
-                      <div className={`p-3.5 rounded-2xl text-xs leading-relaxed ${
+                      <div className={`p-3.5 text-xs leading-relaxed ${
                         isSuper 
-                          ? 'bg-indigo-600 text-white rounded-br-xs shadow-xs' 
-                          : 'bg-white border border-slate-200 text-slate-800 rounded-bl-xs shadow-xs'
+                          ? 'bg-[#9d2449] text-white shadow-xs' 
+                          : 'bg-white border border-slate-200 text-slate-800 shadow-xs'
                       }`}>
                         {m.message}
                       </div>
@@ -414,12 +414,12 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
                   placeholder="Escribe una respuesta para el coordinador..."
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
-                  className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                  className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-none text-xs text-slate-900 focus:outline-none focus:border-[#9d2449]"
                 />
                 <button
                   type="submit"
                   disabled={sendingReply}
-                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-98 disabled:opacity-50"
+                  className="px-4 py-2.5 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-none text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer active:scale-98 disabled:opacity-50"
                 >
                   <Send className="w-3.5 h-3.5" />
                   <span>{sendingReply ? 'Enviando...' : 'Responder'}</span>

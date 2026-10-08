@@ -269,7 +269,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
     level: 'campana',
     territoryName: coordinator.territoryName,
     accountRoleLabel: 'Jefe de Campaña',
-    avatarBg: 'bg-indigo-600',
+    avatarBg: 'bg-[#9d2449]',
     assignedBy: 'Super Administrador (SaaS)',
   };
 
@@ -282,7 +282,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
             <button
               type="button"
               onClick={onBack}
-              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-none transition-colors cursor-pointer"
               title="Volver al escritorio"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -292,7 +292,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
                   Jefe de Campaña
                 </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-[#9d2449]/10 text-[#9d2449] border border-[#9d2449]/20">
                   {coordinator.territoryName}
                 </span>
               </div>
@@ -307,7 +307,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
             <button
               type="button"
               onClick={() => onEditCoordinator(coordinator.id)}
-              className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
+              className="px-3.5 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-98"
               title="Editar datos del coordinador"
             >
               <Pencil className="w-3.5 h-3.5 text-slate-600" />
@@ -318,7 +318,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
             <button
               type="button"
               onClick={() => onImpersonate(targetAccount)}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-xs hover:shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-98"
+              className="px-4 py-2 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-none text-xs font-bold shadow-xs hover:shadow-sm transition-all flex items-center gap-2 cursor-pointer active:scale-98"
               title="Iniciar sesión en la cuenta del coordinador"
             >
               <LogIn className="w-4 h-4" />
@@ -334,7 +334,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                   onBack();
                 }
               }}
-              className="p-2 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+              className="p-2 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-none text-xs font-bold transition-colors cursor-pointer"
               title="Eliminar Coordinador"
             >
               <Trash2 className="w-4 h-4" />
@@ -346,11 +346,11 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
       {/* 2. Contenido Principal */}
       <div className="max-w-7xl mx-auto w-full p-4 sm:p-8 space-y-6 flex-1">
         
-        {/* MAPA DE LA ZONA ASIGNADA ANTES DE LOS DATOS QUE OCUPA TODO EL ANCHO */}
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+        {/* MAPA DE LA ZONA ASIGNADA ANTES DE LOS DATOS QUE OCUPA TODO EL ANCHO (SIN RADIUS) */}
+        <div className="bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-indigo-600" />
+              <MapPin className="w-4 h-4 text-[#9d2449]" />
               <span className="text-xs font-bold text-slate-800">
                 Zona Asignada: {coordinator.territoryName}
               </span>
@@ -361,13 +361,13 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
               </span>
 
               {/* Selector de tipo de capa: Calles vs Satélite */}
-              <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+              <div className="flex items-center bg-white border border-slate-200 rounded-none p-0.5 shadow-2xs">
                 <button
                   type="button"
                   onClick={() => setMapLayer('streets')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
                     mapLayer === 'streets'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      ? 'bg-[#9d2449] text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -376,9 +376,9 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                 <button
                   type="button"
                   onClick={() => setMapLayer('sat')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded cursor-pointer transition-colors ${
+                  className={`px-2 py-0.5 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
                     mapLayer === 'sat'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      ? 'bg-[#9d2449] text-white shadow-2xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -390,13 +390,13 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
           <div ref={mapContainerRef} className="w-full h-80 sm:h-96 z-0" />
         </div>
 
-        {/* DISEÑO FLUIDO: DATOS GENERALES, CONTACTO Y MÉTRICAS */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-xs space-y-8">
+        {/* DISEÑO FLUIDO: DATOS GENERALES, CONTACTO Y MÉTRICAS (SIN RADIUS) */}
+        <div className="bg-white rounded-none border border-slate-200 p-6 sm:p-8 shadow-xs space-y-8">
           
           {/* Fila 1: Métricas de Equipo y Avance en línea fluida */}
           <div className="flex flex-wrap items-center justify-between gap-6 pb-6 border-b border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-black text-sm">
+              <div className="w-10 h-10 rounded-none bg-[#9d2449]/10 text-[#9d2449] flex items-center justify-center font-black text-sm">
                 <Building2 className="w-5 h-5" />
               </div>
               <div>
@@ -406,7 +406,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-black text-sm">
+              <div className="w-10 h-10 rounded-none bg-sky-50 text-sky-600 flex items-center justify-center font-black text-sm">
                 <Users className="w-5 h-5" />
               </div>
               <div>
@@ -416,7 +416,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm">
+              <div className="w-10 h-10 rounded-none bg-emerald-50 text-emerald-600 flex items-center justify-center font-black text-sm">
                 <UserCheck className="w-5 h-5" />
               </div>
               <div>
@@ -426,7 +426,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
             </div>
 
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm">
+              <div className="w-10 h-10 rounded-none bg-blue-50 text-blue-600 flex items-center justify-center font-black text-sm">
                 <Layers className="w-5 h-5" />
               </div>
               <div>
@@ -441,7 +441,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
             
             {/* Columna Izquierda: Acceso y Credenciales */}
             <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-indigo-700">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-[#9d2449]">
                 Acceso y Comunicación
               </h4>
 
@@ -461,7 +461,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                       type="button"
                       onClick={handleResetPassword}
                       disabled={isResettingPass}
-                      className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 rounded-none text-[11px] font-bold flex items-center gap-1 transition-colors cursor-pointer"
                       title="Restablecer contraseña y generar nueva clave temporal"
                     >
                       <KeyRound className="w-3 h-3 text-amber-700" />
@@ -471,7 +471,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                 </div>
 
                 {temporaryPassword && (
-                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl space-y-1">
+                  <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-none space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold text-amber-900">Nueva clave temporal:</span>
                       <button
@@ -486,7 +486,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                         {copiedKey === 'temp-pass' ? '¡Copiada!' : 'Copiar'}
                       </button>
                     </div>
-                    <p className="font-mono font-bold text-xs text-amber-950 bg-white/80 px-2 py-1 rounded border border-amber-200">
+                    <p className="font-mono font-bold text-xs text-amber-950 bg-white/80 px-2 py-1 rounded-none border border-amber-200">
                       {temporaryPassword}
                     </p>
                     {resetFeedback && (
@@ -503,7 +503,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                       <div className="flex items-center gap-1.5">
                         <a
                           href={`tel:${cleanPhone}`}
-                          className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded-none transition-colors cursor-pointer"
                           title="Llamar directamente"
                         >
                           <Phone className="w-3.5 h-3.5" />
@@ -511,7 +511,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                         <button
                           type="button"
                           onClick={handleSendWhatsApp}
-                          className="p-1.5 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 rounded-none transition-colors cursor-pointer"
                           title="Enviar mensaje por WhatsApp"
                         >
                           <OfficialWhatsAppIcon className="w-3.5 h-3.5 text-[#25D366]" />
@@ -528,7 +528,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                     {email && (
                       <a
                         href={`mailto:${email}`}
-                        className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 bg-slate-100 text-slate-600 hover:bg-slate-200 rounded-none transition-colors cursor-pointer"
                         title="Enviar correo"
                       >
                         <Mail className="w-3.5 h-3.5" />
@@ -543,7 +543,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                 <button
                   type="button"
                   onClick={handleCopyCredentials}
-                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-none text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                 >
                   {copiedKey === 'credentials' ? (
                     <>
@@ -562,7 +562,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
                   <button
                     type="button"
                     onClick={handleSendWhatsApp}
-                    className="px-4 py-2 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98"
+                    className="px-4 py-2 bg-[#25D366] hover:bg-[#20ba59] text-white rounded-none text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98"
                   >
                     <OfficialWhatsAppIcon className="w-4 h-4 text-white" />
                     <span>WhatsApp</span>
@@ -573,16 +573,16 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
 
             {/* Columna Derecha: Delimitación de Secciones */}
             <div className="space-y-4">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-indigo-700">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider text-[#9d2449]">
                 Secciones Electorales Asignadas
               </h4>
 
               {coordinator.assignedSections && coordinator.assignedSections.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-3 bg-slate-50 rounded-none border border-slate-100">
                   {coordinator.assignedSections.map(sec => (
                     <span
                       key={sec}
-                      className="px-2 py-0.5 bg-white border border-slate-200 rounded-md text-[11px] font-mono font-bold text-slate-700"
+                      className="px-2 py-0.5 bg-white border border-slate-200 rounded-none text-[11px] font-mono font-bold text-slate-700"
                     >
                       {sec}
                     </span>

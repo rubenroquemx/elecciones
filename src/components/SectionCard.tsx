@@ -49,7 +49,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
     : 0;
 
   return (
-    <div className="apple-card card-emil-interactive overflow-hidden flex flex-col">
+    <div className="apple-card card-emil-interactive overflow-hidden flex flex-col !rounded-none">
       {/* Map Thumbnail & Header Area */}
       <div className="p-4 pb-2">
         <SectionMapThumbnail
@@ -72,12 +72,12 @@ export const SectionCard: React.FC<SectionCardProps> = ({
               <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
                 Sección {section.sectionNumber}
               </h3>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-none border ${
                 section.tipo === 'Urbana' 
                   ? 'bg-sky-50 text-sky-700 border-sky-200' 
                   : section.tipo === 'Rural'
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                  : 'bg-purple-50 text-purple-700 border-purple-200'
+                  : 'bg-[#9d2449]/10 text-[#9d2449] border-[#9d2449]/20'
               }`}>
                 {section.tipo}
               </span>
@@ -90,7 +90,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           <button
             type="button"
             onClick={() => onEditSection(section)}
-            className="text-[11px] font-medium text-slate-400 hover:text-slate-700 p-1 hover:bg-slate-100 rounded-md transition-colors"
+            className="text-[11px] font-medium text-slate-400 hover:text-slate-700 p-1 hover:bg-slate-100 rounded-none transition-colors"
             title="Editar datos de sección"
           >
             Editar
@@ -104,7 +104,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
           <button
             type="button"
             onClick={() => onViewSectionDetail(section.sectionNumber)}
-            className="w-full py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold rounded-xl border border-indigo-200 transition-all flex items-center justify-center gap-1.5 shadow-2xs hover:shadow cursor-pointer"
+            className="w-full py-2 px-3 bg-[#9d2449]/10 hover:bg-[#9d2449]/20 text-[#9d2449] text-xs font-bold rounded-none border border-[#9d2449]/30 transition-all flex items-center justify-center gap-1.5 shadow-2xs hover:shadow cursor-pointer"
           >
             <Trophy className="w-3.5 h-3.5 text-amber-500" />
             <span>Ver Expediente y Meta 2027</span>
@@ -139,7 +139,7 @@ export const SectionCard: React.FC<SectionCardProps> = ({
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-indigo-600" />
+              <Layers className="w-3.5 h-3.5 text-[#9d2449]" />
               Estructuras en Sección ({section.structures.length})
             </span>
             <button

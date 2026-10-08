@@ -44,7 +44,7 @@ export const PrintableSectionReport: React.FC<PrintableSectionReportProps> = ({
             <button
               type="button"
               onClick={handlePrint}
-              className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-1.5 bg-[#9d2449] hover:bg-[#801d3b] text-white font-bold text-xs rounded-none shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>Imprimir Documento</span>

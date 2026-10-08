@@ -136,13 +136,13 @@ export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
 
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Modo de Vista: Tarjetas vs Mapa OSM */}
-            <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
+            <div className="flex items-center bg-white p-1 rounded-none border border-slate-200 shadow-2xs">
               <button
                 type="button"
                 onClick={() => setDisplayMode('cards')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                className={`px-3 py-1.5 rounded-none text-xs font-bold flex items-center gap-1.5 transition-colors ${
                   displayMode === 'cards'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-[#9d2449] text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -152,9 +152,9 @@ export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
               <button
                 type="button"
                 onClick={() => setDisplayMode('map')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
+                className={`px-3 py-1.5 rounded-none text-xs font-bold flex items-center gap-1.5 transition-colors ${
                   displayMode === 'map'
-                    ? 'bg-indigo-600 text-white shadow-xs'
+                    ? 'bg-[#9d2449] text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -170,7 +170,7 @@ export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
                 setEditingSection(null);
                 setIsCreateModalOpen(true);
               }}
-              className="flex items-center gap-2 px-4 py-2.5 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl shadow-sm transition-all self-start sm:self-auto hover:shadow"
+              className="flex items-center gap-2 px-4 py-2.5 bg-[#9d2449] hover:bg-[#801d3b] text-white text-xs font-bold rounded-none shadow-sm transition-all self-start sm:self-auto hover:shadow"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Nueva Sección o Estructura</span>
@@ -180,22 +180,22 @@ export const SectionsCatalogView: React.FC<SectionsCatalogViewProps> = ({
 
         {/* Global Overview KPI Ribbon */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
-          <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs">
+          <div className="bg-white border border-slate-200 p-3.5 rounded-none shadow-xs">
             <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-sky-600" /> Total Cartografía INE
             </span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-xl font-bold text-slate-900">{sections.length.toLocaleString()}</span>
-              <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.2 rounded">100% Estado</span>
+              <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.2 rounded-none">100% Estado</span>
             </div>
           </div>
 
-          <div className="bg-white border border-slate-200 p-3.5 rounded-xl shadow-xs">
+          <div className="bg-white border border-slate-200 p-3.5 rounded-none shadow-xs">
             <span className="text-[11px] text-slate-500 font-medium flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-indigo-600" /> Secciones con Estructura
+              <Layers className="w-3.5 h-3.5 text-[#9d2449]" /> Secciones con Estructura
             </span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-xl font-bold text-indigo-700">{sectionsWithStructuresCount}</span>
+              <span className="text-xl font-bold text-[#9d2449]">{sectionsWithStructuresCount}</span>
               <span className="text-[10px] text-slate-400">({totalStructures} estructuras)</span>
             </div>
           </div>
