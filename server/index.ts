@@ -139,6 +139,66 @@ function writeAccountsStore(accounts: any[]) {
   }
 }
 
+const WHATSAPP_CONFIG_FILE = path.join(STORE_DIR, 'whatsapp_config.json');
+
+interface WhatsAppConfig {
+  apiUrl: string;
+  apiKey: string;
+  instanceName: string;
+  autoOtpEnabled: boolean;
+  countryCode: string;
+}
+
+function readWhatsAppConfig(): WhatsAppConfig {
+  try {
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    if (fs.existsSync(WHATSAPP_CONFIG_FILE)) {
+      const data = JSON.parse(fs.readFileSync(WHATSAPP_CONFIG_FILE, 'utf-8'));
+      return {
+        apiUrl: data.apiUrl || process.env.EVOLUTION_API_URL || '',
+        apiKey: data.apiKey || process.env.EVOLUTION_API_KEY || '',
+        instanceName: data.instanceName || process.env.EVOLUTION_INSTANCE_NAME || 'validador-territorial',
+        autoOtpEnabled: data.autoOtpEnabled !== false,
+        countryCode: data.countryCode || '52',
+      };
+    }
+  } catch (e) {}
+  return {
+    apiUrl: process.env.EVOLUTION_API_URL || '',
+    apiKey: process.env.EVOLUTION_API_KEY || '',
+    instanceName: process.env.EVOLUTION_INSTANCE_NAME || 'validador-territorial',
+    autoOtpEnabled: true,
+    countryCode: '52',
+  };
+}
+
+function writeWhatsAppConfig(config: WhatsAppConfig) {
+  try {
+    if (!fs.existsSync(STORE_DIR)) fs.mkdirSync(STORE_DIR, { recursive: true });
+    fs.writeFileSync(WHATSAPP_CONFIG_FILE, JSON.stringify(config, null, 2), 'utf-8');
+  } catch (e) {
+    console.warn('Error writing WhatsApp config:', e);
+  }
+}
+
+// In-memory OTP store para validación de seguridad (expira en 10 minutos)
+interface OtpEntry {
+  code: string;
+  phone: string;
+  userId: string;
+  expiresAt: number;
+}
+const otpStore = new Map<string, OtpEntry>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of otpStore.entries()) {
+    if (v.expiresAt < now) {
+      otpStore.delete(k);
+    }
+  }
+}, 60000);
+
 const app = express();
 const prisma = new PrismaClient();
 const PORT = Number(process.env.PORT) || 3000;
@@ -312,6 +372,9 @@ app.post('/api/accounts', async (req, res) => {
           territoryName: data.territoryName || '',
           accountRoleLabel: data.accountRoleLabel || 'Jefe de Campaña',
           avatarBg: data.avatarBg || 'bg-[#9d2449]',
+          phone: data.phone || null,
+          aboutMe: data.aboutMe || null,
+          picture: data.picture || null,
           isSuperAdmin: Boolean(data.isSuperAdmin),
         },
         create: {
@@ -325,6 +388,9 @@ app.post('/api/accounts', async (req, res) => {
           territoryName: data.territoryName || '',
           accountRoleLabel: data.accountRoleLabel || 'Jefe de Campaña',
           avatarBg: data.avatarBg || 'bg-[#9d2449]',
+          phone: data.phone || null,
+          aboutMe: data.aboutMe || null,
+          picture: data.picture || null,
           isSuperAdmin: Boolean(data.isSuperAdmin),
         },
       });
@@ -366,6 +432,493 @@ app.delete('/api/accounts/:id', async (req, res) => {
     res.json({ success: true, deletedId: id });
   } catch (err: any) {
     res.status(500).json({ error: 'Error al eliminar cuenta', message: err.message });
+  }
+});
+
+// --- RUTAS DE PERFIL DE USUARIO Y VALIDACIÓN POR WHATSAPP (EVOLUTION API) ---
+
+// Actualizar datos del perfil de usuario (Nombre, Usuario, Teléfono, Correo, Acerca de mí, Foto selfie)
+app.put('/api/profile', async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'No autorizado o ID no provisto' });
+    }
+
+    const { name, username, email, phone, aboutMe, picture } = req.body;
+    const cleanUser = username !== undefined ? String(username).trim().toLowerCase().replace(/^@+/, '') : undefined;
+    const cleanEmail = email !== undefined ? String(email).trim().toLowerCase() : undefined;
+    const cleanPhone = phone !== undefined ? String(phone).trim() : undefined;
+    const cleanName = name !== undefined ? String(name).trim() : undefined;
+    const cleanAbout = aboutMe !== undefined ? String(aboutMe).trim() : undefined;
+
+    // 1. Actualizar en PostgreSQL
+    let updatedInDb: any = null;
+    try {
+      updatedInDb = await prisma.userAccount.update({
+        where: { id: userId },
+        data: {
+          ...(cleanName ? { name: cleanName } : {}),
+          ...(cleanUser ? { username: cleanUser } : {}),
+          ...(cleanEmail ? { email: cleanEmail } : {}),
+          ...(cleanPhone !== undefined ? { phone: cleanPhone } : {}),
+          ...(cleanAbout !== undefined ? { aboutMe: cleanAbout } : {}),
+          ...(picture !== undefined ? { picture } : {}),
+        }
+      });
+    } catch (e: any) {
+      if (cleanEmail) {
+        try {
+          updatedInDb = await prisma.userAccount.update({
+            where: { email: cleanEmail },
+            data: {
+              ...(cleanName ? { name: cleanName } : {}),
+              ...(cleanUser ? { username: cleanUser } : {}),
+              ...(cleanPhone !== undefined ? { phone: cleanPhone } : {}),
+              ...(cleanAbout !== undefined ? { aboutMe: cleanAbout } : {}),
+              ...(picture !== undefined ? { picture } : {}),
+            }
+          });
+        } catch {}
+      }
+    }
+
+    // 2. Actualizar en accounts_store.json
+    const accounts = readAccountsStore();
+    const accIdx = accounts.findIndex((a: any) => a.id === userId || (cleanEmail && a.email === cleanEmail));
+    if (accIdx >= 0) {
+      accounts[accIdx] = {
+        ...accounts[accIdx],
+        ...(cleanName ? { name: cleanName } : {}),
+        ...(cleanUser ? { username: cleanUser } : {}),
+        ...(cleanEmail ? { email: cleanEmail } : {}),
+        ...(cleanPhone !== undefined ? { phone: cleanPhone } : {}),
+        ...(cleanAbout !== undefined ? { aboutMe: cleanAbout } : {}),
+        ...(picture !== undefined ? { picture } : {}),
+        updatedAt: new Date().toISOString(),
+      };
+      writeAccountsStore(accounts);
+    }
+
+    // 3. Sincronizar en líder si tiene leaderId asociado
+    const leaderId = updatedInDb?.leaderId || accounts[accIdx]?.leaderId;
+    if (leaderId) {
+      try {
+        await prisma.leader.update({
+          where: { id: leaderId },
+          data: {
+            ...(cleanName ? { name: cleanName } : {}),
+            ...(cleanPhone !== undefined ? { phone: cleanPhone } : {}),
+            ...(cleanEmail ? { email: cleanEmail } : {}),
+            ...(cleanUser ? { username: cleanUser } : {}),
+            ...(picture !== undefined ? { photoUrl: picture } : {}),
+          }
+        });
+      } catch {}
+
+      const leadersStore = readBackupStore();
+      const lIdx = leadersStore.findIndex((l: any) => l.id === leaderId);
+      if (lIdx >= 0) {
+        leadersStore[lIdx] = {
+          ...leadersStore[lIdx],
+          ...(cleanName ? { name: cleanName } : {}),
+          ...(cleanPhone !== undefined ? { phone: cleanPhone } : {}),
+          ...(cleanEmail ? { email: cleanEmail } : {}),
+          ...(cleanUser ? { username: cleanUser } : {}),
+          ...(picture !== undefined ? { photoUrl: picture } : {}),
+        };
+        writeBackupStore(leadersStore);
+      }
+    }
+
+    const result = updatedInDb || (accIdx >= 0 ? accounts[accIdx] : { id: userId, ...req.body });
+    const safeResult = { ...result };
+    delete safeResult.password;
+    res.json({ success: true, user: safeResult });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al actualizar perfil', message: err.message });
+  }
+});
+
+// Solicitar código OTP de 6 dígitos por WhatsApp
+app.post('/api/auth/profile/send-otp', async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    let targetUser: any = null;
+    try {
+      targetUser = await prisma.userAccount.findUnique({ where: { id: userId } });
+    } catch {}
+    if (!targetUser) {
+      const store = readAccountsStore();
+      targetUser = store.find((a: any) => a.id === userId);
+    }
+
+    const rawPhone = req.body.phone || targetUser?.phone;
+    const digits = String(rawPhone || '').replace(/\D/g, '');
+
+    if (!digits || digits.length < 10) {
+      return res.status(400).json({ 
+        error: 'El usuario no tiene un número telefónico válido de 10 dígitos asignado. Por favor guarda tu teléfono primero en el perfil.' 
+      });
+    }
+
+    const otpCode = String(Math.floor(100000 + Math.random() * 900000));
+    otpStore.set(userId, {
+      code: otpCode,
+      phone: digits,
+      userId,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+
+    const maskedPhone = digits.slice(-4).padStart(digits.length, '*');
+    const config = readWhatsAppConfig();
+    const apiUrl = (config.apiUrl || '').trim().replace(/\/+$/, '');
+    const apiKey = (config.apiKey || '').trim();
+    const instanceName = (config.instanceName || 'validador-territorial').trim();
+
+    let sentViaEvolution = false;
+    let evolutionError: string | null = null;
+
+    if (apiUrl && apiKey) {
+      try {
+        let fullNumber = digits;
+        if (digits.length === 10) {
+          fullNumber = `${config.countryCode || '52'}${digits}`;
+        }
+
+        const msgText = `🔐 *VERTEX ELECTORAL - CÓDIGO DE SEGURIDAD*\n\n` +
+          `Tu código de verificación para reestablecer tu contraseña es:\n\n` +
+          `👉 *${otpCode}*\n\n` +
+          `⏱️ Válido durante 10 minutos.\n` +
+          `Por tu seguridad, no compartas este código con nadie.`;
+
+        const waRes = await fetch(`${apiUrl}/message/sendText/${encodeURIComponent(instanceName)}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': apiKey,
+          },
+          body: JSON.stringify({
+            number: fullNumber,
+            text: msgText,
+          }),
+        });
+
+        if (waRes.ok) {
+          sentViaEvolution = true;
+        } else {
+          evolutionError = await waRes.text().catch(() => 'Error de respuesta en Evolution API');
+        }
+      } catch (e: any) {
+        evolutionError = e.message;
+      }
+    }
+
+    if (sentViaEvolution) {
+      res.json({
+        success: true,
+        method: 'evolution',
+        message: `Código enviado exitosamente a tu WhatsApp (${maskedPhone}).`,
+        maskedPhone,
+      });
+    } else {
+      const waFallbackLink = `https://wa.me/52${digits.slice(-10)}?text=${encodeURIComponent(`VERTEX - Tu código de verificación es: ${otpCode}`)}`;
+      res.json({
+        success: true,
+        method: 'fallback',
+        message: 'Evolution API no está conectado aún en el servidor. Puedes verificar con tu contraseña actual o enviar el código con WhatsApp Web.',
+        waLink: waFallbackLink,
+        maskedPhone,
+        debugError: evolutionError,
+      });
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al generar código OTP', message: err.message });
+  }
+});
+
+// Reestablecer contraseña con OTP o Contraseña Actual
+app.post('/api/auth/profile/reset-password', async (req, res) => {
+  try {
+    const userId = req.user?.id || req.body.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'No autorizado' });
+    }
+
+    const { currentPassword, otpCode, newPassword } = req.body;
+    if (!newPassword || String(newPassword).trim().length < 6) {
+      return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+    }
+
+    let currentUser: any = null;
+    try {
+      currentUser = await prisma.userAccount.findUnique({ where: { id: userId } });
+    } catch {}
+    if (!currentUser) {
+      const store = readAccountsStore();
+      currentUser = store.find((a: any) => a.id === userId);
+    }
+
+    if (!currentUser) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    let isAuthorized = false;
+    if (otpCode) {
+      const entry = otpStore.get(userId);
+      if (entry && entry.expiresAt > Date.now() && entry.code === String(otpCode).trim()) {
+        isAuthorized = true;
+        otpStore.delete(userId);
+      } else {
+        return res.status(400).json({ error: 'Código de verificación de WhatsApp incorrecto o expirado' });
+      }
+    } else if (currentPassword) {
+      const currentHashOrPlain = currentUser.password;
+      if (!currentHashOrPlain) {
+        isAuthorized = true;
+      } else {
+        isAuthorized = await verifyPassword(String(currentPassword).trim(), currentHashOrPlain);
+        if (!isAuthorized) {
+          return res.status(400).json({ error: 'La contraseña actual ingresada es incorrecta' });
+        }
+      }
+    } else {
+      return res.status(400).json({ 
+        error: 'Debes proporcionar el código de WhatsApp recibido o tu contraseña actual para autorizar el cambio' 
+      });
+    }
+
+    const cleanNewPass = String(newPassword).trim();
+    const newHash = await hashPassword(cleanNewPass);
+
+    try {
+      await prisma.userAccount.update({
+        where: { id: userId },
+        data: { password: newHash }
+      });
+    } catch (e: any) {
+      try {
+        await prisma.userAccount.update({
+          where: { email: currentUser.email },
+          data: { password: newHash }
+        });
+      } catch {}
+    }
+
+    const accounts = readAccountsStore();
+    const accIdx = accounts.findIndex((a: any) => a.id === userId || a.email === currentUser.email);
+    if (accIdx >= 0) {
+      accounts[accIdx].password = newHash;
+      accounts[accIdx].updatedAt = new Date().toISOString();
+      writeAccountsStore(accounts);
+    }
+
+    res.json({ success: true, message: 'Contraseña actualizada con éxito' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al cambiar contraseña', message: err.message });
+  }
+});
+
+// Configuración de Evolution API
+app.get('/api/whatsapp/config', (_req, res) => {
+  try {
+    const config = readWhatsAppConfig();
+    res.json({
+      apiUrl: config.apiUrl,
+      instanceName: config.instanceName,
+      hasApiKey: Boolean(config.apiKey),
+      isConfigured: Boolean(config.apiUrl && config.apiKey),
+      countryCode: config.countryCode,
+      autoOtpEnabled: config.autoOtpEnabled,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al leer configuración de WhatsApp', message: err.message });
+  }
+});
+
+app.post('/api/whatsapp/config', (req, res) => {
+  try {
+    const { apiUrl, apiKey, instanceName, countryCode, autoOtpEnabled } = req.body;
+    const current = readWhatsAppConfig();
+    const updated: WhatsAppConfig = {
+      apiUrl: apiUrl !== undefined ? String(apiUrl).trim().replace(/\/+$/, '') : current.apiUrl,
+      apiKey: apiKey !== undefined ? String(apiKey).trim() : current.apiKey,
+      instanceName: instanceName !== undefined ? String(instanceName).trim() : current.instanceName,
+      countryCode: countryCode !== undefined ? String(countryCode).trim() : current.countryCode,
+      autoOtpEnabled: autoOtpEnabled !== undefined ? Boolean(autoOtpEnabled) : current.autoOtpEnabled,
+    };
+    writeWhatsAppConfig(updated);
+    res.json({ success: true, config: { ...updated, apiKey: '***' } });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al guardar configuración de WhatsApp', message: err.message });
+  }
+});
+
+// Iniciar conexión y obtener Código QR de Evolution API
+app.post('/api/whatsapp/instance/connect', async (_req, res) => {
+  try {
+    const config = readWhatsAppConfig();
+    const apiUrl = (config.apiUrl || '').trim().replace(/\/+$/, '');
+    const apiKey = (config.apiKey || '').trim();
+    const instanceName = (config.instanceName || 'validador-territorial').trim();
+
+    if (!apiUrl || !apiKey) {
+      return res.status(400).json({ 
+        error: 'Evolution API no configurada. Por favor ingresa la URL y la API Key en el panel.' 
+      });
+    }
+
+    try {
+      await fetch(`${apiUrl}/instance/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiKey,
+        },
+        body: JSON.stringify({
+          instanceName: instanceName,
+          token: apiKey,
+          qrcode: true,
+          integration: 'WHATSAPP-BAILEYS',
+        }),
+      });
+    } catch (e: any) {
+      console.warn('Aviso en instance/create (puede que ya exista):', e.message);
+    }
+
+    const connectRes = await fetch(`${apiUrl}/instance/connect/${encodeURIComponent(instanceName)}`, {
+      method: 'GET',
+      headers: {
+        'apikey': apiKey,
+      },
+    });
+
+    if (!connectRes.ok) {
+      const errTxt = await connectRes.text();
+      return res.status(connectRes.status).json({ 
+        error: `Error al conectar con Evolution API (${connectRes.status}): ${errTxt}` 
+      });
+    }
+
+    const data: any = await connectRes.json();
+    const qrBase64 = data.base64 || data.qrcode?.base64 || (data.code?.startsWith('data:image') ? data.code : null);
+    const pairingCode = data.pairingCode || data.code || null;
+    const isAlreadyOpen = data.instance?.state === 'open' || data.state === 'open';
+
+    res.json({
+      success: true,
+      instanceName,
+      qrcode: qrBase64,
+      pairingCode,
+      isAlreadyOpen,
+      raw: data,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al solicitar QR en Evolution API', message: err.message });
+  }
+});
+
+// Consultar estado de conexión de la instancia
+app.get('/api/whatsapp/instance/status', async (_req, res) => {
+  try {
+    const config = readWhatsAppConfig();
+    const apiUrl = (config.apiUrl || '').trim().replace(/\/+$/, '');
+    const apiKey = (config.apiKey || '').trim();
+    const instanceName = (config.instanceName || 'validador-territorial').trim();
+
+    if (!apiUrl || !apiKey) {
+      return res.json({ configured: false, state: 'unconfigured', isConnected: false });
+    }
+
+    const stateRes = await fetch(`${apiUrl}/instance/connectionState/${encodeURIComponent(instanceName)}`, {
+      headers: { 'apikey': apiKey },
+    });
+
+    if (!stateRes.ok) {
+      return res.json({ configured: true, state: 'close', isConnected: false, statusHttp: stateRes.status });
+    }
+
+    const data: any = await stateRes.json();
+    const state = data.instance?.state || data.state || 'close';
+    res.json({
+      configured: true,
+      instanceName,
+      state,
+      isConnected: state === 'open',
+    });
+  } catch (err: any) {
+    res.json({ configured: true, state: 'error', isConnected: false, error: err.message });
+  }
+});
+
+// Desconectar o cerrar sesión de la instancia de WhatsApp
+app.post('/api/whatsapp/instance/disconnect', async (_req, res) => {
+  try {
+    const config = readWhatsAppConfig();
+    const apiUrl = (config.apiUrl || '').trim().replace(/\/+$/, '');
+    const apiKey = (config.apiKey || '').trim();
+    const instanceName = (config.instanceName || 'validador-territorial').trim();
+
+    if (!apiUrl || !apiKey) {
+      return res.status(400).json({ error: 'Evolution API no configurada.' });
+    }
+
+    const discRes = await fetch(`${apiUrl}/instance/logout/${encodeURIComponent(instanceName)}`, {
+      method: 'DELETE',
+      headers: { 'apikey': apiKey },
+    });
+
+    res.json({ success: discRes.ok, message: 'Instancia desconectada' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al desconectar instancia', message: err.message });
+  }
+});
+
+// Enviar mensaje de prueba por WhatsApp
+app.post('/api/whatsapp/test-message', async (req, res) => {
+  try {
+    const { number, message } = req.body;
+    if (!number) return res.status(400).json({ error: 'Número de teléfono requerido' });
+
+    const config = readWhatsAppConfig();
+    const apiUrl = (config.apiUrl || '').trim().replace(/\/+$/, '');
+    const apiKey = (config.apiKey || '').trim();
+    const instanceName = (config.instanceName || 'validador-territorial').trim();
+
+    if (!apiUrl || !apiKey) {
+      return res.status(400).json({ error: 'Evolution API no configurada.' });
+    }
+
+    let digits = String(number).replace(/\D/g, '');
+    if (digits.length === 10) {
+      digits = `${config.countryCode || '52'}${digits}`;
+    }
+
+    const sendRes = await fetch(`${apiUrl}/message/sendText/${encodeURIComponent(instanceName)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': apiKey,
+      },
+      body: JSON.stringify({
+        number: digits,
+        text: message || '✅ Prueba de conexión exitosa desde VERTEX Electoral.',
+      }),
+    });
+
+    if (!sendRes.ok) {
+      const errTxt = await sendRes.text();
+      return res.status(sendRes.status).json({ error: `Error enviando mensaje (${sendRes.status}): ${errTxt}` });
+    }
+
+    const data = await sendRes.json();
+    res.json({ success: true, result: data });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al enviar mensaje de prueba', message: err.message });
   }
 });
 
@@ -1758,6 +2311,8 @@ async function ensureDbSchema() {
       ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "vigencia" TEXT;
       ALTER TABLE "Leader" ADD COLUMN IF NOT EXISTS "changelog" JSONB;
       ALTER TABLE "UserAccount" ADD COLUMN IF NOT EXISTS "password" TEXT;
+      ALTER TABLE "UserAccount" ADD COLUMN IF NOT EXISTS "phone" TEXT;
+      ALTER TABLE "UserAccount" ADD COLUMN IF NOT EXISTS "aboutMe" TEXT;
     `);
     console.log('✓ Columnas de esquema verificadas en base de datos PostgreSQL.');
   } catch (err: any) {

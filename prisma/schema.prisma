@@ -92,7 +92,9 @@ model UserAccount {
   level            String   // 'admin' | 'estatal' | 'distrital' | 'territorial' | 'seccional' | 'promotor'
   territoryName    String
   avatarBg         String?
-  picture          String?
+  picture          String?  @db.Text
+  phone            String?
+  aboutMe          String?  @db.Text
   isSuperAdmin     Boolean  @default(false)
   accountRoleLabel String
   createdAt        DateTime @default(now())

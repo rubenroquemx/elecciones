@@ -22,7 +22,7 @@ import { ClosedSystemLoginScreen } from './components/ClosedSystemLoginScreen';
 import { CreateManualUserModal } from './components/CreateManualUserModal';
 import { PromoterNotificationsModal } from './components/PromoterNotificationsModal';
 import { CampanaTicketsModal } from './components/CampanaTicketsModal';
-import { ConfiguracionPlaceholderPage } from './components/ConfiguracionPlaceholderPage';
+import { ConfiguracionPage } from './components/ConfiguracionPage';
 import { AcercaDePlaceholderPage } from './components/AcercaDePlaceholderPage';
 
 // Code-split heavy views via React.lazy for optimal initial bundle size and PWA responsiveness
@@ -1311,6 +1311,7 @@ export function App() {
           onOpenCreateUser={() => setIsCreateUserModalOpen(true)}
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleCollapse={handleToggleSidebarCollapse}
+          onNavChange={handleNavChange}
         />
 
         {/* Banner de Impersonación Activa (Superadmin auditando cuenta de Coordinador de Campaña) */}
@@ -1735,9 +1736,17 @@ export function App() {
                 />
               )}
 
-              {/* 12. CONFIGURACIÓN (PÁGINA EN BLANCO) */}
+              {/* 12. CONFIGURACIÓN */}
               {activeNav === 'configuracion' && (
-                <ConfiguracionPlaceholderPage />
+                <ConfiguracionPage
+                  currentUser={currentUser}
+                  onUpdateCurrentUser={(updated) => {
+                    setCurrentUser(updated);
+                    setAccounts((prev) =>
+                      prev.map((a) => (a.id === updated.id || a.email === updated.email ? { ...a, ...updated } : a))
+                    );
+                  }}
+                />
               )}
 
               {/* 13. ACERCA DE (PÁGINA EN BLANCO) */}

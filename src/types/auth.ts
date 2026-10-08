@@ -7,6 +7,7 @@ export interface UserAccount {
   email: string;
   password?: string;
   phone?: string;
+  aboutMe?: string;
   leaderId: string | null; // null for Superadmin / Global view
   level: TerritorialLevel | 'admin';
   territoryName: string;

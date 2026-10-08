@@ -232,51 +232,49 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
 
-            {/* 5. SECCIONES PARA COORDINADOR DE CAMPAÑA */}
-            {isCampana && (
-              <div className="mt-auto pt-4 border-t border-white/[0.08] space-y-1.5">
+            {/* 5. SECCIONES GENERALES (Para todas las cuentas de todos los niveles) */}
+            <div className="mt-auto pt-4 border-t border-white/[0.08] space-y-1.5">
 
-                {/* 2. Configuración */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onNavChange('configuracion');
-                    onCloseMobile?.();
-                  }}
-                  title="Configuración"
-                  className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
-                  } ${
-                    activeNav === 'configuracion'
-                      ? 'bg-[#9d2449] text-white shadow-xs'
-                      : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
-                  }`}
-                >
-                  <Settings className={`w-5 h-5 shrink-0 ${activeNav === 'configuracion' ? 'text-white' : 'text-slate-400'}`} />
-                  {!isCollapsed && <span>Configuración</span>}
-                </button>
+              {/* Configuración */}
+              <button
+                type="button"
+                onClick={() => {
+                  onNavChange('configuracion');
+                  onCloseMobile?.();
+                }}
+                title="Configuración"
+                className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                } ${
+                  activeNav === 'configuracion'
+                    ? 'bg-[#9d2449] text-white shadow-xs'
+                    : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                }`}
+              >
+                <Settings className={`w-5 h-5 shrink-0 ${activeNav === 'configuracion' ? 'text-white' : 'text-slate-400'}`} />
+                {!isCollapsed && <span>Configuración</span>}
+              </button>
 
-                {/* 3. Acerca de */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    onNavChange('acerca-de');
-                    onCloseMobile?.();
-                  }}
-                  title="Acerca de"
-                  className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
-                    isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
-                  } ${
-                    activeNav === 'acerca-de'
-                      ? 'bg-[#9d2449] text-white shadow-xs'
-                      : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
-                  }`}
-                >
-                  <HelpCircle className={`w-5 h-5 shrink-0 ${activeNav === 'acerca-de' ? 'text-white' : 'text-slate-400'}`} />
-                  {!isCollapsed && <span>Acerca de</span>}
-                </button>
-              </div>
-            )}
+              {/* Acerca de */}
+              <button
+                type="button"
+                onClick={() => {
+                  onNavChange('acerca-de');
+                  onCloseMobile?.();
+                }}
+                title="Acerca de"
+                className={`w-full flex items-center rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                } ${
+                  activeNav === 'acerca-de'
+                    ? 'bg-[#9d2449] text-white shadow-xs'
+                    : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                }`}
+              >
+                <HelpCircle className={`w-5 h-5 shrink-0 ${activeNav === 'acerca-de' ? 'text-white' : 'text-slate-400'}`} />
+                {!isCollapsed && <span>Acerca de</span>}
+              </button>
+            </div>
           </div>
 
           {/* Quick Actions & Data Controls: Oculto para Coordinador de Campaña y Superadmin */}

@@ -195,3 +195,135 @@ export async function impersonateUserApi(accountId?: string, leaderId?: string |
     return null;
   }
 }
+
+// Actualizar perfil de usuario
+export async function updateUserProfileApi(userData: any): Promise<{ success: boolean; user?: any; error?: string }> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/profile`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userData),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error || `Error ${res.status}` };
+    }
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Solicitar código OTP por WhatsApp
+export async function sendProfileOtpApi(phone?: string): Promise<{ success: boolean; method?: string; message?: string; waLink?: string; maskedPhone?: string; error?: string }> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/auth/profile/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || `Error ${res.status}` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Cambiar contraseña con código OTP o Contraseña Actual
+export async function resetProfilePasswordApi(payload: {
+  currentPassword?: string;
+  otpCode?: string;
+  newPassword: string;
+}): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/auth/profile/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      return { success: false, error: data.error || `Error ${res.status}` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Obtener configuración de Evolution API
+export async function getWhatsAppConfigApi(): Promise<any> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/whatsapp/config`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+// Guardar configuración de Evolution API
+export async function saveWhatsAppConfigApi(config: any): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/whatsapp/config`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(config),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Obtener QR o conectar instancia Evolution API
+export async function connectWhatsAppInstanceApi(): Promise<any> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/whatsapp/instance/connect`, {
+      method: 'POST',
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Estado de la instancia Evolution API
+export async function getWhatsAppInstanceStatusApi(): Promise<any> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/whatsapp/instance/status`);
+    if (!res.ok) return { isConnected: false, state: 'close' };
+    return await res.json();
+  } catch {
+    return { isConnected: false, state: 'error' };
+  }
+}
+
+// Desconectar instancia Evolution API
+export async function disconnectWhatsAppInstanceApi(): Promise<any> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/whatsapp/instance/disconnect`, {
+      method: 'POST',
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// Enviar mensaje de prueba Evolution API
+export async function sendWhatsAppTestMessageApi(number: string, message?: string): Promise<any> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/whatsapp/test-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number, message }),
+    });
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}

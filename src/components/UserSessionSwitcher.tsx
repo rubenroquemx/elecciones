@@ -6,7 +6,8 @@ import {
   LogOut,
   Mail,
   MapPin,
-  CheckCircle2
+  CheckCircle2,
+  User
 } from 'lucide-react';
 
 interface UserSessionSwitcherProps {
@@ -16,11 +17,13 @@ interface UserSessionSwitcherProps {
   onLogout?: () => void;
   accounts?: UserAccount[];
   onOpenCreateUser?: () => void;
+  onOpenProfile?: () => void;
 }
 
 export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
   currentUser,
   onLogout,
+  onOpenProfile,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -104,6 +107,23 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
               <span className="truncate">{currentUser.territoryName}</span>
             </div>
           </div>
+
+          {/* Quick Profile Link */}
+          {onOpenProfile && (
+            <div className="p-2 bg-slate-50/80 border-b border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenProfile();
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-slate-700 hover:text-slate-900 hover:bg-slate-200/60 font-bold text-xs transition-colors cursor-pointer text-left"
+              >
+                <User className="w-4 h-4 text-[#9d2449]" />
+                <span>Mi Perfil y Configuración</span>
+              </button>
+            </div>
+          )}
 
           {/* Logout */}
           <div className="p-2.5 bg-white flex items-center justify-between">

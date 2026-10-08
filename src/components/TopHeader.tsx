@@ -46,6 +46,7 @@ interface TopHeaderProps {
   onOpenCreateUser?: () => void;
   isSidebarCollapsed?: boolean;
   onToggleCollapse?: () => void;
+  onNavChange?: (nav: MainNavSection) => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -70,6 +71,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onOpenCreateUser,
   isSidebarCollapsed,
   onToggleCollapse,
+  onNavChange,
 }) => {
   const isCampana = currentUser?.level === 'campana' || currentUser?.level === 'estatal';
   const isAdmin = currentUser?.level === 'admin' || currentUser?.isSuperAdmin;
@@ -370,6 +372,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 onLogout={onLogout}
                 accounts={accounts}
                 onOpenCreateUser={onOpenCreateUser}
+                onOpenProfile={() => onNavChange?.('configuracion')}
               />
             </div>
           )}
