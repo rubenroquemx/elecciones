@@ -152,11 +152,24 @@ export async function deleteUserAccountApi(id: string): Promise<boolean> {
   }
 }
 
-export async function resetPasswordApi(accountId: string): Promise<{ success: boolean; temporaryPassword?: string; error?: string }> {
+export async function resetPasswordApi(
+  accountId: string,
+  userPayload?: {
+    email?: string;
+    username?: string;
+    name?: string;
+    leaderId?: string;
+    level?: string;
+    territoryName?: string;
+    phone?: string;
+    role?: string;
+  }
+): Promise<{ success: boolean; temporaryPassword?: string; error?: string }> {
   try {
-    const res = await authFetch(`${API_BASE}/api/accounts/${accountId}/reset-password`, {
+    const res = await authFetch(`${API_BASE}/api/accounts/${encodeURIComponent(accountId)}/reset-password`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userPayload || {}),
     });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));

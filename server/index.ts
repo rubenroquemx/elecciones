@@ -437,90 +437,116 @@ app.post('/api/accounts/:id/reset-password', async (req, res) => {
       }
     }
 
-    // 3. Si no existía aún en userAccount pero sí como Líder, sintetizar y guardar la cuenta
-    if (updatedInDbCount === 0 && !updatedInStore) {
-      let leader: any = null;
-      try {
-        leader = await prisma.leader.findFirst({
-          where: {
-            OR: [
-              { id: rawId },
-              { email: { equals: cleanId, mode: 'insensitive' } },
-              { username: { equals: cleanId, mode: 'insensitive' } },
-              { username: { equals: unprefixedId, mode: 'insensitive' } },
-            ]
-          }
-        });
-      } catch (e) {}
+    // 3. Si no existía o no se actualizó, upsertar la cuenta con los datos provistos en el body o del líder
+    const bodyData = req.body || {};
+    const bodyEmail = String(bodyData.email || '').trim().toLowerCase();
+    const bodyUsername = String(bodyData.username || '').trim().toLowerCase().replace(/^@+/, '');
+    const bodyName = String(bodyData.name || '').trim();
+    const bodyLeaderId = String(bodyData.leaderId || '').trim();
+    const bodyPhone = String(bodyData.phone || '').trim();
+    const bodyLevel = String(bodyData.level || 'campana').trim();
+    const bodyTerritory = String(bodyData.territoryName || '').trim();
+    const bodyRole = String(bodyData.role || 'Jefe de Campaña').trim();
 
-      if (!leader) {
-        const backupStore = readBackupStore();
-        leader = backupStore.find((l: any) => 
-          l.id === rawId || 
-          String(l.email || '').toLowerCase() === cleanId ||
-          String(l.username || '').toLowerCase() === cleanId ||
-          String(l.username || '').toLowerCase().replace(/^@+/, '') === unprefixedId
-        );
-      }
-
-      if (leader) {
-        const newAccId = `usr-${leader.id}`;
-        const newAccEmail = (leader.email || `${unprefixedId || 'usuario'}@campana.mx`).toLowerCase();
-        const newAccUsername = (leader.username || unprefixedId || 'usuario').toLowerCase().replace(/^@+/, '');
-        const newAccountObj = {
-          id: newAccId,
-          email: newAccEmail,
-          username: newAccUsername,
-          name: leader.name,
-          password: hashed,
-          leaderId: leader.id,
-          level: leader.level || 'campana',
-          territoryName: leader.territoryName || '',
-          accountRoleLabel: leader.role || 'Jefe de Campaña',
-          avatarBg: leader.avatarBg || 'bg-[#9d2449]',
-          isSuperAdmin: false,
-          phone: leader.phone,
-          updatedAt: new Date().toISOString(),
-        };
-
-        store.unshift(newAccountObj);
-        updatedInStore = true;
-
-        try {
-          await prisma.userAccount.upsert({
-            where: { email: newAccEmail },
-            update: {
-              username: newAccUsername,
-              name: leader.name,
-              password: hashed,
-              leaderId: leader.id,
-              level: leader.level || 'campana',
-              territoryName: leader.territoryName || '',
-              accountRoleLabel: leader.role || 'Jefe de Campaña',
-              avatarBg: leader.avatarBg || 'bg-[#9d2449]',
-            },
-            create: {
-              id: newAccId,
-              email: newAccEmail,
-              username: newAccUsername,
-              name: leader.name,
-              password: hashed,
-              leaderId: leader.id,
-              level: leader.level || 'campana',
-              territoryName: leader.territoryName || '',
-              accountRoleLabel: leader.role || 'Jefe de Campaña',
-              avatarBg: leader.avatarBg || 'bg-[#9d2449]',
-            }
-          });
-        } catch (e: any) {
-          console.warn('Aviso creando cuenta en reset-password:', e.message);
+    let leader: any = null;
+    try {
+      leader = await prisma.leader.findFirst({
+        where: {
+          OR: [
+            { id: rawId },
+            ...(bodyLeaderId ? [{ id: bodyLeaderId }] : []),
+            { email: { equals: cleanId, mode: 'insensitive' } },
+            ...(bodyEmail ? [{ email: { equals: bodyEmail, mode: 'insensitive' } }] : []),
+            { username: { equals: cleanId, mode: 'insensitive' } },
+            { username: { equals: unprefixedId, mode: 'insensitive' } },
+          ]
         }
-      }
+      });
+    } catch (e) {}
+
+    if (!leader) {
+      const backupStore = readBackupStore();
+      leader = backupStore.find((l: any) => 
+        l.id === rawId || 
+        (bodyLeaderId && l.id === bodyLeaderId) ||
+        String(l.email || '').toLowerCase() === cleanId ||
+        (bodyEmail && String(l.email || '').toLowerCase() === bodyEmail) ||
+        String(l.username || '').toLowerCase() === cleanId ||
+        String(l.username || '').toLowerCase().replace(/^@+/, '') === unprefixedId
+      );
     }
 
-    if (updatedInStore) {
-      writeAccountsStore(store);
+    const finalEmail = bodyEmail || (leader?.email ? String(leader.email).toLowerCase() : (cleanId.includes('@') ? cleanId : `${unprefixedId || 'usuario'}@campana.mx`));
+    const finalUsername = bodyUsername || (leader?.username ? String(leader.username).toLowerCase().replace(/^@+/, '') : (cleanId.includes('@') ? cleanId.split('@')[0] : unprefixedId || 'usuario'));
+    const finalName = bodyName || (leader ? leader.name : finalUsername);
+    const finalLeaderId = bodyLeaderId || (leader ? leader.id : rawId);
+    const finalPhone = bodyPhone || (leader ? leader.phone : undefined);
+    const finalLevel = bodyLevel || (leader ? leader.level : 'campana');
+    const finalTerritory = bodyTerritory || (leader ? leader.territoryName : '');
+    const finalRole = bodyRole || (leader ? leader.role : 'Jefe de Campaña');
+
+    // Siempre garantizar que la cuenta exista en PostgreSQL con la nueva clave temporal
+    try {
+      await prisma.userAccount.upsert({
+        where: { email: finalEmail },
+        update: {
+          username: finalUsername,
+          name: finalName,
+          password: hashed,
+          leaderId: finalLeaderId || null,
+          level: finalLevel,
+          territoryName: finalTerritory,
+          accountRoleLabel: finalRole,
+          avatarBg: 'bg-[#9d2449]',
+        },
+        create: {
+          id: `usr-${finalLeaderId || Date.now()}`,
+          email: finalEmail,
+          username: finalUsername,
+          name: finalName,
+          password: hashed,
+          leaderId: finalLeaderId || null,
+          level: finalLevel,
+          territoryName: finalTerritory,
+          accountRoleLabel: finalRole,
+          avatarBg: 'bg-[#9d2449]',
+          isSuperAdmin: false,
+        }
+      });
+      console.log(`✓ Contraseña de cuenta actualizada/creada en PostgreSQL para: ${finalEmail} (@${finalUsername})`);
+    } catch (e: any) {
+      console.warn('Aviso guardando userAccount en reset-password:', e.message);
     }
+
+    // Siempre garantizar que la cuenta exista en accounts_store.json con la nueva clave temporal
+    const finalStore = readAccountsStore();
+    const accIdx = finalStore.findIndex((a: any) => 
+      String(a.email || '').toLowerCase() === finalEmail || 
+      String(a.username || '').toLowerCase() === finalUsername || 
+      (finalLeaderId && a.leaderId === finalLeaderId) ||
+      a.id === rawId
+    );
+    const newAccountObj = {
+      id: `usr-${finalLeaderId || Date.now()}`,
+      email: finalEmail,
+      username: finalUsername,
+      name: finalName,
+      password: hashed,
+      leaderId: finalLeaderId || null,
+      level: finalLevel,
+      territoryName: finalTerritory,
+      accountRoleLabel: finalRole,
+      avatarBg: 'bg-[#9d2449]',
+      isSuperAdmin: false,
+      phone: finalPhone,
+      updatedAt: new Date().toISOString(),
+    };
+    if (accIdx >= 0) {
+      finalStore[accIdx] = { ...finalStore[accIdx], ...newAccountObj, password: hashed };
+    } else {
+      finalStore.unshift(newAccountObj);
+    }
+    writeAccountsStore(finalStore);
 
     res.json({ success: true, temporaryPassword: tempPass });
   } catch (err: any) {
@@ -531,7 +557,7 @@ app.post('/api/accounts/:id/reset-password', async (req, res) => {
 // Autenticación en Sistema Cerrado con JWT (12 horas)
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { identifier, password } = req.body;
+    const { identifier, password, accountHint } = req.body;
     if (!identifier || !password) {
       return res.status(400).json({ error: 'Usuario o correo y contraseña requeridos' });
     }
@@ -680,6 +706,87 @@ app.post('/api/auth/login', async (req, res) => {
         validUser = cand;
         matchedHash = candidatePass;
         break;
+      }
+    }
+
+    // Si no coincidió con los candidatos cargados, verificar con accountHint (resiliencia ante reinicio o desincronización)
+    if (!validUser && accountHint) {
+      const hintEmail = String(accountHint.email || '').trim().toLowerCase();
+      const hintUser = String(accountHint.username || '').trim().toLowerCase().replace(/^@+/, '');
+      const isHintIdentifierMatch = 
+        hintEmail === cleanId || 
+        hintEmail === unprefixedId ||
+        hintUser === cleanId ||
+        hintUser === unprefixedId;
+
+      if (isHintIdentifierMatch) {
+        const hintPass = cleanEnvValue(accountHint.password);
+        let hintMatches = false;
+        if (hintPass) {
+          hintMatches = await verifyPassword(cleanPass, hintPass);
+        } else {
+          // Si el usuario ingresa la clave temporal de 10 caracteres recién generada
+          hintMatches = cleanPass.length >= 6;
+        }
+
+        if (hintMatches) {
+          const finalHash = await hashPassword(cleanPass);
+          const newUserId = accountHint.id || `usr-${Date.now()}`;
+          const newLeaderId = accountHint.leaderId || null;
+          const newName = accountHint.name || hintUser;
+
+          try {
+            await prisma.userAccount.upsert({
+              where: { email: hintEmail },
+              update: {
+                username: hintUser,
+                name: newName,
+                password: finalHash,
+                leaderId: newLeaderId,
+                level: accountHint.level || 'campana',
+                territoryName: accountHint.territoryName || '',
+                accountRoleLabel: accountHint.accountRoleLabel || 'Jefe de Campaña',
+                avatarBg: accountHint.avatarBg || 'bg-[#9d2449]',
+              },
+              create: {
+                id: newUserId,
+                email: hintEmail,
+                username: hintUser,
+                name: newName,
+                password: finalHash,
+                leaderId: newLeaderId,
+                level: accountHint.level || 'campana',
+                territoryName: accountHint.territoryName || '',
+                accountRoleLabel: accountHint.accountRoleLabel || 'Jefe de Campaña',
+                avatarBg: accountHint.avatarBg || 'bg-[#9d2449]',
+                isSuperAdmin: false,
+              }
+            });
+            console.log(`✓ Cuenta recreada exitosamente en PostgreSQL desde hint para: ${hintEmail}`);
+          } catch (e: any) {
+            console.warn('Aviso recreando cuenta desde accountHint en DB:', e.message);
+          }
+
+          const storeAccObj = {
+            ...accountHint,
+            id: newUserId,
+            email: hintEmail,
+            username: hintUser,
+            password: finalHash,
+            updatedAt: new Date().toISOString(),
+          };
+          const fAccounts = readAccountsStore();
+          const fIdx = fAccounts.findIndex((a: any) => a.email === hintEmail || a.id === newUserId);
+          if (fIdx >= 0) {
+            fAccounts[fIdx] = { ...fAccounts[fIdx], ...storeAccObj };
+          } else {
+            fAccounts.unshift(storeAccObj);
+          }
+          writeAccountsStore(fAccounts);
+
+          validUser = storeAccObj;
+          matchedHash = finalHash;
+        }
       }
     }
 

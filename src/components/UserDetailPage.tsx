@@ -200,7 +200,8 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
   }, [leader.assignedSections, account?.assignedSections, mapLayer]);
 
   const handleResetPassword = async () => {
-    if (!account?.id) {
+    const targetId = account?.id || `usr-${leader.id}`;
+    if (!targetId) {
       alert('No se encontró una cuenta de usuario vinculada a este integrante.');
       return;
     }
@@ -210,10 +211,36 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
     setIsResettingPass(true);
     setResetFeedback(null);
     try {
-      const res = await resetPasswordApi(account.id);
+      const res = await resetPasswordApi(targetId, {
+        email: email || account?.email || `${username}@plataforma.mx`,
+        username: username || account?.username,
+        name: leader.name,
+        leaderId: leader.id,
+        level: leader.level,
+        territoryName: leader.territoryName,
+        phone: leader.phone || account?.phone,
+        role: leader.role,
+      });
       if (res.success && res.temporaryPassword) {
         setTemporaryPassword(res.temporaryPassword);
         setResetFeedback('Contraseña restablecida con éxito. Cópiala o compártela ahora.');
+
+        // Actualizar la contraseña en el localStorage para persistencia inmediata
+        try {
+          const savedCustom = localStorage.getItem('territorial_custom_accounts');
+          if (savedCustom) {
+            const parsed = JSON.parse(savedCustom);
+            if (Array.isArray(parsed)) {
+              const updated = parsed.map((a: UserAccount) => {
+                if (a.id === targetId || a.leaderId === leader.id || (email && a.email === email)) {
+                  return { ...a, password: res.temporaryPassword };
+                }
+                return a;
+              });
+              localStorage.setItem('territorial_custom_accounts', JSON.stringify(updated));
+            }
+          }
+        } catch {}
       } else {
         alert(res.error || 'Error al restablecer la contraseña.');
       }

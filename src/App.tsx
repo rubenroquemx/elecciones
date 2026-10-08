@@ -396,12 +396,7 @@ export function App() {
               !legacyDemoIds.has(a.id) &&
               !a.email?.includes('estrategia-territorial.mx') &&
               a.email !== 'admin@estrategia-territorial.mx'
-            )
-            .map((a: UserAccount) => {
-              const copy = { ...a };
-              delete copy.password;
-              return copy;
-            });
+            );
           try {
             localStorage.setItem('territorial_custom_accounts', JSON.stringify(cleaned));
           } catch {}
@@ -492,11 +487,34 @@ export function App() {
   useEffect(() => {
     fetchUserAccountsApi()
       .then(serverAccounts => {
-        if (serverAccounts && serverAccounts.length > 0) {
+        const serverList = Array.isArray(serverAccounts) ? serverAccounts : [];
+        const serverIds = new Set(serverList.map((a: any) => a.id));
+        const serverEmails = new Set(serverList.map((a: any) => String(a.email || '').toLowerCase()));
+
+        // Sincronizar hacia el servidor cualquier cuenta local que no esté en PostgreSQL
+        try {
+          const rawLocal = localStorage.getItem('territorial_custom_accounts');
+          if (rawLocal) {
+            const parsedLocal = JSON.parse(rawLocal);
+            if (Array.isArray(parsedLocal)) {
+              parsedLocal.forEach((locAcc: UserAccount) => {
+                const locEmail = String(locAcc.email || '').toLowerCase();
+                if (!serverIds.has(locAcc.id) && !serverEmails.has(locEmail)) {
+                  saveUserAccountApi(locAcc).catch(() => {});
+                }
+              });
+            }
+          }
+        } catch {}
+
+        if (serverList.length > 0) {
           setAccounts(prev => {
             const map = new Map<string, UserAccount>();
             prev.forEach(a => map.set(a.id, a));
-            serverAccounts.forEach(a => map.set(a.id, a));
+            serverList.forEach(a => {
+              const existing = map.get(a.id);
+              map.set(a.id, { ...existing, ...a, password: existing?.password || a.password });
+            });
             const merged = Array.from(map.values());
             try {
               localStorage.setItem('territorial_custom_accounts', JSON.stringify(merged));

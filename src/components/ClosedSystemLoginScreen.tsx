@@ -14,6 +14,7 @@ interface ClosedSystemLoginScreenProps {
 }
 
 export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = ({
+  accounts,
   onLogin,
 }) => {
   const [identifier, setIdentifier] = useState('');
@@ -27,6 +28,7 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
 
     const cleanId = identifier.trim().toLowerCase();
     const cleanPass = password.trim();
+    const unprefixedId = cleanId.replace(/^@+/, '');
 
     if (!cleanId || !cleanPass) {
       setErrorMsg('Por favor introduce tu usuario o correo y contraseña.');
@@ -35,11 +37,40 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
 
     setIsSubmitting(true);
 
+    // Buscar accountHint para autorrecuperación y resiliencia del servidor
+    let accountHint: UserAccount | undefined = undefined;
+    if (accounts && accounts.length > 0) {
+      accountHint = accounts.find((a) => {
+        const u = String(a.username || '').trim().toLowerCase().replace(/^@+/, '');
+        const e = String(a.email || '').trim().toLowerCase();
+        return u === cleanId || u === unprefixedId || e === cleanId || e === unprefixedId;
+      });
+    }
+    if (!accountHint) {
+      try {
+        const local = localStorage.getItem('territorial_custom_accounts');
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed)) {
+            accountHint = parsed.find((a: UserAccount) => {
+              const u = String(a.username || '').trim().toLowerCase().replace(/^@+/, '');
+              const e = String(a.email || '').trim().toLowerCase();
+              return u === cleanId || u === unprefixedId || e === cleanId || e === unprefixedId;
+            });
+          }
+        }
+      } catch {}
+    }
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ identifier: cleanId, password: cleanPass }),
+        body: JSON.stringify({ 
+          identifier: cleanId, 
+          password: cleanPass,
+          accountHint: accountHint || undefined 
+        }),
       });
 
       if (res.ok) {

@@ -207,8 +207,9 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
   }, [coordinator.assignedSections, mapLayer]);
 
   const handleResetPassword = async () => {
-    if (!account?.id) {
-      alert('No se encontró una cuenta asociada a este coordinador.');
+    const targetId = account?.id || coordinator.id;
+    if (!targetId) {
+      alert('No se encontró un identificador para este coordinador.');
       return;
     }
     if (!window.confirm('¿Deseas restablecer la contraseña de este coordinador? Se generará una nueva clave temporal.')) {
@@ -217,10 +218,36 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
     setIsResettingPass(true);
     setResetFeedback(null);
     try {
-      const res = await resetPasswordApi(account.id);
+      const res = await resetPasswordApi(targetId, {
+        email: coordinator.email || account?.email,
+        username: coordinator.username || account?.username,
+        name: coordinator.name,
+        leaderId: coordinator.id,
+        level: coordinator.level,
+        territoryName: coordinator.territoryName,
+        phone: coordinator.phone || account?.phone,
+        role: coordinator.role,
+      });
       if (res.success && res.temporaryPassword) {
         setTemporaryPassword(res.temporaryPassword);
         setResetFeedback('Contraseña restablecida con éxito. Cópiala o envíala ahora.');
+
+        // Actualizar la contraseña en el localStorage para persistencia inmediata
+        try {
+          const savedCustom = localStorage.getItem('territorial_custom_accounts');
+          if (savedCustom) {
+            const parsed = JSON.parse(savedCustom);
+            if (Array.isArray(parsed)) {
+              const updated = parsed.map((a: UserAccount) => {
+                if (a.id === targetId || a.leaderId === coordinator.id || a.email === coordinator.email) {
+                  return { ...a, password: res.temporaryPassword };
+                }
+                return a;
+              });
+              localStorage.setItem('territorial_custom_accounts', JSON.stringify(updated));
+            }
+          }
+        } catch {}
       } else {
         alert(res.error || 'Error al restablecer la contraseña.');
       }

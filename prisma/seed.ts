@@ -11,26 +11,15 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('--- Iniciando verificación y configuración para Entorno Real ---');
 
-  // 1. Limpieza de datos de prueba en tabla Leader
-  try {
-    const deletedLeaders = await prisma.leader.deleteMany({});
-    console.log(`✓ Eliminados ${deletedLeaders.count} registros de líderes/promovidos de ejemplo. Tabla Leader limpia.`);
-  } catch (err: any) {
-    console.warn('Aviso limpiando líderes:', err.message);
-  }
+  // 1. Preservar y proteger los registros reales existentes (NUNCA borrar)
+  console.log('✓ Conservando registros existentes de líderes, promotores y coordinadores.');
 
-  // 2. Configuración exclusiva de la cuenta Super Administrador desde variables de entorno
+  // 2. Configuración y aseguramiento de la cuenta Super Administrador desde variables de entorno
   const superadminEmail = (process.env.SUPERADMIN_EMAIL || process.env.VITE_SUPERADMIN_EMAIL || 'usrubenroqueguzman@gmail.com').toLowerCase();
   const superadminPassword = process.env.SUPERADMIN_PASSWORD || process.env.VITE_SUPERADMIN_PASSWORD || 'admin123';
   const superadminUsername = superadminEmail.includes('@') ? superadminEmail.split('@')[0] : superadminEmail;
 
   try {
-    const deletedUsers = await prisma.userAccount.deleteMany({
-      where: {
-        email: { not: superadminEmail }
-      }
-    });
-    console.log(`✓ Eliminadas ${deletedUsers.count} cuentas de prueba. Solo existe la cuenta de Super Administrador.`);
 
     await prisma.userAccount.upsert({
       where: { email: superadminEmail },
