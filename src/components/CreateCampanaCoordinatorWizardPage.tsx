@@ -16,6 +16,8 @@ import {
   Layers,
   ShieldCheck
 } from 'lucide-react';
+import tabascoCatalog from '../data/tabascoCatalog.json';
+import { fetchStateGeoJson } from '../services/geoService';
 
 export type CampaignType = 'estatal' | 'municipal' | 'diputacion_local' | 'diputacion_federal';
 
@@ -63,8 +65,15 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
   const [selectedLocalDistrict, setSelectedLocalDistrict] = useState<number>(1);
   const [selectedFederalDistrict, setSelectedFederalDistrict] = useState<number>(1);
 
-  // Datos geográficos dinámicos del estado seleccionado
-  const [stateGeoSections, setStateGeoSections] = useState<any[]>([]);
+  // Datos geográficos dinámicos del estado seleccionado (inicia instantáneo en memoria)
+  const [stateGeoSections, setStateGeoSections] = useState<any[]>(() => {
+    return tabascoCatalog.map((t: any) => ({
+      seccion: t.section,
+      municipio: t.municipalityName,
+      distrito_l: t.localDistrict,
+      distrito_f: t.federalDistrict,
+    }));
+  });
   const [loadingGeo, setLoadingGeo] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
 
@@ -98,27 +107,43 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
   // Cargar cartografía de secciones del estado seleccionado
   useEffect(() => {
     let isCancelled = false;
-    setLoadingGeo(true);
     setGeoError(null);
 
+    // Si es Tabasco (estado principal de la campaña), carga instantánea (0ms)
+    if (selectedState.stateId === 27 || selectedState.abbr === 'tab') {
+      const mapped = tabascoCatalog.map((t: any) => ({
+        seccion: t.section,
+        municipio: t.municipalityName,
+        distrito_l: t.localDistrict,
+        distrito_f: t.federalDistrict,
+      }));
+      setStateGeoSections(mapped);
+      setLoadingGeo(false);
+      const municipios = Array.from(new Set(mapped.map((m: any) => m.municipio).filter(Boolean))).sort();
+      if (municipios.length > 0) {
+        setSelectedMunicipioName(prev => prev || (municipios[0] as string));
+      }
+      return;
+    }
+
+    setLoadingGeo(true);
     const loadStateGeo = async () => {
       try {
-        const res = await fetch(`/geo/secciones/${selectedState.abbr}.json`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!isCancelled && Array.isArray(data.features)) {
+        const data = await fetchStateGeoJson(selectedState.abbr);
+        if (!isCancelled && data && Array.isArray(data.features)) {
           const mapped = data.features.map((f: any) => f.properties || {});
           setStateGeoSections(mapped);
-          // Preseleccionar primer municipio si existe
           const municipios = Array.from(new Set(mapped.map((m: any) => m.municipio).filter(Boolean))).sort();
           if (municipios.length > 0) {
-            setSelectedMunicipioName(municipios[0] as string);
+            setSelectedMunicipioName(prev => prev || (municipios[0] as string));
           }
+        } else if (!isCancelled) {
+          setStateGeoSections([]);
         }
       } catch (err: any) {
         console.warn(`Aviso cargando secciones de ${selectedState.abbr}:`, err);
         if (!isCancelled) {
-          setGeoError(`Cartografía nacional en línea: calculando cobertura con métricas DERFE 2025 (${selectedState.totalSections} secciones).`);
+          setGeoError(`Cartografía DERFE 2025: calculando cobertura oficial (${selectedState.totalSections} secciones).`);
           setStateGeoSections([]);
         }
       } finally {

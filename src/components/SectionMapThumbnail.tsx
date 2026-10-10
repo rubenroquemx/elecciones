@@ -1,131 +1,36 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { MapPin, Layers, Satellite, Expand } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import {
+  MapPin,
+  ExternalLink,
+} from 'lucide-react';
 import { SectionMapModal } from './SectionMapModal';
 
 interface SectionMapThumbnailProps {
-  polygon: [number, number][]; // [[lon, lat], ...]
-  bbox: [number, number, number, number]; // [minLon, minLat, maxLon, maxLat]
-  center: [number, number]; // [lon, lat]
   sectionNumber: string;
-  municipio: string;
+  municipio?: string;
+  center?: [number, number];
+  polygon?: [number, number][];
+  bbox?: [number, number, number, number];
   distritoLocal?: string;
-  tipo?: string;
+  tipo?: any;
   nominalList?: number;
-  onViewDetail?: () => void;
   className?: string;
   height?: number;
+  onViewDetail?: () => void;
 }
 
 export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
-  polygon,
-  center,
   sectionNumber,
-  municipio,
-  distritoLocal,
-  tipo,
-  nominalList,
-  onViewDetail,
+  municipio = '',
+  center = [-92.93, 17.98],
+  polygon,
   className = '',
   height = 175,
+  onViewDetail,
 }) => {
-  const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<L.Map | null>(null);
-
-  const [mapType, setMapType] = useState<'streets' | 'satellite'>('streets');
-  const [mapReady, setMapReady] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [centerLon, centerLat] = center;
-
-  // Initialize Leaflet Map with direct OpenStreetMap Tiles
-  useEffect(() => {
-    if (!mapContainerRef.current) return;
-
-    // Destroy existing instance if any
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
-    }
-
-    try {
-      const map = L.map(mapContainerRef.current, {
-        zoomControl: false,
-        attributionControl: false,
-        dragging: true,
-        scrollWheelZoom: false,
-        doubleClickZoom: true,
-        touchZoom: true,
-      });
-
-      // OpenStreetMap API Standard Tiles
-      const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-
-      const tileUrl = mapType === 'satellite' ? satUrl : osmUrl;
-      const subdomains = mapType === 'satellite' ? ['server'] : ['a', 'b', 'c'];
-
-      L.tileLayer(tileUrl, {
-        maxZoom: 19,
-        subdomains,
-      }).addTo(map);
-
-      // Convert GeoJSON [lon, lat] to Leaflet [lat, lon]
-      if (polygon && polygon.length >= 3) {
-        const latLngs: L.LatLngExpression[] = polygon.map(([lon, lat]) => [lat, lon]);
-
-        const poly = L.polygon(latLngs, {
-          color: mapType === 'satellite' ? '#38bdf8' : '#2563eb',
-          weight: 2.5,
-          fillColor: mapType === 'satellite' ? '#0284c7' : '#3b82f6',
-          fillOpacity: mapType === 'satellite' ? 0.4 : 0.3,
-          lineJoin: 'round',
-        }).addTo(map);
-
-        // Fit map view tightly to the section polygon
-        map.fitBounds(poly.getBounds(), {
-          padding: [15, 15],
-          maxZoom: 17,
-        });
-
-        // Center Casilla Marker
-        L.circleMarker([centerLat, centerLon], {
-          radius: 5,
-          fillColor: '#ef4444',
-          color: '#ffffff',
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 1,
-        }).addTo(map);
-      } else {
-        map.setView([centerLat, centerLon], 15);
-      }
-
-      mapInstanceRef.current = map;
-      setMapReady(true);
-
-      const timer = setTimeout(() => {
-        map.invalidateSize();
-      }, 150);
-
-      return () => {
-        clearTimeout(timer);
-        map.remove();
-        mapInstanceRef.current = null;
-      };
-    } catch (err) {
-      console.warn('Leaflet initialization error:', err);
-    }
-  }, [polygon, centerLat, centerLon, sectionNumber, municipio, mapType]);
-
-  // Toggle map layer (OpenStreetMap vs Satellite)
-  const toggleMapLayer = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setMapType(prev => (prev === 'streets' ? 'satellite' : 'streets'));
-  };
-
-  // Safe SVG fallback path if map tiles are offline or still rendering
+  // Safe SVG path from polygon
   const svgPath = useMemo(() => {
     if (!polygon || polygon.length < 3) return '';
     const lons = polygon.map(p => p[0]);
@@ -139,7 +44,7 @@ export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
     const spanY = maxY - minY || 0.001;
     const w = 260;
     const h = height;
-    const pad = 12;
+    const pad = 14;
 
     const scale = Math.min((w - pad * 2) / spanX, (h - pad * 2) / spanY);
     const ox = pad + (w - pad * 2 - spanX * scale) / 2;
@@ -158,105 +63,84 @@ export const SectionMapThumbnail: React.FC<SectionMapThumbnailProps> = ({
     <>
       <div 
         onClick={() => { if (onViewDetail) { onViewDetail(); } else { setIsModalOpen(true); } }}
-        className={`relative overflow-hidden rounded-xl border border-slate-200 shadow-xs group cursor-pointer ${className}`}
+        className={`relative overflow-hidden rounded-xl border border-slate-200/90 bg-gradient-to-br from-slate-900 to-slate-950 shadow-xs group cursor-pointer hover:border-slate-400 transition-all ${className}`}
         style={{ height: `${height}px` }}
-        title="Haga clic para ver el mapa interactivo OpenStreetMap en esta página"
+        title="Haga clic para ver el mapa interactivo en pantalla completa"
       >
-        {/* Leaflet Map Canvas */}
+        {/* Subtle grid pattern background */}
         <div 
-          ref={mapContainerRef} 
-          className="w-full h-full z-0 bg-slate-100" 
+          className="absolute inset-0 opacity-15"
+          style={{
+            backgroundImage: 'radial-gradient(circle, #38bdf8 1px, transparent 1px)',
+            backgroundSize: '16px 16px',
+          }}
         />
 
-        {/* Instant SVG shape overlay if Leaflet is loading */}
-        {!mapReady && svgPath && (
+        {/* Vector SVG shape */}
+        {svgPath ? (
           <svg
-            className="absolute inset-0 w-full h-full pointer-events-none z-1 bg-slate-50"
+            className="absolute inset-0 w-full h-full pointer-events-none transition-transform duration-300 group-hover:scale-105"
             viewBox={`0 0 260 ${height}`}
           >
             <path
               d={svgPath}
-              fill="#3b82f6"
-              fillOpacity="0.25"
-              stroke="#2563eb"
-              strokeWidth="2.5"
+              fill="#0284c7"
+              fillOpacity="0.28"
+              stroke="#38bdf8"
+              strokeWidth="2"
             />
           </svg>
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-slate-500 text-xs">
+            Cartografía disponible
+          </div>
         )}
 
         {/* Top Left: Section Tag */}
-        <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 bg-white/95 backdrop-blur-xs border border-slate-200 px-2.5 py-1 rounded-lg shadow-sm">
-          <MapPin className="w-3.5 h-3.5 text-rose-500" />
-          <span className="text-xs font-black text-slate-900 tracking-tight">
+        <div className="absolute top-2 left-2 z-10 flex items-center gap-1.5 bg-slate-900/90 backdrop-blur-xs border border-slate-700/80 px-2.5 py-1 rounded-lg shadow-sm">
+          <MapPin className="w-3.5 h-3.5 text-rose-400" />
+          <span className="text-xs font-black text-white tracking-tight">
             SEC {sectionNumber}
           </span>
         </div>
 
-        {/* Top Right: Layer Switcher & In-Page Modal Opener */}
+        {/* Top Right: Open Modal button */}
         <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
-          <button
-            type="button"
-            onClick={toggleMapLayer}
-            className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border shadow-xs transition-colors ${
-              mapType === 'satellite'
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'bg-white/95 hover:bg-white text-slate-700 border-slate-200'
-            }`}
-            title="Alternar entre mapa de calles y satelital"
-          >
-            {mapType === 'satellite' ? (
-              <>
-                <Satellite className="w-3 h-3 text-amber-300" />
-                <span>Satélite</span>
-              </>
-            ) : (
-              <>
-                <Layers className="w-3 h-3 text-sky-600" />
-                <span>Calles</span>
-              </>
-            )}
-          </button>
-
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              if (onViewDetail) {
-                onViewDetail();
-              } else {
-                setIsModalOpen(true);
-              }
+              if (onViewDetail) onViewDetail();
+              else setIsModalOpen(false);
             }}
-            title="Ver en tamaño completo (ampliar mapa en esta página)"
-            className="p-1.5 bg-white/95 hover:bg-white text-slate-700 hover:text-indigo-600 rounded-lg border border-slate-200 shadow-xs transition-all hover:scale-105 flex items-center justify-center cursor-pointer"
+            className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold rounded-lg border border-slate-700/80 bg-slate-900/90 hover:bg-slate-800 text-slate-200 shadow-xs transition-colors cursor-pointer"
+            title="Ver mapa completo"
           >
-            <Expand className="w-4 h-4 text-slate-700 hover:text-indigo-600" />
+            <ExternalLink className="w-3 h-3 text-sky-400" />
+            <span>Mapa</span>
           </button>
         </div>
 
-        {/* Bottom Floating Bar with Coordinates & Municipality */}
-        <div className="absolute bottom-2 inset-x-2 z-10 flex items-center justify-between text-[10px] pointer-events-none">
-          <span className="bg-white/90 backdrop-blur-xs px-2 py-0.5 rounded-md border border-slate-200/80 font-mono font-semibold text-slate-600 shadow-2xs">
-            {centerLat.toFixed(3)}°N, {centerLon.toFixed(3)}°W
-          </span>
-          <span className="bg-white/90 backdrop-blur-xs px-2 py-0.5 rounded-md border border-slate-200/80 font-bold text-slate-700 truncate max-w-[120px] shadow-2xs">
-            {municipio}
-          </span>
-        </div>
+        {/* Bottom Bar: Municipio info */}
+        {municipio && (
+          <div className="absolute bottom-1.5 left-2 right-2 z-10 flex items-center justify-between text-[10px] font-medium text-slate-400 pointer-events-none">
+            <span className="truncate">{municipio}</span>
+            <span className="text-sky-400/90 text-[9px] font-mono group-hover:underline">Ver detalle →</span>
+          </div>
+        )}
       </div>
 
-      {/* Visor interactivo en la misma página */}
-      <SectionMapModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        sectionNumber={sectionNumber}
-        municipio={municipio}
-        distritoLocal={distritoLocal}
-        tipo={tipo}
-        nominalTotal={nominalList}
-        polygon={polygon}
-        center={center}
-      />
+      {/* Interactive Leaflet Modal only mounted on-demand when requested */}
+      {isModalOpen && (
+        <SectionMapModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          sectionNumber={sectionNumber}
+          municipio={municipio}
+          center={center}
+          polygon={polygon}
+        />
+      )}
     </>
   );
 };

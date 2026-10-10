@@ -342,9 +342,9 @@ export function App() {
       import('./components/TerritorialPromotersAdminView');
     };
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(idlePreload);
+      (window as any).requestIdleCallback(idlePreload, { timeout: 6000 });
     } else {
-      setTimeout(idlePreload, 400);
+      setTimeout(idlePreload, 4500);
     }
   }, []);
 
@@ -567,6 +567,19 @@ export function App() {
       } catch {}
 
       setAccounts(prev => {
+        const prevMap = new Map(prev.map(a => [a.id, a]));
+        let hasChanges = serverList.length !== prev.length;
+        if (!hasChanges) {
+          for (const s of serverList) {
+            const p = prevMap.get(s.id);
+            if (!p || p.name !== s.name || p.picture !== s.picture || p.phone !== s.phone || p.email !== s.email || p.level !== s.level || p.accountRoleLabel !== s.accountRoleLabel) {
+              hasChanges = true;
+              break;
+            }
+          }
+        }
+        if (!hasChanges) return prev;
+
         const map = new Map<string, UserAccount>();
         prev.forEach(a => map.set(a.id, a));
         serverList.forEach(a => {
@@ -580,7 +593,7 @@ export function App() {
         return merged;
       });
 
-      // Reconciliar currentUser con los datos frescos del servidor (nombre, foto, teléfono, etc.)
+      // Reconciliar currentUser ÚNICAMENTE si algún dato realmente cambió
       setCurrentUser(prevUser => {
         if (!prevUser) return prevUser;
         const freshAccount = serverList.find((a: any) => 
@@ -589,34 +602,54 @@ export function App() {
           (a.username && prevUser.username && String(a.username).toLowerCase() === String(prevUser.username).toLowerCase())
         );
         if (freshAccount) {
-          const updated = {
-            ...prevUser,
-            ...freshAccount,
-            password: prevUser.password || freshAccount.password,
-          };
-          try {
-            localStorage.setItem('territorial_auth_user', JSON.stringify(updated));
-          } catch {}
-          return updated;
-        }
-        return prevUser;
-      });
-
-      // Consultar directamente /api/auth/me para refrescar el perfil autenticado
-      try {
-        const meRes = await fetchCurrentUserProfileApi();
-        if (meRes?.success && meRes.user) {
-          setCurrentUser(prevUser => {
-            if (!prevUser) return meRes.user;
+          const hasDiff = 
+            prevUser.name !== freshAccount.name ||
+            prevUser.picture !== freshAccount.picture ||
+            prevUser.phone !== freshAccount.phone ||
+            prevUser.email !== freshAccount.email ||
+            prevUser.username !== freshAccount.username ||
+            prevUser.aboutMe !== freshAccount.aboutMe;
+          if (hasDiff) {
             const updated = {
               ...prevUser,
-              ...meRes.user,
-              password: prevUser.password || meRes.user.password,
+              ...freshAccount,
+              password: prevUser.password || freshAccount.password,
             };
             try {
               localStorage.setItem('territorial_auth_user', JSON.stringify(updated));
             } catch {}
             return updated;
+          }
+        }
+        return prevUser;
+      });
+
+      // Consultar directamente /api/auth/me para refrescar el perfil autenticado si hubo cambios
+      try {
+        const meRes = await fetchCurrentUserProfileApi();
+        if (meRes?.success && meRes.user) {
+          setCurrentUser(prevUser => {
+            if (!prevUser) return meRes.user;
+            const u = meRes.user;
+            const hasDiff = 
+              prevUser.name !== u.name ||
+              prevUser.picture !== u.picture ||
+              prevUser.phone !== u.phone ||
+              prevUser.email !== u.email ||
+              prevUser.username !== u.username ||
+              prevUser.aboutMe !== u.aboutMe;
+            if (hasDiff) {
+              const updated = {
+                ...prevUser,
+                ...u,
+                password: prevUser.password || u.password,
+              };
+              try {
+                localStorage.setItem('territorial_auth_user', JSON.stringify(updated));
+              } catch {}
+              return updated;
+            }
+            return prevUser;
           });
         }
       } catch {}

@@ -35,6 +35,8 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   const [mapLayer, setMapLayer] = useState<'streets' | 'sat'>('streets');
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+  const geoLayerRef = useRef<L.GeoJSON | null>(null);
 
   // Jefes de Campaña registrados (nivel campana o alias estatal)
   const campanaCoordinators = useMemo(() => {
@@ -42,6 +44,13 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
       l => l.level === 'campana' || l.level === 'estatal'
     );
   }, [allLeaders]);
+
+  // Firma estable para evitar re-renderizados innecesarios del mapa
+  const assignmentSignature = useMemo(() => {
+    return campanaCoordinators
+      .map(c => `${c.id}:${(c.assignedSections || []).slice().sort().join(',')}`)
+      .join('|');
+  }, [campanaCoordinators]);
 
   // Mapa de cuentas por leaderId
   const accountsByLeaderId = useMemo(() => {
@@ -52,8 +61,6 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
     return map;
   }, [accounts]);
 
-
-
   // Cálculo de secciones asignadas en todas las campañas
   const totalAssignedSectionsCount = useMemo(() => {
     const allSecs = new Set<string>();
@@ -63,31 +70,55 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
     return allSecs.size;
   }, [campanaCoordinators]);
 
-  // Mapa de campañas asignadas en Leaflet con GeoJSON oficial
+  // Inicialización única de Leaflet
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
-      mapInstanceRef.current = null;
+    if (!mapInstanceRef.current) {
+      const map = L.map(mapContainerRef.current, {
+        zoomControl: true,
+        attributionControl: false,
+        preferCanvas: true,
+      });
+      map.setView([17.9892, -92.9281], 9);
+      mapInstanceRef.current = map;
     }
 
-    const map = L.map(mapContainerRef.current, {
-      zoomControl: true,
-      attributionControl: false,
-      preferCanvas: true,
-    });
-    mapInstanceRef.current = map;
+    const map = mapInstanceRef.current;
 
+    // Cambiar capa de satélite / calles de forma limpia sin destruir el mapa
     const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
     const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
     const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c'];
 
-    L.tileLayer(tileUrl, {
-      maxZoom: 19,
-      subdomains,
-    }).addTo(map);
+    if (tileLayerRef.current) {
+      map.removeLayer(tileLayerRef.current);
+    }
+    const newTile = L.tileLayer(tileUrl, { maxZoom: 19, subdomains }).addTo(map);
+    tileLayerRef.current = newTile;
+
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 150);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [mapLayer]);
+
+  // Carga y renderizado de geometrías sólo si cambia la asignación real o la capa
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Remover capa previa
+    if (geoLayerRef.current) {
+      map.removeLayer(geoLayerRef.current);
+      geoLayerRef.current = null;
+    }
 
     // Mapear cada sección al Jefe de Campaña correspondiente
     const sectionToCampaign = new Map<string, TerritorialLeader>();
@@ -104,10 +135,14 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
       });
     });
 
+    // Si NO hay secciones asignadas, no descargar los 4.5MB de GeoJSON
+    if (assignedSet.size === 0) {
+      map.setView([17.9892, -92.9281], 9);
+      return;
+    }
+
     const isSat = mapLayer === 'sat';
     let isCancelled = false;
-
-    // Paleta de colores para distinguir campañas si hay varias (con #9d2449 de base)
     const campaignColors = ['#9d2449', '#0284c7', '#059669', '#d97706', '#dc2626'];
 
     fetchStateGeoJson('tab').then(geoData => {
@@ -162,31 +197,31 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
           }
         }).addTo(map);
 
+        geoLayerRef.current = geoLayer;
+
         if (geoLayer.getLayers().length > 0) {
           map.fitBounds(geoLayer.getBounds(), { padding: [30, 30] });
           return;
         }
       }
 
-      // Si no hay secciones o no se cargó el layer, centrar en Tabasco
-      map.setView([17.9892, -92.9281], 10);
+      map.setView([17.9892, -92.9281], 9);
     });
-
-    const timer = setTimeout(() => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.invalidateSize();
-      }
-    }, 250);
 
     return () => {
       isCancelled = true;
-      clearTimeout(timer);
+    };
+  }, [assignmentSignature, mapLayer]);
+
+  // Cleanup al desmontar el componente
+  useEffect(() => {
+    return () => {
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
     };
-  }, [campanaCoordinators, mapLayer]);
+  }, []);
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-32 sm:pb-16">
