@@ -335,6 +335,23 @@ export function App() {
     };
   }, [syncLeadersWithServer]);
 
+  // Precarga en tiempo inactivo de vistas clave para navegación instantánea (0ms)
+  useEffect(() => {
+    const idlePreload = () => {
+      import('./components/TerritoryFlowCanvas');
+      import('./components/DirectoryTableView');
+      import('./components/SectionsCatalogView');
+      import('./components/ExecutiveKpiDesktop');
+      import('./components/SuperadminSaasDashboard');
+      import('./components/TerritorialPromotersAdminView');
+    };
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(idlePreload);
+    } else {
+      setTimeout(idlePreload, 400);
+    }
+  }, []);
+
   // Ensure root URL without /state slugs and clean legacy cache
   useEffect(() => {
     if (window.location.pathname !== '/' && window.location.pathname !== '') {
@@ -1334,23 +1351,22 @@ export function App() {
     });
   }, [handleDeleteLeader]);
 
-  // Splash Screen inicial con fondo negro degradado y logo centrado
-  if (showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} />;
-  }
-
   // Si no hay sesión activa en el sistema cerrado, mostrar pantalla de acceso
   if (!currentUser) {
     return (
-      <ClosedSystemLoginScreen
-        accounts={accounts}
-        onLogin={handleSelectUser}
-      />
+      <>
+        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
+        <ClosedSystemLoginScreen
+          accounts={accounts}
+          onLogin={handleSelectUser}
+        />
+      </>
     );
   }
 
   return (
-    <div className="flex h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans">
+    <div className="flex h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans relative">
+      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
       {/* Sidebar Lateral Izquierdo Tradicional */}
       <Sidebar
         activeNav={activeNav}
@@ -1510,7 +1526,7 @@ export function App() {
               const targetAcc = accounts.find(a => a.leaderId === editingUserId || a.username === targetLeader?.username);
               if (!targetLeader) return null;
               return (
-                <Suspense fallback={<LoadingScreen message="Cargando formulario..." />}>
+                <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando formulario..." />}>
                   <SubordinateCreatePage
                     currentUser={currentUser!}
                     availableSections={scopedSections}
@@ -1537,7 +1553,7 @@ export function App() {
               const targetAcc = accounts.find(a => a.leaderId === selectedUserDetailId || a.username === targetLeader?.username);
               if (!targetLeader) return null;
               return (
-                <Suspense fallback={<LoadingScreen message="Cargando expediente..." />}>
+                <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando expediente..." />}>
                   <UserDetailPage
                     leader={targetLeader}
                     account={targetAcc}
@@ -1563,15 +1579,17 @@ export function App() {
               );
             })()
           ) : detailSectionNumber ? (
-            <SectionDetailPage
-              sectionNumber={detailSectionNumber}
-              allSections={scopedSections}
-              visibleLeaders={visibleLeaders}
-              onBack={() => setDetailSectionNumber(null)}
-              onAddStructure={handleAddStructureToSection}
-            />
+            <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando detalle de sección..." />}>
+              <SectionDetailPage
+                sectionNumber={detailSectionNumber}
+                allSections={scopedSections}
+                visibleLeaders={visibleLeaders}
+                onBack={() => setDetailSectionNumber(null)}
+                onAddStructure={handleAddStructureToSection}
+              />
+            </Suspense>
           ) : (
-            <Suspense fallback={<LoadingScreen message="Cargando módulo..." />}>
+            <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando módulo..." />}>
               {/* WIZARD INDEPENDIENTE PARA CREAR COORDINADOR DE CAMPAÑA (NO MODAL) */}
               {activeNav === 'crear-coordinador' && (
                 <CreateCampanaCoordinatorWizardPage

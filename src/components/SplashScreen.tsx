@@ -7,15 +7,15 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({
   onFinish,
-  durationMs = 1400,
+  durationMs = 650,
 }) => {
   const [isFadingOut, setIsFadingOut] = useState(false);
 
   useEffect(() => {
-    // Iniciar desvanecimiento 400ms antes de terminar
+    // Iniciar desvanecimiento 250ms antes de terminar
     const fadeTimer = setTimeout(() => {
       setIsFadingOut(true);
-    }, Math.max(durationMs - 400, 300));
+    }, Math.max(durationMs - 250, 200));
 
     const finishTimer = setTimeout(() => {
       if (onFinish) onFinish();
