@@ -123,3 +123,19 @@ export interface FilterOptions {
   validationFilter: string | 'all';
   focusNodeId: string | null;
 }
+
+export interface TerritorialZone {
+  id: string;
+  name: string;
+  code: string;
+  color: string;
+  sections: string[]; // e.g. ['0416', '0417']
+  creationMode?: 'municipios' | 'distritos_locales' | 'distritos_federales' | 'manual';
+  coordinatorId?: string;
+  coordinatorName?: string;
+  coordinatorPhone?: string;
+  metaGoal?: number;
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}

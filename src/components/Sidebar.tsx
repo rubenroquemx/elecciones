@@ -2,6 +2,7 @@ import React from 'react';
 import {
   BarChart3,
   MapPin,
+  Layers,
   UserPlus,
   Download,
   Upload,
@@ -18,6 +19,7 @@ import type { UserAccount } from '../types/auth';
 
 export type MainNavSection = 
   | 'escritorio' 
+  | 'zonas'
   | 'mesa-de-ayuda'
   | 'mis-secciones'
   | 'estructura' 
@@ -82,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
 }) => {
   const isPromotor = currentUser.level === 'promotor';
-  const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal';
+  const isCampana = currentUser.level === 'cpv' || currentUser.level === 'campana' || currentUser.level === 'estatal';
   const isAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;
 
   const getAddButtonLabel = () => {
@@ -164,7 +166,29 @@ export const Sidebar: React.FC<SidebarProps> = ({
               )}
             </button>
 
-            {/* 2. USUARIOS (Inmediatamente debajo de Escritorio para todos excepto Promotor) */}
+            {/* 1.1 ZONAS (Para CPV / Coordinadores de Campaña y Admin) */}
+            {(isCampana || isAdmin) && (
+              <button
+                type="button"
+                onClick={() => {
+                  onNavChange('zonas');
+                  onCloseMobile?.();
+                }}
+                title="Zonas"
+                className={`w-full flex items-center rounded-xl text-xs font-semibold transition-[background-color,color] duration-140 cursor-pointer ${
+                  isCollapsed ? 'justify-center p-3' : 'justify-start gap-3 px-3.5 py-2.5'
+                } ${
+                  activeNav === 'zonas'
+                    ? 'bg-white/[0.14] text-white shadow-xs'
+                    : 'text-slate-300 hover:bg-white/[0.07] hover:text-white'
+                }`}
+              >
+                <Layers className={`w-5 h-5 shrink-0 ${activeNav === 'zonas' ? 'text-indigo-400' : 'text-slate-400'}`} />
+                {!isCollapsed && <span>Zonas</span>}
+              </button>
+            )}
+
+            {/* 2. USUARIOS (Inmediatamente debajo para todos excepto Promotor) */}
             {!isPromotor && (
               <button
                 type="button"

@@ -17,7 +17,8 @@ import {
   HelpCircle,
   LifeBuoy,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Layers
 } from 'lucide-react';
 import type { FilterOptions } from '../types/territory';
 import type { UserAccount } from '../types/auth';
@@ -123,6 +124,13 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                   <>
                     <BarChart3 className="w-5 h-5 text-indigo-600" />
                     <span>Escritorio</span>
+                  </>
+                )}
+
+                {activeNav === 'zonas' && (
+                  <>
+                    <Layers className="w-5 h-5 text-[#9d2449]" />
+                    <span>Definición y Gestión de Zonas</span>
                   </>
                 )}
 

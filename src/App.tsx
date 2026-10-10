@@ -46,6 +46,7 @@ const CampanaCoordinatorEditPage = lazy(() => import('./components/CampanaCoordi
 const SuperadminTicketsPage = lazy(() => import('./components/SuperadminTicketsPage').then(m => ({ default: m.SuperadminTicketsPage })));
 const SubordinateCreatePage = lazy(() => import('./components/SubordinateCreatePage').then(m => ({ default: m.SubordinateCreatePage })));
 const UserDetailPage = lazy(() => import('./components/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
+const CampanaZonesManagementPage = lazy(() => import('./components/CampanaZonesManagementPage').then(m => ({ default: m.CampanaZonesManagementPage })));
 import { Users, Bell, CheckCircle2, X, MapPin, BarChart3, LifeBuoy, Settings } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
@@ -1780,6 +1781,17 @@ export function App() {
                     }}
                   />
                 )
+              )}
+
+              {/* GESTIÓN Y DEFINICIÓN DE ZONAS (PARA CPV / COORDINADORES DE CAMPAÑA Y SUPERADMIN) */}
+              {activeNav === 'zonas' && currentUser && (
+                <CampanaZonesManagementPage
+                  currentUser={currentUser}
+                  allLeaders={visibleLeaders}
+                  onSaveLeader={handleSaveLeader}
+                  onDeleteLeader={handleDeleteLeader}
+                  onNavigate={setActiveNav}
+                />
               )}
 
               {/* 1b. MIS SECCIONES (MAPA EN PANTALLA COMPLETA PARA PROMOTOR TERRITORIAL) */}
