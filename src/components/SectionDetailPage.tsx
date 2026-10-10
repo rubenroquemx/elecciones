@@ -14,7 +14,6 @@ import {
   Target,
   Trophy,
   Vote,
-  Compass,
   Layers,
   Satellite,
   Search,
@@ -677,58 +676,6 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
         {/* MAPA OPENSTREETMAP DESPLEGADO DIRECTAMENTE EN LA PÁGINA            */}
         {/* ------------------------------------------------------------------ */}
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-xs space-y-0">
-          <div className="p-4 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-indigo-600/80 rounded-xl border border-indigo-400/30">
-                <Compass className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <span>Cartografía Georreferenciada OpenStreetMap</span>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.2 rounded-full font-semibold">
-                    Desplegado en Página
-                  </span>
-                </h3>
-                <p className="text-[11px] text-slate-400">
-                  Polígono perimetral oficial INE con {polygon.length} vértices georreferenciados
-                </p>
-              </div>
-            </div>
-
-            {/* Selector de capas OSM */}
-            <div className="flex items-center gap-1 bg-slate-800 p-1 rounded-xl border border-slate-700 text-xs">
-              <button
-                type="button"
-                onClick={() => setMapLayer('osm')}
-                className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-colors ${
-                  mapLayer === 'osm' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>OSM Calles</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMapLayer('hot')}
-                className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-colors ${
-                  mapLayer === 'hot' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Compass className="w-3.5 h-3.5" />
-                <span>Relieve</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMapLayer('sat')}
-                className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-colors ${
-                  mapLayer === 'sat' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <Satellite className="w-3.5 h-3.5" />
-                <span>Satélite HD</span>
-              </button>
-            </div>
-          </div>
 
           {/* Barra de búsqueda de calles con OpenStreetMap Nominatim */}
           <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs">
@@ -787,12 +734,12 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
           <div className="relative h-[480px] w-full bg-slate-100">
             <div ref={mapContainerRef} className="w-full h-full z-0" />
 
-            {/* Controles Flotantes */}
+            {/* Controles de Zoom y Centrado Flotantes */}
             <div className="absolute top-3 left-3 z-10 flex flex-col gap-1.5 shadow-md">
               <button
                 type="button"
                 onClick={handleZoomIn}
-                className="w-8 h-8 bg-white hover:bg-slate-50 text-slate-800 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-base shadow-xs"
+                className="w-8 h-8 bg-white hover:bg-slate-50 text-slate-800 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-base shadow-xs cursor-pointer"
                 title="Acercar (+)"
               >
                 +
@@ -800,7 +747,7 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
               <button
                 type="button"
                 onClick={handleZoomOut}
-                className="w-8 h-8 bg-white hover:bg-slate-50 text-slate-800 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-base shadow-xs"
+                className="w-8 h-8 bg-white hover:bg-slate-50 text-slate-800 rounded-lg border border-slate-200 flex items-center justify-center font-bold text-base shadow-xs cursor-pointer"
                 title="Alejar (-)"
               >
                 -
@@ -808,10 +755,34 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
               <button
                 type="button"
                 onClick={handleRecenter}
-                className="w-8 h-8 bg-white hover:bg-slate-50 text-indigo-600 rounded-lg border border-slate-200 flex items-center justify-center shadow-xs"
+                className="w-8 h-8 bg-white hover:bg-slate-50 text-indigo-600 rounded-lg border border-slate-200 flex items-center justify-center shadow-xs cursor-pointer"
                 title="Centrar polígono de la sección"
               >
                 <Crosshair className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Selector de capas flotante */}
+            <div className="absolute top-3 right-3 z-10 flex items-center bg-white/90 backdrop-blur-xs p-1 rounded-xl border border-slate-200 text-xs shadow-md">
+              <button
+                type="button"
+                onClick={() => setMapLayer('osm')}
+                className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-colors ${
+                  mapLayer === 'osm' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Calles</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMapLayer('sat')}
+                className={`px-2.5 py-1 rounded-lg font-semibold flex items-center gap-1 transition-colors ${
+                  mapLayer === 'sat' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Satellite className="w-3.5 h-3.5" />
+                <span>Satélite</span>
               </button>
             </div>
 

@@ -18,7 +18,6 @@ import {
   Pencil,
   Building2,
   Layers,
-  MapPin,
   KeyRound
 } from 'lucide-react';
 
@@ -373,46 +372,32 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
       {/* 2. Contenido Principal */}
       <div className="max-w-7xl mx-auto w-full p-4 sm:p-8 space-y-6 flex-1">
         
-        {/* MAPA DE LA ZONA ASIGNADA ANTES DE LOS DATOS QUE OCUPA TODO EL ANCHO (SIN RADIUS) */}
-        <div className="bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-[#9d2449]" />
-              <span className="text-xs font-bold text-slate-800">
-                Zona Asignada: {coordinator.territoryName}
-              </span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="text-[11px] font-semibold text-slate-500 font-mono">
-                {coordinator.assignedSections?.length || 0} secciones asignadas
-              </span>
-
-              {/* Selector de tipo de capa: Calles vs Satélite */}
-              <div className="flex items-center bg-white border border-slate-200 rounded-none p-0.5 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('streets')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
-                    mapLayer === 'streets'
-                      ? 'bg-[#9d2449] text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Calles
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('sat')}
-                  className={`px-2 py-0.5 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
-                    mapLayer === 'sat'
-                      ? 'bg-[#9d2449] text-white shadow-2xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Satélite
-                </button>
-              </div>
-            </div>
+        {/* MAPA DE LA ZONA ASIGNADA ANTES DE LOS DATOS QUE OCUPA TODO EL ANCHO (SIN BARRA SUPERIOR, SIN RADIUS) */}
+        <div className="relative bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs">
+          {/* Controles Flotantes Discretos */}
+          <div className="absolute top-2 right-2 z-10 flex items-center bg-white/90 backdrop-blur-xs border border-slate-200 rounded-none p-0.5 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setMapLayer('streets')}
+              className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
+                mapLayer === 'streets'
+                  ? 'bg-[#9d2449] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Calles
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapLayer('sat')}
+              className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
+                mapLayer === 'sat'
+                  ? 'bg-[#9d2449] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Satélite
+            </button>
           </div>
           <div ref={mapContainerRef} className="w-full h-80 sm:h-96 z-0" />
         </div>

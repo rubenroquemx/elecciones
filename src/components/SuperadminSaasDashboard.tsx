@@ -118,18 +118,6 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
     return map;
   }, [accounts]);
 
-  // Cálculo de secciones asignadas en todas las campañas
-  const totalAssignedSectionsCount = useMemo(() => {
-    const allSecs = new Set<string>();
-    campanaCoordinators.forEach(c => {
-      (c.assignedSections || []).forEach(s => {
-        const str = String(s).trim();
-        if (str) allSecs.add(str.padStart(4, '0'));
-      });
-    });
-    return allSecs.size;
-  }, [campanaCoordinators]);
-
   // Inicialización única de Leaflet
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -285,39 +273,33 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-32 sm:pb-16">
-      {/* 2. MAPA DE CAMPAÑAS ASIGNADAS (SIN TÍTULO, SIN BORDER-RADIUS) */}
+      {/* 2. MAPA DE CAMPAÑAS ASIGNADAS (SIN BARRA SUPERIOR, SIN BORDER-RADIUS) */}
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6 shrink-0">
-        <div className="bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs">
-          <div className="px-5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/60 flex-wrap gap-2">
-            <div>
-              <span className="text-[11px] font-semibold text-slate-500 font-mono">
-                {totalAssignedSectionsCount} secciones en {campanaCoordinators.length} {campanaCoordinators.length === 1 ? 'campaña' : 'campañas'}
-              </span>
-            </div>
-            <div className="flex items-center bg-white border border-slate-200 rounded-none p-0.5 shadow-2xs">
-              <button
-                type="button"
-                onClick={() => setMapLayer('streets')}
-                className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
-                  mapLayer === 'streets'
-                    ? 'bg-[#9d2449] text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Calles
-              </button>
-              <button
-                type="button"
-                onClick={() => setMapLayer('sat')}
-                className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
-                  mapLayer === 'sat'
-                    ? 'bg-[#9d2449] text-white shadow-2xs'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                Satélite
-              </button>
-            </div>
+        <div className="relative bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs">
+          {/* Controles Flotantes Discretos */}
+          <div className="absolute top-2 right-2 z-10 flex items-center bg-white/90 backdrop-blur-xs border border-slate-200 rounded-none p-0.5 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setMapLayer('streets')}
+              className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
+                mapLayer === 'streets'
+                  ? 'bg-[#9d2449] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Calles
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapLayer('sat')}
+              className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
+                mapLayer === 'sat'
+                  ? 'bg-[#9d2449] text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Satélite
+            </button>
           </div>
           <div ref={mapContainerRef} className="w-full h-72 sm:h-80 z-0" />
         </div>
