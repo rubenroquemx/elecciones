@@ -456,27 +456,7 @@ export const ConfiguracionPage: React.FC<ConfiguracionPageProps> = ({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto font-sans">
-      {/* Header Limpio con Guinda Institucional */}
-      <div className="bg-white border-b border-slate-200 px-6 sm:px-8 py-5 shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900">
-              Configuración
-            </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Administración de perfil de usuario, credenciales y validación en dos pasos
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-bold px-2.5 py-1 bg-[#9d2449]/10 text-[#9d2449] border border-[#9d2449]/20">
-              {currentUser.accountRoleLabel}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Selector Horizontal de Pestañas Superior (Para acceso rápido y directo) */}
+      {/* Selector Horizontal de Pestañas Superior */}
       <div className="bg-white border-b border-slate-200 px-6 sm:px-8 py-3 flex items-center gap-2 overflow-x-auto shrink-0 shadow-2xs">
         <button
           type="button"
@@ -510,69 +490,8 @@ export const ConfiguracionPage: React.FC<ConfiguracionPageProps> = ({
         )}
       </div>
 
-      {/* Contenedor Principal con Barra Lateral Interna */}
-      <div className="flex-1 max-w-7xl mx-auto w-full p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col md:flex-row gap-6 items-start">
-          
-          {/* BARRA LATERAL INTERNA (SUB-SIDEBAR) */}
-          <aside className="w-full md:w-64 shrink-0 bg-white border border-slate-200 p-2 space-y-1">
-            <div className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-              Opciones de Cuenta
-            </div>
-
-            {/* 1. Mi Perfil (Para TODAS las cuentas de todos los niveles) */}
-            <button
-              type="button"
-              onClick={() => setActiveTab('mi-perfil')}
-              className={`w-full flex items-center gap-3 px-3.5 py-3 text-left transition-all cursor-pointer ${
-                activeTab === 'mi-perfil'
-                  ? 'bg-[#9d2449] text-white font-bold shadow-xs'
-                  : 'text-slate-700 hover:bg-slate-100 font-medium'
-              }`}
-            >
-              <User className={`w-4 h-4 shrink-0 ${activeTab === 'mi-perfil' ? 'text-white' : 'text-[#9d2449]'}`} />
-              <div className="min-w-0">
-                <div className="text-xs">Mi Perfil</div>
-                <div className={`text-[10px] truncate ${activeTab === 'mi-perfil' ? 'text-white/80' : 'text-slate-400'}`}>
-                  Foto, datos y contraseña
-                </div>
-              </div>
-            </button>
-
-            {/* 2. Validación WhatsApp (Evolution API) - Sólo Superadmin */}
-            {isSuperAdmin && (
-              <>
-                <div className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Infraestructura
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActiveTab('whatsapp-evolution')}
-                  className={`w-full flex items-center gap-3 px-3.5 py-3 text-left transition-all cursor-pointer ${
-                    activeTab === 'whatsapp-evolution'
-                      ? 'bg-[#9d2449] text-white font-bold shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-100 font-medium'
-                  }`}
-                >
-                  <MessageSquare className={`w-4 h-4 shrink-0 ${activeTab === 'whatsapp-evolution' ? 'text-white' : 'text-emerald-600'}`} />
-                  <div className="min-w-0">
-                    <div className="text-xs flex items-center gap-1.5">
-                      <span>Validación WhatsApp</span>
-                      {waStatus === 'open' && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      )}
-                    </div>
-                    <div className={`text-[10px] truncate ${activeTab === 'whatsapp-evolution' ? 'text-white/80' : 'text-slate-400'}`}>
-                      QR & Evolution API
-                    </div>
-                  </div>
-                </button>
-              </>
-            )}
-          </aside>
-
-          {/* ÁREA DE CONTENIDO */}
-          <main className="flex-1 w-full space-y-6">
+      {/* ÁREA DE CONTENIDO */}
+      <main className="flex-1 max-w-5xl mx-auto w-full p-4 sm:p-6 lg:p-8 space-y-6">
 
             {/* TAB: MI PERFIL */}
             {activeTab === 'mi-perfil' && (
@@ -1250,8 +1169,6 @@ export const ConfiguracionPage: React.FC<ConfiguracionPageProps> = ({
               </div>
             )}
           </main>
-        </div>
-      </div>
 
       {/* MODAL DE CÁMARA WEB PARA FOTO SELFIE */}
       <SelfieCameraModal

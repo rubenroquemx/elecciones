@@ -12,10 +12,7 @@ import {
   Search, 
   Phone, 
   Trash2, 
-  ShieldCheck, 
-  Pencil,
-  Layers,
-  MapPin
+  Pencil
 } from 'lucide-react';
 
 interface TerritorialCoordinatorsAdminPageProps {
@@ -33,7 +30,7 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
   currentUser,
   allLeaders,
   accounts,
-  scopedSections,
+  scopedSections: _scopedSections,
   onNavigate,
   onDeleteCoordinator,
   onViewDetails,
@@ -144,35 +141,15 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
     });
   }, [directSubordinates, searchQuery, accountsByLeaderId]);
 
-  // 7. Secciones asignadas únicas
-  const totalCoveredSections = useMemo(() => {
-    const secSet = new Set<string>();
-    directSubordinates.forEach(c => {
-      (c.assignedSections || []).forEach(s => secSet.add(s));
-    });
-    return secSet.size;
-  }, [directSubordinates]);
-
-
-
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto font-sans">
-      {/* 1. Header Superior */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-8 py-5 shrink-0">
+      {/* 1. Header Superior Oscuro */}
+      <div className="bg-slate-900 text-white border-b border-slate-800 px-4 sm:px-8 py-5 shrink-0">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#9d2449]" />
-              <span className="text-xs font-bold text-[#9d2449] tracking-wider uppercase">
-                Administración de Usuarios • {currentUser.accountRoleLabel || currentUser.name}
-              </span>
-            </div>
-            <h1 className="text-2xl font-black tracking-tight text-slate-900">
-              {roleConfig.plural}
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+              Administrar usuario
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Aquí se administran los {roleConfig.plural} a tu cargo directo en la estructura territorial.
-            </p>
           </div>
 
           <button
@@ -181,69 +158,13 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
             className="px-5 py-2.5 bg-[#9d2449] hover:bg-[#851e3e] text-white rounded-xl text-xs font-bold shadow-md shadow-[#9d2449]/20 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-98 shrink-0"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Nuevo {roleConfig.singular}</span>
+            <span>Nuevo CPV</span>
           </button>
         </div>
       </div>
 
-      {/* 2. Tarjetas Métricas */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-8 py-5 shrink-0">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-rose-50 text-[#9d2449] flex items-center justify-center shrink-0">
-              <Users className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{roleConfig.plural}</p>
-              <h3 className="text-xl font-black text-slate-900">{directSubordinates.length}</h3>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-              <Layers className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Secciones Asignadas</p>
-              <h3 className="text-xl font-black text-slate-900">
-                {totalCoveredSections}
-                {scopedSections && scopedSections.length > 0 && (
-                  <span className="text-xs font-normal text-slate-400 ml-1.5">
-                    de {scopedSections.length}
-                  </span>
-                )}
-              </h3>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Sub-Equipo a Cargo</p>
-              <h3 className="text-xl font-black text-slate-900">
-                {Array.from(metricsByLeader.values()).reduce((acc, m) => acc + m.directTeamCount, 0)}
-              </h3>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <MapPin className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Ciudadanos Promovidos</p>
-              <h3 className="text-xl font-black text-slate-900">
-                {Array.from(metricsByLeader.values()).reduce((acc, m) => acc + m.promovidosCount, 0)}
-              </h3>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Barra de Búsqueda */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-8 pb-3 shrink-0">
+      {/* 2. Barra de Búsqueda */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-8 pt-5 pb-3 shrink-0">
         <div className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-xs flex items-center gap-3">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />

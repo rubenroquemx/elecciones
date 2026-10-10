@@ -13,7 +13,8 @@ import {
   Plus, 
   Search, 
   Send, 
-  X
+  X,
+  Loader2
 } from 'lucide-react';
 
 interface SuperadminTicketsPageProps {
@@ -144,48 +145,36 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
 
   return (
     <div className="flex-1 w-full h-full flex flex-col bg-slate-50 overflow-hidden font-sans text-slate-800">
-      {/* Header Superior que ocupa todo el ancho */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 shrink-0 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <LifeBuoy className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <span>Mesa de Ayuda & Tickets</span>
-              {loadingTickets && <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping" />}
-            </h1>
-            <p className="text-xs text-slate-500">
-              Canal de soporte y comunicación con los Coordinadores de Campaña
-            </p>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setIsCreatingTicket(true)}
-          className="px-4 py-2 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-none text-xs font-bold flex items-center gap-2 transition-all shadow-xs cursor-pointer active:scale-98"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Redactar Ticket / Notificación</span>
-        </button>
-      </div>
-
       {/* Contenedor Split Screen Completo */}
       <div className="flex-1 flex w-full overflow-hidden">
         {/* Panel Izquierdo: Lista de Tickets */}
         <div className="w-80 md:w-96 border-r border-slate-200 bg-white flex flex-col shrink-0">
           {/* Filtros y Buscador */}
           <div className="p-3 border-b border-slate-100 space-y-2.5">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                placeholder="Buscar por coordinador o asunto..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8.5 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-indigo-600"
-              />
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                {loadingTickets ? (
+                  <Loader2 className="w-3.5 h-3.5 text-indigo-500 animate-spin absolute left-3 top-2.5" />
+                ) : (
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                )}
+                <input
+                  type="text"
+                  placeholder="Buscar por coordinador o asunto..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-8.5 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:border-indigo-600"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCreatingTicket(true)}
+                className="px-2.5 py-1.5 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-xl text-xs font-bold flex items-center gap-1 transition-all shadow-xs cursor-pointer active:scale-98 shrink-0"
+                title="Redactar Ticket / Notificación"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Nuevo</span>
+              </button>
             </div>
 
             <div className="flex items-center gap-1 overflow-x-auto pb-1 text-[11px]">
