@@ -82,7 +82,7 @@ export const CampanaCoordinatorEditPage: React.FC<CampanaCoordinatorEditPageProp
             <span>Volver</span>
           </button>
           <h1 className="text-sm sm:text-base font-bold text-slate-900">
-            Editar Jefe de Campaña
+            Editar Coordinador de Promoción al Voto (CPV)
           </h1>
           <div className="w-16" />
         </div>

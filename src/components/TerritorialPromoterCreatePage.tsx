@@ -118,18 +118,18 @@ export const TerritorialPromoterCreatePage: React.FC<TerritorialPromoterCreatePa
       name: name.trim(),
       role: 'Promotor Territorial',
       level: 'promotor',
-      levelIndex: 2,
-      parentId: currentUser.leaderId || 'coord-territorial-mariana',
+      levelIndex: 4,
+      parentId: currentUser.leaderId || null,
       territoryName: territoryLabel,
-      code: `PROM-${assignedSections[0] || '0416'}-${name.slice(0, 2).toUpperCase()}`,
+      code: `PROM-${assignedSections[0] || 'SEC'}-${name.slice(0, 2).toUpperCase()}`,
       assignedSections,
-      electoralSection: assignedSections[0] || '0416',
-      address: address.trim() || 'Domicilio registrado',
-      colonia: colonia.trim() || 'Tamulté de las Barrancas',
+      electoralSection: assignedSections[0] || '',
+      address: address.trim() || '',
+      colonia: colonia.trim() || '',
       curp: curp.trim().toUpperCase(),
       electorKey: electorKey.trim().toUpperCase(),
       phone: phone.trim(),
-      email: email.trim() || `${cleanUser}@estrategia-territorial.mx`,
+      email: email.trim() || `${cleanUser}@elecciones.legislab.app`,
       username: cleanUser,
       hasAccount: true,
       avatarBg: 'bg-emerald-600',
@@ -144,7 +144,7 @@ export const TerritorialPromoterCreatePage: React.FC<TerritorialPromoterCreatePa
       id: newUserId,
       username: cleanUser,
       name: name.trim(),
-      email: email.trim() || `${cleanUser}@estrategia-territorial.mx`,
+      email: email.trim() || `${cleanUser}@elecciones.legislab.app`,
       password: password.trim(),
       phone: phone.trim(),
       leaderId: newLeaderId,
@@ -398,7 +398,7 @@ Inicia sesión aquí: https://elecciones.legislab.app`);
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="promotor@estrategia-territorial.mx"
+                    placeholder="promotor@elecciones.legislab.app"
                     className="w-full pl-9 pr-3.5 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:border-sky-500"
                   />
                 </div>

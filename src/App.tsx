@@ -338,24 +338,45 @@ export function App() {
       window.history.replaceState(null, '', '/');
     }
     try {
+      const legacyDemoIds = new Set([
+        'usr-coord-distrital', 'usr-coord-zona', 
+        'usr-resp-zona', 'usr-resp-seccion', 'usr-promotor',
+        'usr-prom-ruben-roque', 'usr-coord-estatal', 'usr-coord-seccional',
+        'coord-campana-carlos', 'coord-terri-fernando', 'prom-patricia-lara', 'prom-ruben-roque'
+      ]);
+      const legacyDemoEmails = new Set([
+        'admin@estrategia-territorial.mx',
+        'coord.distrital@estrategia-territorial.mx',
+        'coord.zona@estrategia-territorial.mx',
+        'resp.seccion@estrategia-territorial.mx',
+        'promotor@estrategia-territorial.mx',
+        'ruben.roque@estrategia-territorial.mx'
+      ]);
+
       const savedAuth = localStorage.getItem('territorial_auth_user');
-      if (savedAuth && (
-        savedAuth.includes('estrategia-territorial.mx') || 
-        savedAuth.includes('usr-prom-ruben-roque')
-      )) {
-        localStorage.removeItem('territorial_auth_user');
+      if (savedAuth) {
+        try {
+          const parsed = JSON.parse(savedAuth);
+          if (parsed && (legacyDemoIds.has(parsed.id) || legacyDemoEmails.has(String(parsed.email || '').toLowerCase()))) {
+            localStorage.removeItem('territorial_auth_user');
+          }
+        } catch {
+          localStorage.removeItem('territorial_auth_user');
+        }
       }
 
       const savedCustom = localStorage.getItem('territorial_custom_accounts');
-      if (savedCustom && (
-        savedCustom.includes('estrategia-territorial.mx') || 
-        savedCustom.includes('usr-prom-ruben-roque')
-      )) {
-        const parsed = JSON.parse(savedCustom);
-        const filtered = Array.isArray(parsed) 
-          ? parsed.filter((a: any) => !a.email?.includes('estrategia-territorial.mx') && a.id !== 'usr-prom-ruben-roque') 
-          : [];
-        localStorage.setItem('territorial_custom_accounts', JSON.stringify(filtered));
+      if (savedCustom) {
+        try {
+          const parsed = JSON.parse(savedCustom);
+          if (Array.isArray(parsed)) {
+            const filtered = parsed.filter((a: any) => 
+              !legacyDemoIds.has(a.id) && 
+              !legacyDemoEmails.has(String(a.email || '').toLowerCase())
+            );
+            localStorage.setItem('territorial_custom_accounts', JSON.stringify(filtered));
+          }
+        } catch {}
       }
 
       const savedLeaders = localStorage.getItem('territorial_leaders_data');
@@ -391,11 +412,18 @@ export function App() {
             'usr-resp-zona', 'usr-resp-seccion', 'usr-promotor',
             'usr-prom-ruben-roque', 'usr-coord-estatal', 'usr-coord-seccional'
           ]);
+          const legacyDemoEmails = new Set([
+            'admin@estrategia-territorial.mx',
+            'coord.distrital@estrategia-territorial.mx',
+            'coord.zona@estrategia-territorial.mx',
+            'resp.seccion@estrategia-territorial.mx',
+            'promotor@estrategia-territorial.mx',
+            'ruben.roque@estrategia-territorial.mx'
+          ]);
           const cleaned = parsed
             .filter((a: UserAccount) => 
               !legacyDemoIds.has(a.id) &&
-              !a.email?.includes('estrategia-territorial.mx') &&
-              a.email !== 'admin@estrategia-territorial.mx'
+              !legacyDemoEmails.has(String(a.email || '').toLowerCase())
             );
           try {
             localStorage.setItem('territorial_custom_accounts', JSON.stringify(cleaned));
@@ -418,9 +446,22 @@ export function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed) {
+          const legacyDemoIds = new Set([
+            'usr-coord-distrital', 'usr-coord-zona', 
+            'usr-resp-zona', 'usr-resp-seccion', 'usr-promotor',
+            'usr-prom-ruben-roque', 'usr-coord-estatal', 'usr-coord-seccional'
+          ]);
+          const legacyDemoEmails = new Set([
+            'admin@estrategia-territorial.mx',
+            'coord.distrital@estrategia-territorial.mx',
+            'coord.zona@estrategia-territorial.mx',
+            'resp.seccion@estrategia-territorial.mx',
+            'promotor@estrategia-territorial.mx',
+            'ruben.roque@estrategia-territorial.mx'
+          ]);
           if (
-            parsed.id === 'usr-prom-ruben-roque' || 
-            parsed.email?.includes('estrategia-territorial.mx') ||
+            legacyDemoIds.has(parsed.id) || 
+            legacyDemoEmails.has(String(parsed.email || '').toLowerCase()) ||
             (parsed.id === 'usr-admin' && parsed.email !== 'usrubenroqueguzman@gmail.com')
           ) {
             localStorage.removeItem('territorial_auth_user');
@@ -594,7 +635,7 @@ export function App() {
       return updated;
     });
 
-    setTopSuccessNotice(`¡Jefe de Campaña "${leader.name}" dado de alta con éxito!`);
+    setTopSuccessNotice(`¡Coordinador de Promoción al Voto (CPV) "${leader.name}" dado de alta con éxito!`);
   }, []);
 
   const handleSaveNewTerritorialCoordinator = useCallback(async (leader: TerritorialLeader, account: UserAccount) => {
@@ -1209,8 +1250,12 @@ export function App() {
   }, []);
 
   // Handler para dar de alta un usuario manualmente en el sistema cerrado
-  const handleCreateManualUser = useCallback((newUser: UserAccount, newLeader: TerritorialLeader) => {
-    saveUserAccountApi(newUser).catch(() => {});
+  const handleCreateManualUser = useCallback(async (newUser: UserAccount, newLeader: TerritorialLeader) => {
+    try {
+      await saveUserAccountApi(newUser);
+    } catch (e) {
+      console.warn('Error saving user account to API:', e);
+    }
     setAccounts(prev => {
       const updated = [...prev, newUser];
       try {
@@ -1226,8 +1271,12 @@ export function App() {
   }, [handleSaveLeader]);
 
   // Handlers para gestión de promotores territoriales (Coordinador Territorial)
-  const handleSaveNewPromoter = useCallback((newLeader: TerritorialLeader, newUserAccount: UserAccount) => {
-    saveUserAccountApi(newUserAccount).catch(() => {});
+  const handleSaveNewPromoter = useCallback(async (newLeader: TerritorialLeader, newUserAccount: UserAccount) => {
+    try {
+      await saveUserAccountApi(newUserAccount);
+    } catch (e) {
+      console.warn('Error saving promoter account to API:', e);
+    }
     setAccounts(prev => {
       const updated = [...prev, newUserAccount];
       try {
@@ -1242,11 +1291,15 @@ export function App() {
     handleSaveLeader(newLeader);
   }, [handleSaveLeader]);
 
-  const handleSaveUpdatedPromoter = useCallback((updatedLeader: TerritorialLeader, updatedAccount?: UserAccount) => {
+  const handleSaveUpdatedPromoter = useCallback(async (updatedLeader: TerritorialLeader, updatedAccount?: UserAccount) => {
     handleSaveLeader(updatedLeader);
 
     if (updatedAccount) {
-      saveUserAccountApi(updatedAccount).catch(() => {});
+      try {
+        await saveUserAccountApi(updatedAccount);
+      } catch (e) {
+        console.warn('Error updating promoter account in API:', e);
+      }
       setAccounts(prev => {
         const updated = prev.map(a => a.id === updatedAccount.id || a.leaderId === updatedLeader.id ? updatedAccount : a);
         try {

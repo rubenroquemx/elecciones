@@ -31,40 +31,30 @@ export const CreateManualUserModal: React.FC<CreateManualUserModalProps> = ({
   availableSections,
   onUserCreated,
 }) => {
-  // Determine allowed roles to create according to the 4 levels:
-  // Superadmin -> Campaña, Territorial, Promotor
-  // Campaña -> Territorial
-  // Territorial -> Promotor
-  // Promotor -> None
+  // Determine allowed roles to create according to the 4 official levels:
+  // Superadmin -> CPV
+  // CPV -> Zona
+  // Zona -> Seccion
+  // Seccion -> Promotor
   const allowedLevels: { level: TerritorialLevel; label: string; desc: string }[] = useMemo(() => {
     if (currentUser.level === 'admin' || currentUser.isSuperAdmin) {
       return [
-        { level: 'campana', label: 'Jefe de Campaña', desc: 'Gestiona la campaña completa, organigrama y distritos electorales.' },
+        { level: 'cpv', label: 'Coordinador de Promoción al Voto (CPV)', desc: 'Coordina la estrategia de promoción del voto en todo el estado o demarcación.' },
       ];
     }
-    if (currentUser.level === 'campana' || currentUser.level === 'estatal') {
+    if (currentUser.level === 'cpv' || currentUser.level === 'campana' || currentUser.level === 'estatal') {
       return [
-        { level: 'distrital', label: 'Coordinador Distrital', desc: 'Supervisa las zonas electorales de su distrito.' },
+        { level: 'zona', label: 'Coordinador de Zona', desc: 'Supervisa las zonas electorales asignadas y a sus Responsables de Sección.' },
       ];
     }
-    if (currentUser.level === 'distrital') {
+    if (currentUser.level === 'zona' || currentUser.level === 'distrital' || currentUser.level === 'responsable_zona') {
       return [
-        { level: 'zona', label: 'Coordinador de Zona', desc: 'Supervisa los sectores y Responsables de Zona.' },
+        { level: 'seccion', label: 'Responsable de Sección', desc: 'Supervisa promotores territoriales y casillas de su sección asignada.' },
       ];
     }
-    if (currentUser.level === 'zona') {
+    if (currentUser.level === 'seccion' || currentUser.level === 'territorial' || currentUser.level === 'seccional') {
       return [
-        { level: 'responsable_zona', label: 'Responsable de Zona', desc: 'Coordina directamente a los Responsables de Sección.' },
-      ];
-    }
-    if (currentUser.level === 'responsable_zona') {
-      return [
-        { level: 'territorial', label: 'Responsable de Sección', desc: 'Supervisa promotores y casillas de su sección asignada.' },
-      ];
-    }
-    if (currentUser.level === 'territorial' || currentUser.level === 'seccional') {
-      return [
-        { level: 'promotor', label: 'Promotor Territorial', desc: 'Captura promovidos en campo y escanea credenciales INE.' },
+        { level: 'promotor', label: 'Promotor Territorial', desc: 'Captura promovidos en campo y valida credenciales INE.' },
       ];
     }
     return [];
@@ -163,7 +153,7 @@ export const CreateManualUserModal: React.FC<CreateManualUserModalProps> = ({
       id: newUserId,
       username: cleanUser,
       name: name.trim(),
-      email: email.trim() || `${cleanUser}@estrategia-territorial.mx`,
+      email: email.trim() || `${cleanUser}@elecciones.legislab.app`,
       password: password.trim(),
       phone: phone.trim(),
       leaderId: newLeaderId,
@@ -172,9 +162,11 @@ export const CreateManualUserModal: React.FC<CreateManualUserModalProps> = ({
       assignedSections: assignedSections,
       accountRoleLabel: roleInfo?.label || 'Promotor Territorial',
       avatarBg:
-        selectedLevel === 'campana'
+        selectedLevel === 'cpv' || selectedLevel === 'campana'
+          ? 'bg-[#9d2449]'
+          : selectedLevel === 'zona'
           ? 'bg-indigo-600'
-          : selectedLevel === 'territorial'
+          : selectedLevel === 'seccion'
           ? 'bg-sky-600'
           : 'bg-emerald-600',
       assignedBy: currentUser.name,
@@ -186,18 +178,18 @@ export const CreateManualUserModal: React.FC<CreateManualUserModalProps> = ({
       name: name.trim(),
       role: roleInfo?.label || 'Promotor Territorial',
       level: selectedLevel,
-      levelIndex: selectedLevel === 'campana' ? 1 : selectedLevel === 'territorial' ? 2 : 3,
+      levelIndex: selectedLevel === 'cpv' ? 1 : selectedLevel === 'zona' ? 2 : selectedLevel === 'seccion' ? 3 : 4,
       parentId: currentUser.leaderId || null,
       territoryName: territoryLabel,
       committeeAlias: name.trim(),
       assignedSections: assignedSections,
       phone: phone.trim(),
-      email: email.trim() || `${cleanUser}@estrategia-territorial.mx`,
+      email: email.trim() || `${cleanUser}@elecciones.legislab.app`,
       hasAccount: true,
       username: cleanUser,
       address: 'Registrado en sistema cerrado',
       colonia: 'Demarcación Asignada',
-      electoralSection: assignedSections[0] || '0416',
+      electoralSection: assignedSections[0] || '',
       curp: '',
       electorKey: '',
       metaGoal: 50,

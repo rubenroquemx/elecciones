@@ -44,7 +44,7 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
     if (isEditing && initialLeader?.level) {
       return initialLeader.level;
     }
-    return getAllowedChildLevel(currentUser.level) || 'distrital';
+    return getAllowedChildLevel(currentUser.level) || 'zona';
   }, [currentUser.level, isEditing, initialLeader]);
 
   const childRoleLabel = useMemo(() => {
@@ -232,7 +232,7 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
         id: userId,
         username: cleanUser,
         name: name.trim(),
-        email: email.trim() || `${cleanUser}@plataforma.mx`,
+        email: email.trim() || `${cleanUser}@elecciones.legislab.app`,
         phone: phone.trim() || undefined,
         leaderId: coordId,
         level: targetChildLevel,
@@ -255,7 +255,7 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
     }
   };
 
-  const showSectionPicker = targetChildLevel === 'territorial' || targetChildLevel === 'promotor' || selectedSections.length > 0;
+  const showSectionPicker = targetChildLevel === 'seccion' || targetChildLevel === 'promotor' || selectedSections.length > 0;
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto font-sans">

@@ -377,12 +377,12 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                             <button
                               type="button"
                               onClick={() => {
-                                if (window.confirm(`¿Estás seguro de eliminar permanentemente al Jefe de Campaña "${coord.name}"?`)) {
+                                if (window.confirm(`¿Estás seguro de eliminar permanentemente al Coordinador de Promoción al Voto (CPV) "${coord.name}"?`)) {
                                   onDeleteCoordinator(coord.id);
                                 }
                               }}
                               className="p-1.5 bg-white hover:bg-rose-50 text-rose-600 border border-slate-200 hover:border-rose-200 rounded-none transition-colors cursor-pointer"
-                              title="Eliminar Jefe de Campaña"
+                              title="Eliminar Coordinador de Promoción al Voto (CPV)"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

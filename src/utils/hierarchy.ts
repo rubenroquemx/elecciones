@@ -221,13 +221,13 @@ export function getVisibleSubtree(rootId: string | null, nodes: TerritorialLeade
   // Si existen promovidos registrados en su sección electoral o capturados en campo que hayan
   // quedado con parentId nulo por sincronización de base de datos, incluirlos en su expediente.
   if (rootNode.level === 'promotor') {
-    const assignedSec = rootNode.electoralSection || (rootNode.assignedSections && rootNode.assignedSections[0]) || '0416';
+    const assignedSec = rootNode.electoralSection || (rootNode.assignedSections && rootNode.assignedSections[0]) || '';
     for (const node of nodes) {
       if (
         node.level === 'promovido' &&
         !addedIds.has(node.id) &&
         (node.parentId === rootId ||
-         (node.electoralSection === assignedSec && (!node.parentId || node.parentId === 'null')))
+         (Boolean(assignedSec) && node.electoralSection === assignedSec && (!node.parentId || node.parentId === 'null')))
       ) {
         visibleList.push({
           ...node,

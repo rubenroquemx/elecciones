@@ -293,9 +293,9 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
     name: coordinator.name,
     email: email || `${username}@campana.mx`,
     leaderId: coordinator.id,
-    level: 'campana',
+    level: 'cpv',
     territoryName: coordinator.territoryName,
-    accountRoleLabel: 'Jefe de Campaña',
+    accountRoleLabel: 'Coordinador de Promoción al Voto (CPV)',
     avatarBg: 'bg-[#9d2449]',
     assignedBy: 'Super Administrador (SaaS)',
   };
@@ -317,7 +317,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">
-                  Jefe de Campaña
+                  Coordinador de Promoción al Voto (CPV)
                 </span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-none bg-[#9d2449]/10 text-[#9d2449] border border-[#9d2449]/20">
                   {coordinator.territoryName}

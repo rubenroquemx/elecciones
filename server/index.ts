@@ -370,9 +370,9 @@ app.post('/api/accounts', async (req, res) => {
           name: data.name,
           ...(hashedPassword ? { password: hashedPassword } : {}),
           leaderId: data.leaderId || null,
-          level: data.level || 'campana',
+          level: data.level || 'cpv',
           territoryName: data.territoryName || '',
-          accountRoleLabel: data.accountRoleLabel || 'Jefe de Campaña',
+          accountRoleLabel: data.accountRoleLabel || 'Coordinador de Promoción al Voto (CPV)',
           avatarBg: data.avatarBg || 'bg-[#9d2449]',
           phone: data.phone || null,
           aboutMe: data.aboutMe || null,
@@ -386,9 +386,9 @@ app.post('/api/accounts', async (req, res) => {
           name: data.name,
           password: hashedPassword || null,
           leaderId: data.leaderId || null,
-          level: data.level || 'campana',
+          level: data.level || 'cpv',
           territoryName: data.territoryName || '',
-          accountRoleLabel: data.accountRoleLabel || 'Jefe de Campaña',
+          accountRoleLabel: data.accountRoleLabel || 'Coordinador de Promoción al Voto (CPV)',
           avatarBg: data.avatarBg || 'bg-[#9d2449]',
           phone: data.phone || null,
           aboutMe: data.aboutMe || null,
@@ -999,9 +999,9 @@ app.post('/api/accounts/:id/reset-password', async (req, res) => {
     const bodyName = String(bodyData.name || '').trim();
     const bodyLeaderId = String(bodyData.leaderId || '').trim();
     const bodyPhone = String(bodyData.phone || '').trim();
-    const bodyLevel = String(bodyData.level || 'campana').trim();
+    const bodyLevel = String(bodyData.level || 'cpv').trim();
     const bodyTerritory = String(bodyData.territoryName || '').trim();
-    const bodyRole = String(bodyData.role || 'Jefe de Campaña').trim();
+    const bodyRole = String(bodyData.role || 'Coordinador de Promoción al Voto (CPV)').trim();
 
     let leader: any = null;
     try {
@@ -1031,14 +1031,14 @@ app.post('/api/accounts/:id/reset-password', async (req, res) => {
       );
     }
 
-    const finalEmail = bodyEmail || (leader?.email ? String(leader.email).toLowerCase() : (cleanId.includes('@') ? cleanId : `${unprefixedId || 'usuario'}@campana.mx`));
+    const finalEmail = bodyEmail || (leader?.email ? String(leader.email).toLowerCase() : (cleanId.includes('@') ? cleanId : `${unprefixedId || 'usuario'}@elecciones.legislab.app`));
     const finalUsername = bodyUsername || (leader?.username ? String(leader.username).toLowerCase().replace(/^@+/, '') : (cleanId.includes('@') ? cleanId.split('@')[0] : unprefixedId || 'usuario'));
     const finalName = bodyName || (leader ? leader.name : finalUsername);
     const finalLeaderId = bodyLeaderId || (leader ? leader.id : rawId);
     const finalPhone = bodyPhone || (leader ? leader.phone : undefined);
-    const finalLevel = bodyLevel || (leader ? leader.level : 'campana');
+    const finalLevel = bodyLevel || (leader ? leader.level : 'cpv');
     const finalTerritory = bodyTerritory || (leader ? leader.territoryName : '');
-    const finalRole = bodyRole || (leader ? leader.role : 'Jefe de Campaña');
+    const finalRole = bodyRole || (leader ? leader.role : 'Coordinador de Promoción al Voto (CPV)');
 
     // Siempre garantizar que la cuenta exista en PostgreSQL con la nueva clave temporal
     try {
@@ -1173,6 +1173,7 @@ app.post('/api/auth/login', async (req, res) => {
             { username: { equals: prefixedId, mode: 'insensitive' } },
             { id: rawId },
             { leaderId: rawId },
+            ...(phoneDigits.length >= 7 ? [{ phone: { contains: phoneDigits } }] : [])
           ]
         }
       });
@@ -1298,9 +1299,9 @@ app.post('/api/auth/login', async (req, res) => {
                 name: newName,
                 password: finalHash,
                 leaderId: newLeaderId,
-                level: accountHint.level || 'campana',
+                level: accountHint.level || 'cpv',
                 territoryName: accountHint.territoryName || '',
-                accountRoleLabel: accountHint.accountRoleLabel || 'Jefe de Campaña',
+                accountRoleLabel: accountHint.accountRoleLabel || 'Coordinador de Promoción al Voto (CPV)',
                 avatarBg: accountHint.avatarBg || 'bg-[#9d2449]',
               },
               create: {
@@ -1310,9 +1311,9 @@ app.post('/api/auth/login', async (req, res) => {
                 name: newName,
                 password: finalHash,
                 leaderId: newLeaderId,
-                level: accountHint.level || 'campana',
+                level: accountHint.level || 'cpv',
                 territoryName: accountHint.territoryName || '',
-                accountRoleLabel: accountHint.accountRoleLabel || 'Jefe de Campaña',
+                accountRoleLabel: accountHint.accountRoleLabel || 'Coordinador de Promoción al Voto (CPV)',
                 avatarBg: accountHint.avatarBg || 'bg-[#9d2449]',
                 isSuperAdmin: false,
               }
@@ -1382,11 +1383,11 @@ app.post('/api/auth/login', async (req, res) => {
         username: safeUser.username,
         name: safeUser.name,
         email: safeUser.email,
-        level: safeUser.level || 'campana',
+        level: safeUser.level || 'cpv',
         leaderId: safeUser.leaderId || null,
         isSuperAdmin: Boolean(safeUser.isSuperAdmin),
         territoryName: safeUser.territoryName || '',
-        accountRoleLabel: safeUser.accountRoleLabel || 'Jefe de Campaña',
+        accountRoleLabel: safeUser.accountRoleLabel || 'Coordinador de Promoción al Voto (CPV)',
         avatarBg: safeUser.avatarBg || 'bg-[#9d2449]',
       };
 
@@ -1440,11 +1441,11 @@ app.post('/api/auth/impersonate', async (req, res) => {
           id: `usr-${leader.id}`,
           username: leader.username || 'usuario',
           name: leader.name,
-          email: leader.email || `${leader.username || 'usuario'}@campana.mx`,
+          email: leader.email || `${leader.username || 'usuario'}@elecciones.legislab.app`,
           leaderId: leader.id,
-          level: leader.level || 'campana',
+          level: leader.level || 'cpv',
           territoryName: leader.territoryName || '',
-          accountRoleLabel: leader.role || 'Jefe de Campaña',
+          accountRoleLabel: leader.role || 'Coordinador de Promoción al Voto (CPV)',
           avatarBg: leader.avatarBg || 'bg-[#9d2449]',
           isSuperAdmin: false,
         };
@@ -1463,11 +1464,11 @@ app.post('/api/auth/impersonate', async (req, res) => {
       username: safeUser.username,
       name: safeUser.name,
       email: safeUser.email,
-      level: safeUser.level || 'campana',
+      level: safeUser.level || 'cpv',
       leaderId: safeUser.leaderId || null,
       isSuperAdmin: false,
       territoryName: safeUser.territoryName || '',
-      accountRoleLabel: safeUser.accountRoleLabel || 'Jefe de Campaña',
+      accountRoleLabel: safeUser.accountRoleLabel || 'Coordinador de Promoción al Voto (CPV)',
       avatarBg: safeUser.avatarBg || 'bg-[#9d2449]',
     };
 

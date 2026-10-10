@@ -270,7 +270,7 @@ export const SuperadminTicketsPage: React.FC<SuperadminTicketsPageProps> = ({
             <div className="p-6 sm:p-8 max-w-2xl mx-auto w-full my-auto bg-white rounded-2xl border border-slate-200 shadow-xs space-y-5">
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-sm font-bold text-slate-900">
-                  Nuevo Ticket hacia Jefe de Campaña
+                  Nuevo Ticket hacia Coordinador de Promoción al Voto (CPV)
                 </h3>
                 <button
                   type="button"

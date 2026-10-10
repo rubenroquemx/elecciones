@@ -147,7 +147,7 @@ export const TerritorialPromoterEditPage: React.FC<TerritorialPromoterEditPagePr
       electorKey: electorKey.trim().toUpperCase(),
       curp: curp.trim().toUpperCase(),
       assignedSections,
-      electoralSection: assignedSections[0] || '0416',
+      electoralSection: assignedSections[0] || '',
       territoryName: territoryLabel,
       metaGoal: Number(metaGoal) || 100,
       status,
