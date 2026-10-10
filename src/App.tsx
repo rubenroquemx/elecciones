@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect, lazy, Suspense } from
 import type { TerritorialLeader, FilterOptions } from './types/territory';
 import type { ElectoralSection, SectionStructure } from './types/sections';
 import type { UserAccount } from './types/auth';
-import { INITIAL_SECTIONS, CATALOG_BY_SECTION } from './data/mockSectionsData';
+import { INITIAL_SECTIONS } from './data/mockSectionsData';
 import { MOCK_ACCOUNTS } from './data/mockAuthData';
 import { 
   calculateHierarchyAggregates, 
@@ -672,23 +672,31 @@ export function App() {
     if (currentUser.isSuperAdmin || currentUser.level === 'admin') {
       return sectionsData;
     }
-    if (currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital') {
-      const match = currentUser.territoryName.match(/\b(?:distrito|dto)?\s*(?:local|federal)?\s*0*(\d+)\b/i);
-      const distNum = match ? parseInt(match[1], 10) : 6;
-
-      return sectionsData.filter(sec => {
-        const cat = CATALOG_BY_SECTION.get(sec.sectionNumber);
-        if (!cat) return true;
-        return cat.localDistrict === distNum;
-      });
+    if (currentUser.level === 'cpv' || currentUser.level === 'campana' || currentUser.level === 'estatal') {
+      if (currentUser.assignedSections && currentUser.assignedSections.length > 0) {
+        return sectionsData.filter(s => currentUser.assignedSections!.includes(s.sectionNumber));
+      }
+      return sectionsData;
     }
-    if (currentUser.level === 'territorial' || currentUser.level === 'seccional') {
+    if (currentUser.level === 'zona' || currentUser.level === 'distrital' || currentUser.level === 'responsable_zona') {
       const leaderNode = leadersData.find(l => l.id === currentUser.leaderId);
       const assigned = (currentUser.assignedSections && currentUser.assignedSections.length > 0)
         ? currentUser.assignedSections
         : (leaderNode?.assignedSections && leaderNode.assignedSections.length > 0)
           ? leaderNode.assignedSections
-          : (currentUser.territoryName?.match(/\b\d{3,4}\b/g) || ['0416', '0417']);
+          : [];
+      if (assigned.length > 0) {
+        return sectionsData.filter(s => assigned.includes(s.sectionNumber));
+      }
+      return sectionsData;
+    }
+    if (currentUser.level === 'seccion' || currentUser.level === 'territorial' || currentUser.level === 'seccional') {
+      const leaderNode = leadersData.find(l => l.id === currentUser.leaderId);
+      const assigned = (currentUser.assignedSections && currentUser.assignedSections.length > 0)
+        ? currentUser.assignedSections
+        : (leaderNode?.assignedSections && leaderNode.assignedSections.length > 0)
+          ? leaderNode.assignedSections
+          : (currentUser.territoryName?.match(/\b\d{3,4}\b/g) || []);
       return sectionsData.filter(s => assigned.includes(s.sectionNumber));
     }
     if (currentUser.level === 'promotor') {
@@ -696,7 +704,7 @@ export function App() {
       return [];
     }
     return sectionsData;
-  }, [currentUser, sectionsData]);
+  }, [currentUser, sectionsData, leadersData]);
 
   // Secciones disponibles para modales de captura (asegura secciones asignadas para cualquier promotor)
   const captureAvailableSections: ElectoralSection[] = useMemo(() => {
@@ -707,7 +715,7 @@ export function App() {
         ? currentUser.assignedSections
         : (leaderNode?.assignedSections && leaderNode.assignedSections.length > 0)
           ? leaderNode.assignedSections
-          : (currentUser.territoryName?.match(/\b\d{3,4}\b/g) || ['0416']);
+          : (currentUser.territoryName?.match(/\b\d{3,4}\b/g) || []);
 
       const matched = sectionsData.filter(s => assigned.includes(s.sectionNumber));
       if (matched.length > 0) return matched;
@@ -717,12 +725,12 @@ export function App() {
         return {
           id: `sec-${secNum}`,
           sectionNumber: secNum,
-          municipio: 'Centro',
-          municipioId: 'MUN-004',
-          distritoLocal: 'Distrito 06',
+          municipio: '',
+          municipioId: '',
+          distritoLocal: '',
           tipo: 'Urbana' as const,
-          nominalList: 2450,
-          targetGoal: 150,
+          nominalList: 0,
+          targetGoal: 0,
           structures: [],
           center: [-92.93, 17.98] as [number, number],
           bbox: [-92.95, 17.96, -92.91, 18.00] as [number, number, number, number],
@@ -830,27 +838,28 @@ export function App() {
       return;
     }
 
+    const isPromotor = currentUser.level === 'promotor';
     const allowedPromotorPages: MainNavSection[] = ['escritorio', 'mis-secciones', 'capturar-promovido', 'ver-promovido', 'editar-promovido', 'configuracion', 'acerca-de'];
-    if (currentUser.level === 'promotor' && !allowedPromotorPages.includes(activeNav)) {
+    if (isPromotor && !allowedPromotorPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
-    const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal';
-    const allowedCampanaPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'configuracion', 'acerca-de'];
-    if (isCampana && !allowedCampanaPages.includes(activeNav)) {
+
+    const isCPV = currentUser.level === 'cpv' || currentUser.level === 'campana' || currentUser.level === 'estatal';
+    const allowedCPVPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
+    if (isCPV && !allowedCPVPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
-    const isMidLevel = currentUser.level === 'distrital' || currentUser.level === 'zona' || currentUser.level === 'responsable_zona';
-    const allowedMidPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
-    if (isMidLevel && !allowedMidPages.includes(activeNav)) {
+
+    const isZona = currentUser.level === 'zona' || currentUser.level === 'distrital' || currentUser.level === 'responsable_zona';
+    const allowedZonaPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
+    if (isZona && !allowedZonaPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
-    const isTerritorial = currentUser.level === 'territorial' || currentUser.level === 'seccional';
-    const allowedTerritorialPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'promotores', 'crear-promotor', 'editar-promotor', 'secciones', 'configuracion', 'acerca-de'];
-    if (isTerritorial && !allowedTerritorialPages.includes(activeNav)) {
+
+    const isSeccion = currentUser.level === 'seccion' || currentUser.level === 'territorial' || currentUser.level === 'seccional';
+    const allowedSeccionPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'promotores', 'crear-promotor', 'editar-promotor', 'secciones', 'configuracion', 'acerca-de'];
+    if (isSeccion && !allowedSeccionPages.includes(activeNav)) {
       setActiveNav('escritorio');
-    }
-    if (currentUser.level === 'territorial' && structureMode === 'organigrama') {
-      setStructureMode('lista');
     }
   }, [currentUser, activeNav, structureMode, isSuperAdminUser]);
 

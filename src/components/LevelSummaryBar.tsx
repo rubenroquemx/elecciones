@@ -17,14 +17,20 @@ export const LevelSummaryBar: React.FC<LevelSummaryBarProps> = ({
   onSelectLevel,
 }) => {
   const levelsOrder: TerritorialLevel[] = [
-    'campana',
-    'distrital',
+    'cpv',
     'zona',
-    'responsable_zona',
-    'territorial',
+    'seccion',
     'promotor',
     'promovido',
   ];
+
+  const getLevelCount = (key: TerritorialLevel) => {
+    let c = levelCounts[key] || 0;
+    if (key === 'cpv') c += (levelCounts['campana'] || 0) + (levelCounts['estatal'] || 0);
+    if (key === 'zona') c += (levelCounts['distrital'] || 0) + (levelCounts['responsable_zona'] || 0);
+    if (key === 'seccion') c += (levelCounts['territorial'] || 0) + (levelCounts['seccional'] || 0);
+    return c;
+  };
 
   return (
     <div className="bg-slate-50 border-b border-slate-200 px-5 py-2.5 flex items-center justify-between gap-3 overflow-x-auto select-none shrink-0 shadow-2xs">
@@ -59,7 +65,7 @@ export const LevelSummaryBar: React.FC<LevelSummaryBarProps> = ({
       <div className="flex items-center gap-1.5 shrink-0">
         {levelsOrder.map((levelKey) => {
           const config = LEVEL_CONFIG[levelKey];
-          const count = levelCounts[levelKey] || 0;
+          const count = getLevelCount(levelKey);
           const isSelected = currentFilter === levelKey;
 
           return (

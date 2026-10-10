@@ -88,12 +88,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const getAddButtonLabel = () => {
     switch (currentUser.level) {
       case 'promotor': return 'Capturar Promovido';
-      case 'territorial': return 'Crear Promotor Territorial';
-      case 'responsable_zona': return 'Crear Resp. Sección';
-      case 'zona': return 'Crear Resp. Zona';
-      case 'distrital': return 'Crear Coord. Zona';
-      case 'campana': return 'Crear Coord. Distrital';
-      case 'admin': return 'Crear Jefe de Campaña';
+      case 'seccion':
+      case 'territorial':
+      case 'seccional': return 'Crear Promotor Territorial';
+      case 'zona': return 'Crear Resp. Sección';
+      case 'cpv':
+      case 'campana':
+      case 'estatal': return 'Crear Coordinador de Zona';
+      case 'admin': return 'Crear Coord. Promoción al Voto';
       default: return 'Registrar en Estructura';
     }
   };

@@ -73,7 +73,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onToggleCollapse,
   onNavChange,
 }) => {
-  const isCampana = currentUser?.level === 'campana' || currentUser?.level === 'estatal';
+  const isCampana = currentUser?.level === 'cpv' || currentUser?.level === 'campana' || currentUser?.level === 'estatal';
   const isAdmin = currentUser?.level === 'admin' || currentUser?.isSuperAdmin;
 
   return (

@@ -269,7 +269,7 @@ export const AddStructureToSectionModal: React.FC<AddStructureToSectionModalProp
                   required
                   value={leaderName}
                   onChange={(e) => setLeaderName(e.target.value)}
-                  placeholder="Ej. Lic. Fernando May Hernández"
+                  placeholder="Nombre completo"
                   className="w-full bg-white text-slate-800 pl-8 pr-3 py-2 rounded-lg border border-slate-300 focus:outline-none focus:border-sky-500 shadow-2xs"
                 />
               </div>

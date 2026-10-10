@@ -257,12 +257,12 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
     const newLeader: TerritorialLeader = {
       id: safeCoordId,
       name: coordinatorName.trim(),
-      role: 'Jefe de Campaña',
-      level: 'campana',
+      role: 'Coordinador de Promoción al Voto (CPV)',
+      level: 'cpv',
       levelIndex: 0,
       parentId: null,
       territoryName: territoryFullName,
-      code: `CAMP-${selectedState.abbr.toUpperCase()}-${assignedSectionsList[0] || '01'}`,
+      code: `CPV-${selectedState.abbr.toUpperCase()}-${assignedSectionsList[0] || '01'}`,
       phone: coordinatorPhone.trim() || undefined,
       email: cleanEmail,
       username: cleanUser,
@@ -285,11 +285,11 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
       password: coordinatorPassword.trim(),
       phone: coordinatorPhone.trim() || undefined,
       leaderId: safeCoordId,
-      level: 'campana',
+      level: 'cpv',
       territoryName: territoryFullName,
       assignedSections: assignedSectionsList,
       avatarBg: 'bg-[#9d2449]',
-      accountRoleLabel: 'Jefe de Campaña',
+      accountRoleLabel: 'Coordinador de Promoción al Voto (CPV)',
       isSuperAdmin: false,
     };
 
@@ -298,7 +298,7 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
       setSavedResult({ leader: newLeader, account: newAccount });
       setCurrentStep(4);
     } catch (err: any) {
-      alert('Error al registrar jefe de campaña: ' + err.message);
+      alert('Error al registrar Coordinador de Promoción al Voto (CPV): ' + err.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -309,7 +309,7 @@ export const CreateCampanaCoordinatorWizardPage: React.FC<CreateCampanaCoordinat
     const { leader, account } = savedResult;
     const text = `🗳️ *CREDENCIALES DE ACCESO - SISTEMA ELECTORAL TERRITORIAL* 🗳️
 
-👤 *Jefe de Campaña:* ${leader.name}
+👤 *Coordinador de Promoción al Voto (CPV):* ${leader.name}
 🚩 *Campaña:* ${campaignName} (${resolvedPartyName})
 📍 *Territorio Asignado:* ${leader.territoryName}
 📊 *Secciones Bajo tu Mando:* ${leader.assignedSections?.length || 0} secciones
@@ -345,10 +345,10 @@ _Por favor guarda este mensaje y mantén seguras tus credenciales._`;
         {/* Título de la Página */}
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Nuevo Jefe de Campaña
+            Nuevo Coordinador de Promoción al Voto (CPV)
           </h1>
           <p className="text-xs text-slate-500">
-            Asigna el ámbito territorial, partido político y genera los accesos oficiales para el titular de la campaña.
+            Asigna el ámbito territorial, partido político y genera los accesos oficiales para el Coordinador de Promoción al Voto.
           </p>
         </div>
 
@@ -842,7 +842,7 @@ _Por favor guarda este mensaje y mantén seguras tus credenciales._`;
                 ) : (
                   <>
                     <ShieldCheck className="w-4 h-4" />
-                    <span>Dar de Alta Jefe de Campaña Oficial</span>
+                    <span>Dar de Alta Coordinador de Promoción al Voto (CPV)</span>
                   </>
                 )}
               </button>
@@ -858,7 +858,7 @@ _Por favor guarda este mensaje y mantén seguras tus credenciales._`;
                 <CheckCircle2 className="w-8 h-8" />
               </div>
               <h2 className="text-xl font-bold text-slate-900">
-                ¡Jefe de Campaña Creado Exitosamente!
+                ¡Coordinador de Promoción al Voto (CPV) Creado Exitosamente!
               </h2>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
                 La cuenta y su estructura han sido registradas en la base de datos real. Ya puede ingresar inmediatamente con sus credenciales.

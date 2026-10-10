@@ -74,12 +74,14 @@ function getSubtreeLeaderIds(rootLeaderId: string, allLeaders: any[]): Set<strin
 
 function getAllowedChildLevel(creatorLevel: string): string | null {
   switch (creatorLevel) {
-    case 'admin': return 'campana';
+    case 'admin': return 'cpv';
+    case 'cpv':
     case 'campana':
-    case 'estatal': return 'distrital';
-    case 'distrital': return 'zona';
-    case 'zona': return 'responsable_zona';
-    case 'responsable_zona': return 'territorial';
+    case 'estatal': return 'zona';
+    case 'zona':
+    case 'distrital':
+    case 'responsable_zona': return 'seccion';
+    case 'seccion':
     case 'territorial':
     case 'seccional': return 'promotor';
     case 'promotor': return 'promovido';
@@ -1707,13 +1709,16 @@ app.post('/api/leaders', async (req, res) => {
     // Regla de jerarquía estricta obligatoria
     if (req.user) {
       if (req.user.level === 'admin' || req.user.isSuperAdmin) {
-        if (data.level !== 'campana') {
-          return res.status(403).json({ error: 'El Super Administrador solo puede dar de alta Jefe de Campaña.' });
+        if (data.level !== 'cpv' && data.level !== 'campana') {
+          return res.status(403).json({ error: 'El Super Administrador solo puede dar de alta Coordinador de Promoción al Voto (CPV).' });
         }
         data.parentId = null;
       } else {
         const allowedChild = getAllowedChildLevel(req.user.level);
-        if (data.level !== allowedChild) {
+        const isMatch = data.level === allowedChild ||
+          (allowedChild === 'cpv' && data.level === 'campana') ||
+          (allowedChild === 'seccion' && (data.level === 'territorial' || data.level === 'seccional'));
+        if (!isMatch) {
           return res.status(403).json({ error: `Tu nivel solo puede crear subordinados directos de nivel "${allowedChild}".` });
         }
         data.parentId = req.user.leaderId;

@@ -50,14 +50,16 @@ export const TerritorialCoordinatorsAdminPage: React.FC<TerritorialCoordinatorsA
   const roleConfig = useMemo(() => {
     const singular = getDefaultRoleForLevel(targetChildLevel);
     const plurals: Record<TerritorialLevel, string> = {
-      campana: 'Jefes de Campaña',
-      distrital: 'Coordinadores Distritales',
+      cpv: 'Coordinadores de Promoción al Voto',
       zona: 'Coordinadores de Zona',
-      responsable_zona: 'Responsables de Zona',
-      territorial: 'Responsables de Sección',
+      seccion: 'Responsables de Sección',
       promotor: 'Promotores Territoriales',
       promovido: 'Ciudadanos Promovidos',
-      estatal: 'Jefes de Campaña',
+      campana: 'Coordinadores de Promoción al Voto',
+      distrital: 'Coordinadores de Zona',
+      responsable_zona: 'Coordinadores de Zona',
+      territorial: 'Responsables de Sección',
+      estatal: 'Coordinadores de Promoción al Voto',
       seccional: 'Responsables de Sección',
     };
     const plural = plurals[targetChildLevel] || singular + 's';

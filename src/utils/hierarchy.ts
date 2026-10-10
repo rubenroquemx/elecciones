@@ -1,47 +1,48 @@
 import type { TerritorialLeader, HierarchyStats, TerritorialLevel, FilterOptions } from '../types/territory';
 
 export const ORDERED_LEVELS: TerritorialLevel[] = [
-  'campana',          // Nivel 1: Jefe de campaña
-  'distrital',        // Nivel 2: Coordinador Distrital
-  'zona',             // Nivel 3: Coordinador de Zona
-  'responsable_zona', // Nivel 4: Responsable de Zona
-  'territorial',      // Nivel 5: Responsable de sección (anterior Coordinador Territorial)
-  'promotor',         // Nivel 6: Promotor Territorial
-  'promovido',        // Nivel 7: Ciudadano Promovido
+  'cpv',       // Nivel 1: Coordinador de Promoción al Voto (CPV)
+  'zona',      // Nivel 2: Coordinador de Zona
+  'seccion',   // Nivel 3: Responsable de Sección
+  'promotor',  // Nivel 4: Promotor Territorial
+  'promovido', // Base: Ciudadano Promovido
 ];
 
 /**
  * Returns the child level automatically based on a parent leader's level
  */
 export function getChildLevel(parentLevel: TerritorialLevel | null | undefined): TerritorialLevel {
-  if (!parentLevel) return 'campana';
-  const idx = ORDERED_LEVELS.indexOf(parentLevel);
+  if (!parentLevel) return 'cpv';
+  const normalized = parentLevel === 'campana' || parentLevel === 'estatal' ? 'cpv'
+    : parentLevel === 'distrital' || parentLevel === 'responsable_zona' ? 'zona'
+    : parentLevel === 'territorial' || parentLevel === 'seccional' ? 'seccion'
+    : parentLevel;
+  const idx = ORDERED_LEVELS.indexOf(normalized as TerritorialLevel);
   if (idx === -1 || idx >= ORDERED_LEVELS.length - 1) return 'promovido';
   return ORDERED_LEVELS[idx + 1];
 }
 
 /**
  * Returns what type of node/account a creator of given level is allowed to create:
- * - Super admin: 'campana' (Jefe de campaña)
- * - Jefe de campaña: 'distrital' (Coordinador Distrital)
- * - Coordinador Distrital: 'zona' (Coordinador de Zona)
- * - Coordinador de Zona: 'responsable_zona' (Responsable de Zona)
- * - Responsable de Zona: 'territorial' (Responsable de Sección)
+ * - Super admin: 'cpv' (Coordinador de Promoción al Voto)
+ * - CPV: 'zona' (Coordinador de Zona)
+ * - Coordinador de Zona: 'seccion' (Responsable de Sección)
  * - Responsable de Sección: 'promotor' (Promotor Territorial)
  * - Promotor Territorial: 'promovido' (Captura promovidos)
  */
-export function getAllowedChildLevel(creatorLevel: TerritorialLevel | 'admin'): TerritorialLevel | null {
+export function getAllowedChildLevel(creatorLevel: TerritorialLevel | 'admin' | string): TerritorialLevel | null {
   switch (creatorLevel) {
-    case 'admin': return 'campana';
-    case 'campana': return 'distrital';
-    case 'distrital': return 'zona';
-    case 'zona': return 'responsable_zona';
-    case 'responsable_zona': return 'territorial';
-    case 'territorial': return 'promotor';
-    case 'promotor': return 'promovido';
-    // Legacy aliases
-    case 'estatal': return 'distrital';
+    case 'admin': return 'cpv';
+    case 'cpv':
+    case 'campana':
+    case 'estatal': return 'zona';
+    case 'zona':
+    case 'distrital':
+    case 'responsable_zona': return 'seccion';
+    case 'seccion':
+    case 'territorial':
     case 'seccional': return 'promotor';
+    case 'promotor': return 'promovido';
     default: return null;
   }
 }
@@ -59,15 +60,15 @@ export function getAllowedLevelsForCreator(creatorLevel: TerritorialLevel | 'adm
 
 /**
  * Checks if a role can create system user accounts:
- * - Admin, Jefe de campaña, Coordinador Distrital, Coordinador de Zona, Responsable de Zona, Responsable de Sección.
+ * - Admin, CPV, Coordinador de Zona, Responsable de Sección.
  * Promotor territorial captures citizen records, does not manage login accounts.
  */
-export function canCreateAccounts(level: TerritorialLevel | 'admin'): boolean {
+export function canCreateAccounts(level: TerritorialLevel | 'admin' | string): boolean {
   return level === 'admin' || 
+    level === 'cpv' || 
     level === 'campana' || 
-    level === 'distrital' || 
     level === 'zona' || 
-    level === 'responsable_zona' || 
+    level === 'seccion' || 
     level === 'territorial' || 
     level === 'estatal' || 
     level === 'seccional';
@@ -76,17 +77,19 @@ export function canCreateAccounts(level: TerritorialLevel | 'admin'): boolean {
 /**
  * Returns the default operational role for a given territorial level
  */
-export function getDefaultRoleForLevel(level: TerritorialLevel): string {
+export function getDefaultRoleForLevel(level: TerritorialLevel | string): string {
   switch (level) {
-    case 'campana': return 'Jefe de Campaña';
-    case 'distrital': return 'Coordinador Distrital';
-    case 'zona': return 'Coordinador de Zona';
-    case 'responsable_zona': return 'Responsable de Zona';
-    case 'territorial': return 'Responsable de Sección';
+    case 'cpv':
+    case 'campana':
+    case 'estatal': return 'Coordinador de Promoción al Voto (CPV)';
+    case 'zona':
+    case 'distrital':
+    case 'responsable_zona': return 'Coordinador de Zona';
+    case 'seccion':
+    case 'territorial':
+    case 'seccional': return 'Responsable de Sección';
     case 'promotor': return 'Promotor Territorial';
     case 'promovido': return 'Ciudadano Promovido';
-    case 'estatal': return 'Jefe de Campaña';
-    case 'seccional': return 'Responsable de Sección';
     default: return 'Integrante Territorial';
   }
 }
@@ -117,7 +120,11 @@ export function calculateHierarchyAggregates(nodes: TerritorialLeader[]): Territ
     if (!node.level) {
       node.level = ORDERED_LEVELS[Math.min(depth, ORDERED_LEVELS.length - 1)];
     }
-    node.levelIndex = ORDERED_LEVELS.indexOf(node.level) !== -1 ? ORDERED_LEVELS.indexOf(node.level) : depth;
+    const normalizedLevel = node.level === 'campana' || node.level === 'estatal' ? 'cpv'
+      : node.level === 'distrital' || node.level === 'responsable_zona' ? 'zona'
+      : node.level === 'territorial' || node.level === 'seccional' ? 'seccion'
+      : node.level;
+    node.levelIndex = ORDERED_LEVELS.indexOf(normalizedLevel as TerritorialLevel) !== -1 ? ORDERED_LEVELS.indexOf(normalizedLevel as TerritorialLevel) : depth;
 
     // Si es promovido, no tiene cuenta de sistema
     if (node.level === 'promovido') {
@@ -239,13 +246,15 @@ export function getVisibleSubtree(rootId: string | null, nodes: TerritorialLeade
  */
 export function getHierarchyStats(nodes: TerritorialLeader[]): HierarchyStats {
   const levelCounts: Record<TerritorialLevel, number> = {
-    campana: 0,
-    distrital: 0,
+    cpv: 0,
     zona: 0,
-    responsable_zona: 0,
-    territorial: 0,
+    seccion: 0,
     promotor: 0,
     promovido: 0,
+    campana: 0,
+    distrital: 0,
+    responsable_zona: 0,
+    territorial: 0,
     estatal: 0,
     seccional: 0,
   };

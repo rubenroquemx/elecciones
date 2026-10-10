@@ -117,8 +117,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
 
   // Flags por nivel del sistema en 4 niveles
   const isSuperAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;
-  const isCampana = currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital';
-  const isTerritorial = currentUser.level === 'territorial' || currentUser.level === 'seccional';
+  const isCampana = currentUser.level === 'cpv' || currentUser.level === 'campana' || currentUser.level === 'estatal';
+  const isTerritorial = currentUser.level === 'seccion' || currentUser.level === 'territorial' || currentUser.level === 'seccional';
   const isPromotor = currentUser.level === 'promotor';
 
   const [promotorSearch, setPromotorSearch] = useState<string>('');
@@ -584,8 +584,8 @@ export const ExecutiveKpiDesktop: React.FC<ExecutiveKpiDesktopProps> = ({
     ? Math.round((validIneCount / promovidosList.length) * 100)
     : 100;
 
-  // 1. Jefe de Campaña
-  if (currentUser.level === 'campana' || currentUser.level === 'estatal') {
+  // 1. Coordinador de Promoción al Voto (CPV)
+  if (currentUser.level === 'cpv' || currentUser.level === 'campana' || currentUser.level === 'estatal') {
     return (
       <JefeCampanaDashboard
         currentUser={currentUser}

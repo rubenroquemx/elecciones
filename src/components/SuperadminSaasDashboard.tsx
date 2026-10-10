@@ -260,9 +260,9 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
         {campanaCoordinators.length === 0 ? (
           <div className="bg-white rounded-none p-12 text-center border border-slate-200 space-y-3 mb-8">
             <Building2 className="w-12 h-12 text-slate-300 mx-auto" />
-            <h4 className="text-base font-bold text-slate-700">No hay Jefes de Campaña registrados</h4>
+            <h4 className="text-base font-bold text-slate-700">No hay Coordinadores de Promoción al Voto registrados</h4>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              El Super Administrador gestiona las campañas registrando a sus titulares oficiales.
+              El Super Administrador gestiona las coordinaciones registrando a sus titulares oficiales (CPV).
             </p>
           </div>
         ) : (
@@ -271,7 +271,7 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                    <th className="py-3 px-4">Jefe de Campaña & Demarcación</th>
+                    <th className="py-3 px-4">Coord. de Promoción al Voto (CPV) & Demarcación</th>
                     {/* Botones de llamada y whats alineados a la derecha */}
                     <th className="py-3 px-4 text-right pr-6">Contacto Directo</th>
                     <th className="py-3 px-4 text-right">Acciones</th>
