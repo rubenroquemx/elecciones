@@ -202,7 +202,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 {(activeNav === 'crear-usuario' || activeNav === 'crear-coordinador-territorial') && (
                   <>
                     <UserPlus className="w-5 h-5 text-[#9d2449]" />
-                    <span>Usuarios › Nuevo Subordinado</span>
+                    <span>Usuarios &gt; Nuevo Coordinador de Promoción al Voto</span>
                   </>
                 )}
 

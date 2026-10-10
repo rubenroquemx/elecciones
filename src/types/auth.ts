@@ -18,4 +18,9 @@ export interface UserAccount {
   isSuperAdmin?: boolean;
   assignedBy?: string;
   createdAt?: string;
+  campaignName?: string;
+  candidateName?: string;
+  partyName?: string;
+  electionType?: string;
+  stateId?: number;
 }

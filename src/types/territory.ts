@@ -78,6 +78,12 @@ export interface TerritorialLeader {
   // Cuenta de sistema
   hasAccount?: boolean;
   username?: string;
+  campaignName?: string;
+  candidateName?: string;
+  partyName?: string;
+  partyId?: string;
+  electionType?: string;
+  stateId?: number;
 
   // Metas y Métricas
   metaGoal: number; // Meta de simpatizantes / electores / registros
