@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { UserAccount } from '../types/auth';
 import { setAuthToken } from '../services/http';
+import { LoadingScreen } from './LoadingScreen';
 import { 
   User, 
   KeyRound, 
@@ -95,6 +96,10 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
       setErrorMsg('Sin conexión con el servidor. Intenta de nuevo.');
     }
   };
+
+  if (isSubmitting) {
+    return <LoadingScreen message="Iniciando sesión en el sistema..." />;
+  }
 
   return (
     <div className="min-h-screen w-full bg-slate-100 flex flex-col justify-between items-center p-4 sm:p-6 font-sans text-slate-800">

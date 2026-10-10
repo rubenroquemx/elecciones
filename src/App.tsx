@@ -24,6 +24,8 @@ import { PromoterNotificationsModal } from './components/PromoterNotificationsMo
 import { CampanaTicketsModal } from './components/CampanaTicketsModal';
 import { ConfiguracionPage } from './components/ConfiguracionPage';
 import { AcercaDePlaceholderPage } from './components/AcercaDePlaceholderPage';
+import { SplashScreen } from './components/SplashScreen';
+import { LoadingScreen } from './components/LoadingScreen';
 
 // Code-split heavy views via React.lazy for optimal initial bundle size and PWA responsiveness
 const TerritoryFlowCanvas = lazy(() => import('./components/TerritoryFlowCanvas').then(m => ({ default: m.TerritoryFlowCanvas })));
@@ -142,6 +144,7 @@ function clearPendingOfflineId(id: string) {
 }
 
 export function App() {
+  const [showSplash, setShowSplash] = useState(true);
   // Master raw and computed territorial dataset
   const [leadersData, setLeadersData] = useState<TerritorialLeader[]>(() => {
     const deletedSet = getLocalDeletedIds();
@@ -1331,6 +1334,11 @@ export function App() {
     });
   }, [handleDeleteLeader]);
 
+  // Splash Screen inicial con fondo negro degradado y logo centrado
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
+
   // Si no hay sesión activa en el sistema cerrado, mostrar pantalla de acceso
   if (!currentUser) {
     return (
@@ -1502,7 +1510,7 @@ export function App() {
               const targetAcc = accounts.find(a => a.leaderId === editingUserId || a.username === targetLeader?.username);
               if (!targetLeader) return null;
               return (
-                <Suspense fallback={<div className="flex-1 flex items-center justify-center p-8 text-slate-400 font-sans text-xs">Cargando formulario...</div>}>
+                <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando formulario..." />}>
                   <SubordinateCreatePage
                     currentUser={currentUser!}
                     availableSections={scopedSections}
@@ -1529,7 +1537,7 @@ export function App() {
               const targetAcc = accounts.find(a => a.leaderId === selectedUserDetailId || a.username === targetLeader?.username);
               if (!targetLeader) return null;
               return (
-                <Suspense fallback={<div className="flex-1 flex items-center justify-center p-8 text-slate-400 font-sans text-xs">Cargando detalle...</div>}>
+                <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando expediente..." />}>
                   <UserDetailPage
                     leader={targetLeader}
                     account={targetAcc}
@@ -1563,7 +1571,7 @@ export function App() {
               onAddStructure={handleAddStructureToSection}
             />
           ) : (
-            <Suspense fallback={<div className="flex-1 flex items-center justify-center p-8 text-slate-400 font-sans text-xs">Cargando vista...</div>}>
+            <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando módulo..." />}>
               {/* WIZARD INDEPENDIENTE PARA CREAR COORDINADOR DE CAMPAÑA (NO MODAL) */}
               {activeNav === 'crear-coordinador' && (
                 <CreateCampanaCoordinatorWizardPage
