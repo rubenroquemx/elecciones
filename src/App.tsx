@@ -1574,8 +1574,31 @@ export function App() {
           {/* Vista de Página Completa de Edición de Coordinador de Campaña (NO MODAL) */}
           {editingCoordinatorId ? (
             (() => {
-              const targetCoord = leadersData.find(l => l.id === editingCoordinatorId);
-              const targetAcc = accounts.find(a => a.leaderId === editingCoordinatorId || a.username === targetCoord?.username);
+              const targetCoord = leadersData.find(l => l.id === editingCoordinatorId) ||
+                (() => {
+                  const acc = accounts.find(a => a.id === editingCoordinatorId || a.leaderId === editingCoordinatorId);
+                  if (!acc) return null;
+                  return {
+                    id: acc.leaderId || acc.id,
+                    name: acc.name || acc.username,
+                    role: acc.accountRoleLabel || 'Coordinador de Promoción al Voto (CPV)',
+                    level: (acc.level as any) || 'cpv',
+                    levelIndex: 0,
+                    parentId: null,
+                    territoryName: acc.territoryName || '',
+                    phone: acc.phone,
+                    email: acc.email,
+                    username: acc.username,
+                    hasAccount: true,
+                    metaGoal: 5000,
+                    currentCount: 0,
+                    status: 'en_progreso' as const,
+                    validationStatus: 'validado' as const,
+                    assignedSections: acc.assignedSections || [],
+                    avatarBg: acc.avatarBg || 'bg-[#9d2449]',
+                  };
+                })();
+              const targetAcc = accounts.find(a => a.leaderId === editingCoordinatorId || a.id === editingCoordinatorId || a.username === targetCoord?.username);
               if (!targetCoord) return null;
               return (
                 <CampanaCoordinatorEditPage
@@ -1591,8 +1614,31 @@ export function App() {
             })()
           ) : selectedCoordinatorDetailId ? (
             (() => {
-              const targetCoord = leadersData.find(l => l.id === selectedCoordinatorDetailId);
-              const targetAcc = accounts.find(a => a.leaderId === selectedCoordinatorDetailId || a.username === targetCoord?.username);
+              const targetCoord = leadersData.find(l => l.id === selectedCoordinatorDetailId) ||
+                (() => {
+                  const acc = accounts.find(a => a.id === selectedCoordinatorDetailId || a.leaderId === selectedCoordinatorDetailId);
+                  if (!acc) return null;
+                  return {
+                    id: acc.leaderId || acc.id,
+                    name: acc.name || acc.username,
+                    role: acc.accountRoleLabel || 'Coordinador de Promoción al Voto (CPV)',
+                    level: (acc.level as any) || 'cpv',
+                    levelIndex: 0,
+                    parentId: null,
+                    territoryName: acc.territoryName || '',
+                    phone: acc.phone,
+                    email: acc.email,
+                    username: acc.username,
+                    hasAccount: true,
+                    metaGoal: 5000,
+                    currentCount: 0,
+                    status: 'en_progreso' as const,
+                    validationStatus: 'validado' as const,
+                    assignedSections: acc.assignedSections || [],
+                    avatarBg: acc.avatarBg || 'bg-[#9d2449]',
+                  };
+                })();
+              const targetAcc = accounts.find(a => a.leaderId === selectedCoordinatorDetailId || a.id === selectedCoordinatorDetailId || a.username === targetCoord?.username);
               if (!targetCoord) return null;
               return (
                 <CampanaCoordinatorDetailPage

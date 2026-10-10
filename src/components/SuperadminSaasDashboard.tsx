@@ -38,12 +38,66 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const geoLayerRef = useRef<L.GeoJSON | null>(null);
 
-  // Jefes de Campaña registrados (nivel campana o alias estatal)
+  // Coordinadores de Promoción al Voto (CPV) / Jefes de Campaña registrados
   const campanaCoordinators = useMemo(() => {
-    return allLeaders.filter(
-      l => l.level === 'campana' || l.level === 'estatal'
-    );
-  }, [allLeaders]);
+    // 1. Filtrar líderes territoriales que correspondan a CPV / campaña / estatal / coordinador raíz
+    const leaderMatches = allLeaders.filter(l => {
+      const lvl = (l.level || '').toLowerCase();
+      const role = (l.role || '').toLowerCase();
+      const isCpvLevel = lvl === 'cpv' || lvl === 'campana' || lvl === 'estatal' || lvl === 'coordinador_campana';
+      const isCpvRole = (role.includes('coordinador') || role.includes('cpv')) && (!l.parentId || l.parentId === 'null' || l.levelIndex === 0);
+      return isCpvLevel || isCpvRole;
+    });
+
+    const leaderIds = new Set(leaderMatches.map(l => l.id));
+    const leaderUsernames = new Set(leaderMatches.map(l => (l.username || '').toLowerCase()).filter(Boolean));
+    const leaderEmails = new Set(leaderMatches.map(l => (l.email || '').toLowerCase()).filter(Boolean));
+
+    // 2. Incluir también cuentas registradas como CPV / Campaña que aún no aparezcan como líder
+    const extraFromAccounts: TerritorialLeader[] = [];
+    accounts.forEach(acc => {
+      if (acc.isSuperAdmin || acc.level === 'admin') return;
+      const accLvl = (acc.level || '').toLowerCase();
+      const accRole = (acc.accountRoleLabel || '').toLowerCase();
+      const isCpvAccount = 
+        accLvl === 'cpv' || 
+        accLvl === 'campana' || 
+        accLvl === 'estatal' || 
+        accLvl === 'coordinador_campana' || 
+        accRole.includes('coordinador') || 
+        accRole.includes('cpv');
+      if (!isCpvAccount) return;
+
+      const matchedById = Boolean(acc.leaderId && leaderIds.has(acc.leaderId)) || leaderIds.has(acc.id);
+      const matchedByUser = Boolean(acc.username && leaderUsernames.has(acc.username.toLowerCase()));
+      const matchedByEmail = Boolean(acc.email && leaderEmails.has(acc.email.toLowerCase()));
+
+      if (!matchedById && !matchedByUser && !matchedByEmail) {
+        extraFromAccounts.push({
+          id: acc.leaderId || acc.id,
+          name: acc.name || acc.username || 'Coordinador',
+          role: acc.accountRoleLabel || 'Coordinador de Promoción al Voto (CPV)',
+          level: (acc.level as any) || 'cpv',
+          levelIndex: 0,
+          parentId: null,
+          territoryName: acc.territoryName || 'Demarcación Asignada',
+          phone: acc.phone,
+          email: acc.email,
+          username: acc.username,
+          hasAccount: true,
+          metaGoal: (acc.assignedSections?.length || 1) * 50 || 5000,
+          currentCount: 0,
+          status: 'en_progreso',
+          validationStatus: 'validado',
+          assignedSections: acc.assignedSections || [],
+          avatarBg: acc.avatarBg || 'bg-[#9d2449]',
+          createdAt: acc.createdAt,
+        });
+      }
+    });
+
+    return [...leaderMatches, ...extraFromAccounts];
+  }, [allLeaders, accounts]);
 
   // Firma estable para evitar re-renderizados innecesarios del mapa
   const assignmentSignature = useMemo(() => {
@@ -52,11 +106,14 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
       .join('|');
   }, [campanaCoordinators]);
 
-  // Mapa de cuentas por leaderId
+  // Mapa de cuentas por leaderId, id, username y email
   const accountsByLeaderId = useMemo(() => {
     const map = new Map<string, UserAccount>();
     accounts.forEach(acc => {
       if (acc.leaderId) map.set(acc.leaderId, acc);
+      if (acc.id) map.set(acc.id, acc);
+      if (acc.username) map.set(acc.username.toLowerCase(), acc);
+      if (acc.email) map.set(acc.email.toLowerCase(), acc);
     });
     return map;
   }, [accounts]);
@@ -65,7 +122,10 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
   const totalAssignedSectionsCount = useMemo(() => {
     const allSecs = new Set<string>();
     campanaCoordinators.forEach(c => {
-      (c.assignedSections || []).forEach(s => allSecs.add(String(s).trim()));
+      (c.assignedSections || []).forEach(s => {
+        const str = String(s).trim();
+        if (str) allSecs.add(str.padStart(4, '0'));
+      });
     });
     return allSecs.size;
   }, [campanaCoordinators]);
@@ -287,20 +347,25 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
                   {campanaCoordinators.map((coord) => {
-                    const acc = accountsByLeaderId.get(coord.id) || accounts.find(a => a.username === coord.username);
-                    const cleanPhone = (coord.phone || '').replace(/\D/g, '');
+                    const acc = 
+                      accountsByLeaderId.get(coord.id) || 
+                      (coord.username ? accountsByLeaderId.get(coord.username.toLowerCase()) : undefined) ||
+                      (coord.email ? accountsByLeaderId.get(coord.email.toLowerCase()) : undefined) ||
+                      accounts.find(a => a.leaderId === coord.id || (coord.username && a.username === coord.username) || (coord.email && a.email === coord.email));
+                    const cleanPhone = (coord.phone || acc?.phone || '').replace(/\D/g, '');
 
                     const targetAccount: UserAccount = acc || {
                       id: `usr-${coord.id}`,
                       username: coord.username || 'usuario',
                       name: coord.name,
-                      email: coord.email || `${coord.username}@campana.mx`,
+                      email: coord.email || `${coord.username || 'cpv'}@campana.mx`,
                       leaderId: coord.id,
-                      level: 'campana',
+                      level: coord.level || 'cpv',
                       territoryName: coord.territoryName,
-                      accountRoleLabel: 'Jefe de Campaña',
-                      avatarBg: 'bg-[#9d2449]',
+                      accountRoleLabel: coord.role || 'Coordinador de Promoción al Voto (CPV)',
+                      avatarBg: coord.avatarBg || 'bg-[#9d2449]',
                       assignedBy: 'Super Administrador (SaaS)',
+                      assignedSections: coord.assignedSections || [],
                     };
 
                     return (
