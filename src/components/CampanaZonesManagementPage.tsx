@@ -84,8 +84,30 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
     // Si el usuario tiene secciones explícitas asignadas
     if (currentUser.assignedSections && currentUser.assignedSections.length > 0) {
       const set = new Set(currentUser.assignedSections.map(s => String(s).padStart(4, '0')));
-      return typedCatalog.filter(s => set.has(s.section));
+      const filtered = typedCatalog.filter(s => set.has(s.section));
+      if (filtered.length > 0) return filtered;
     }
+
+    // Match Distrito Federal explícito o en territoryName
+    const fedNum = (currentUser as any).federalDistrict || (() => {
+      const match = `${currentUser.territoryName || ''} ${currentUser.accountRoleLabel || ''}`.match(/distrito\s+federal\s*0*(\d+)/i);
+      return match ? Number(match[1]) : undefined;
+    })();
+    if (fedNum) {
+      const byFed = typedCatalog.filter(s => s.federalDistrict === Number(fedNum));
+      if (byFed.length > 0) return byFed;
+    }
+
+    // Match Distrito Local explícito o en territoryName
+    const locNum = (currentUser as any).localDistrict || (() => {
+      const match = `${currentUser.territoryName || ''} ${currentUser.accountRoleLabel || ''}`.match(/distrito\s+local\s*0*(\d+)/i);
+      return match ? Number(match[1]) : undefined;
+    })();
+    if (locNum) {
+      const byLoc = typedCatalog.filter(s => s.localDistrict === Number(locNum));
+      if (byLoc.length > 0) return byLoc;
+    }
+
     // Si el CPV está asignado a un municipio por nombre
     const muniName = (currentUser as any).municipioName || currentUser.territoryName;
     if (muniName) {
@@ -93,17 +115,8 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
       const byMuni = typedCatalog.filter(s => s.municipalityName.toUpperCase().includes(cleanMuni));
       if (byMuni.length > 0) return byMuni;
     }
-    // Si el CPV está asignado a un Distrito Local
-    if ((currentUser as any).localDistrict) {
-      const byLocal = typedCatalog.filter(s => s.localDistrict === Number((currentUser as any).localDistrict));
-      if (byLocal.length > 0) return byLocal;
-    }
-    // Si el CPV está asignado a un Distrito Federal
-    if ((currentUser as any).federalDistrict) {
-      const byFed = typedCatalog.filter(s => s.federalDistrict === Number((currentUser as any).federalDistrict));
-      if (byFed.length > 0) return byFed;
-    }
-    // Default Tabasco
+
+    // Default Tabasco completo (1,191 secciones)
     return typedCatalog;
   }, [currentUser]);
 

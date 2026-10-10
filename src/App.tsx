@@ -26,6 +26,7 @@ import { ConfiguracionPage } from './components/ConfiguracionPage';
 import { AcercaDePlaceholderPage } from './components/AcercaDePlaceholderPage';
 import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { SuperadminSaasDashboard } from './components/SuperadminSaasDashboard';
+import { CampanaZonesManagementPage } from './components/CampanaZonesManagementPage';
 
 // Code-split heavy views via React.lazy for optimal initial bundle size and PWA responsiveness
 const TerritoryFlowCanvas = lazy(() => import('./components/TerritoryFlowCanvas').then(m => ({ default: m.TerritoryFlowCanvas })));
@@ -46,7 +47,6 @@ const CampanaCoordinatorEditPage = lazy(() => import('./components/CampanaCoordi
 const SuperadminTicketsPage = lazy(() => import('./components/SuperadminTicketsPage').then(m => ({ default: m.SuperadminTicketsPage })));
 const SubordinateCreatePage = lazy(() => import('./components/SubordinateCreatePage').then(m => ({ default: m.SubordinateCreatePage })));
 const UserDetailPage = lazy(() => import('./components/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
-const CampanaZonesManagementPage = lazy(() => import('./components/CampanaZonesManagementPage').then(m => ({ default: m.CampanaZonesManagementPage })));
 import { Users, Bell, CheckCircle2, X, MapPin, BarChart3, LifeBuoy, Settings } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
