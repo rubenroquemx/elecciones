@@ -46,7 +46,7 @@ const CampanaCoordinatorEditPage = lazy(() => import('./components/CampanaCoordi
 const SuperadminTicketsPage = lazy(() => import('./components/SuperadminTicketsPage').then(m => ({ default: m.SuperadminTicketsPage })));
 const SubordinateCreatePage = lazy(() => import('./components/SubordinateCreatePage').then(m => ({ default: m.SubordinateCreatePage })));
 const UserDetailPage = lazy(() => import('./components/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
-import { Users, Bell, CheckCircle2, X, MapPin, ShieldAlert, ArrowLeft, BarChart3, LifeBuoy, Settings } from 'lucide-react';
+import { Users, Bell, CheckCircle2, X, MapPin, BarChart3, LifeBuoy, Settings } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -1510,32 +1510,9 @@ export function App() {
           isSidebarCollapsed={isSidebarCollapsed}
           onToggleCollapse={handleToggleSidebarCollapse}
           onNavChange={handleNavChange}
+          impersonatingAdminUser={impersonatingAdminUser}
+          onExitImpersonation={handleExitImpersonation}
         />
-
-        {/* Banner de Impersonación Activa (Superadmin auditando cuenta de Coordinador de Campaña) */}
-        {impersonatingAdminUser && (
-          <div className="bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 px-4 sm:px-6 py-2.5 flex items-center justify-between border-b border-amber-600 shadow-md z-40 shrink-0 animate-emil-fade">
-            <div className="flex items-center gap-2.5">
-              <ShieldAlert className="w-5 h-5 text-slate-950 shrink-0" />
-              <div>
-                <span className="text-xs sm:text-sm font-bold tracking-tight">
-                  MODO AUDITORÍA SAAS: Has iniciado sesión como <strong className="underline">{currentUser?.name}</strong> ({currentUser?.territoryName})
-                </span>
-                <span className="hidden sm:inline-block ml-2 text-[10px] bg-slate-950/20 px-2 py-0.5 rounded font-mono font-bold">
-                  Sesión Superadmin en Pausa
-                </span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleExitImpersonation}
-              className="px-3.5 py-1.5 bg-slate-950 hover:bg-slate-900 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 cursor-pointer active:scale-95 shrink-0"
-            >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span>Salir y Volver al Panel Superadmin</span>
-            </button>
-          </div>
-        )}
 
         {/* Barra de niveles solo activa en vista Estructura */}
         {activeNav === 'estructura' && (

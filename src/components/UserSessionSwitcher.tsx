@@ -7,7 +7,8 @@ import {
   Mail,
   MapPin,
   CheckCircle2,
-  User
+  User,
+  ArrowLeft
 } from 'lucide-react';
 
 interface UserSessionSwitcherProps {
@@ -18,12 +19,16 @@ interface UserSessionSwitcherProps {
   accounts?: UserAccount[];
   onOpenCreateUser?: () => void;
   onOpenProfile?: () => void;
+  impersonatingAdminUser?: UserAccount | null;
+  onExitImpersonation?: () => void;
 }
 
 export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
   currentUser,
   onLogout,
   onOpenProfile,
+  impersonatingAdminUser,
+  onExitImpersonation,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -107,6 +112,23 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
               <span className="truncate">{currentUser.territoryName}</span>
             </div>
           </div>
+
+          {/* Volver a Superadmin si está en impersonación */}
+          {impersonatingAdminUser && onExitImpersonation && (
+            <div className="p-2 bg-amber-50/80 border-b border-amber-200">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onExitImpersonation();
+                }}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
+              >
+                <span>Volver al Panel Superadmin</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
 
           {/* Quick Profile Link */}
           {onOpenProfile && (

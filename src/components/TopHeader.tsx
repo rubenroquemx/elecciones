@@ -47,6 +47,8 @@ interface TopHeaderProps {
   isSidebarCollapsed?: boolean;
   onToggleCollapse?: () => void;
   onNavChange?: (nav: MainNavSection) => void;
+  impersonatingAdminUser?: UserAccount | null;
+  onExitImpersonation?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -72,6 +74,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   isSidebarCollapsed,
   onToggleCollapse,
   onNavChange,
+  impersonatingAdminUser,
+  onExitImpersonation,
 }) => {
   const isCampana = currentUser?.level === 'cpv' || currentUser?.level === 'campana' || currentUser?.level === 'estatal';
   const isAdmin = currentUser?.level === 'admin' || currentUser?.isSuperAdmin;
@@ -373,6 +377,8 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 accounts={accounts}
                 onOpenCreateUser={onOpenCreateUser}
                 onOpenProfile={() => onNavChange?.('configuracion')}
+                impersonatingAdminUser={impersonatingAdminUser}
+                onExitImpersonation={onExitImpersonation}
               />
             </div>
           )}
