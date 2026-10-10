@@ -577,7 +577,12 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
         geoLayerRef.current = geoLayer;
 
         if (geoLayer.getLayers().length > 0) {
-          map.fitBounds(geoLayer.getBounds(), { padding: [25, 25] });
+          try {
+            const bounds = geoLayer.getBounds();
+            if (bounds && bounds.isValid()) {
+              map.fitBounds(bounds, { padding: [25, 25] });
+            }
+          } catch {}
         }
       }
     });
@@ -605,9 +610,14 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
       }
     });
 
-    if (matchedLayers.length > 0) {
-      const group = L.featureGroup(matchedLayers);
-      mapInstanceRef.current.fitBounds(group.getBounds(), { padding: [40, 40], maxZoom: 14 });
+    if (matchedLayers.length > 0 && mapInstanceRef.current) {
+      try {
+        const group = L.featureGroup(matchedLayers);
+        const bounds = group.getBounds();
+        if (bounds && bounds.isValid()) {
+          mapInstanceRef.current.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+        }
+      } catch {}
     }
   };
 

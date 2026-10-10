@@ -45,7 +45,7 @@ interface ExecutiveKpiDesktopProps {
   visibleLeaders: TerritorialLeader[];
   sections?: ElectoralSection[];
   onSelectLeader: (leader: TerritorialLeader) => void;
-  onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections' | 'capturar-promovido' | 'mis-secciones') => void;
+  onNavigateView: (view: 'flow' | 'table' | 'stats' | 'sections' | 'capturar-promovido' | 'mis-secciones' | 'zonas') => void;
   onOpenAddModal: () => void;
   onOpenQuickCapture?: (initialData?: ExtractedINEData) => void;
   onOpenCreateUser?: () => void;

@@ -1758,6 +1758,8 @@ export function App() {
                         setActiveNav('capturar-promovido');
                       } else if (view === 'mis-secciones') {
                         setActiveNav('mis-secciones');
+                      } else if (view === 'zonas') {
+                        setActiveNav('zonas');
                       }
                     }}
                     onOpenAddModal={handleOpenAddModal}
