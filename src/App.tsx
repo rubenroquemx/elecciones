@@ -1510,7 +1510,7 @@ export function App() {
               const targetAcc = accounts.find(a => a.leaderId === editingUserId || a.username === targetLeader?.username);
               if (!targetLeader) return null;
               return (
-                <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando formulario..." />}>
+                <Suspense fallback={<LoadingScreen message="Cargando formulario..." />}>
                   <SubordinateCreatePage
                     currentUser={currentUser!}
                     availableSections={scopedSections}
@@ -1537,7 +1537,7 @@ export function App() {
               const targetAcc = accounts.find(a => a.leaderId === selectedUserDetailId || a.username === targetLeader?.username);
               if (!targetLeader) return null;
               return (
-                <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando expediente..." />}>
+                <Suspense fallback={<LoadingScreen message="Cargando expediente..." />}>
                   <UserDetailPage
                     leader={targetLeader}
                     account={targetAcc}
@@ -1571,7 +1571,7 @@ export function App() {
               onAddStructure={handleAddStructureToSection}
             />
           ) : (
-            <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando módulo..." />}>
+            <Suspense fallback={<LoadingScreen message="Cargando módulo..." />}>
               {/* WIZARD INDEPENDIENTE PARA CREAR COORDINADOR DE CAMPAÑA (NO MODAL) */}
               {activeNav === 'crear-coordinador' && (
                 <CreateCampanaCoordinatorWizardPage

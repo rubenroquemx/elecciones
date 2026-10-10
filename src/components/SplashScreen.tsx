@@ -32,7 +32,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
       style={{
         background: 'linear-gradient(180deg, #000000 0%, #2E2E2E 50%, #141414 100%)',
       }}
-      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center p-6 transition-opacity duration-400 ease-out select-none ${
+      className={`fixed inset-0 z-[99999] w-screen h-[100dvh] min-h-screen overflow-hidden flex flex-col items-center justify-center p-6 transition-opacity duration-400 ease-out select-none ${
         isFadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
     >

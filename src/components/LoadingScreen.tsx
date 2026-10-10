@@ -7,25 +7,20 @@ interface LoadingScreenProps {
 
 export const LoadingScreen: React.FC<LoadingScreenProps> = ({
   message,
-  fullScreen = true,
 }) => {
   return (
     <div
       style={{
         background: 'linear-gradient(180deg, #000000 0%, #2E2E2E 50%, #141414 100%)',
       }}
-      className={`flex flex-col items-center justify-center p-6 select-none ${
-        fullScreen
-          ? 'fixed inset-0 z-[9990] w-screen h-screen'
-          : 'flex-1 w-full min-h-[350px] h-full rounded-2xl'
-      }`}
+      className="fixed inset-0 z-[99999] w-screen h-[100dvh] min-h-screen overflow-hidden flex flex-col items-center justify-center p-6 select-none animate-in fade-in duration-300"
     >
-      <div className="flex flex-col items-center justify-center space-y-7 animate-in fade-in duration-500">
+      <div className="flex flex-col items-center justify-center space-y-7">
         {/* Logo Centrado */}
         <img
           src="/logo-oscuro.svg"
           alt="VERTEX"
-          className="w-48 sm:w-64 max-h-14 object-contain mx-auto drop-shadow-xl"
+          className="w-52 sm:w-68 max-h-16 object-contain mx-auto drop-shadow-2xl"
           draggable={false}
         />
 
@@ -34,7 +29,7 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({
           <div className="relative w-10 h-10 flex items-center justify-center">
             {/* Anillo de fondo */}
             <div className="absolute inset-0 rounded-full border-[3px] border-white/10" />
-            {/* Anillo giratorio con acento */}
+            {/* Anillo giratorio institucional */}
             <div className="absolute inset-0 rounded-full border-[3px] border-transparent border-t-[#9d2449] border-r-white/80 animate-spin" />
           </div>
 
