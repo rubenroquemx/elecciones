@@ -1746,20 +1746,13 @@ export function App() {
                     onStateChange={handleStateChange}
                     onSelectLeader={handleSelectLeader}
                     onNavigateView={(view) => {
+                      handleNavChange(view as any);
                       if (view === 'flow') {
                         setActiveNav('estructura');
                         setStructureMode('organigrama');
                       } else if (view === 'table') {
                         setActiveNav('estructura');
                         setStructureMode('lista');
-                      } else if (view === 'sections') {
-                        setActiveNav('secciones');
-                      } else if (view === 'capturar-promovido') {
-                        setActiveNav('capturar-promovido');
-                      } else if (view === 'mis-secciones') {
-                        setActiveNav('mis-secciones');
-                      } else if (view === 'zonas') {
-                        setActiveNav('zonas');
                       }
                     }}
                     onOpenAddModal={handleOpenAddModal}

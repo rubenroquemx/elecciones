@@ -84,7 +84,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onToggleCollapse,
 }) => {
   const isPromotor = currentUser.level === 'promotor';
-  const isCampana = currentUser.level === 'cpv' || currentUser.level === 'campana' || currentUser.level === 'estatal';
+  const isCampana = currentUser.level === 'cpv' || currentUser.level === 'campana' || currentUser.level === 'estatal' || currentUser.level === 'distrital';
   const isAdmin = currentUser.level === 'admin' || currentUser.isSuperAdmin;
 
   const getAddButtonLabel = () => {

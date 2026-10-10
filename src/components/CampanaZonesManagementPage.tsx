@@ -52,7 +52,7 @@ interface CampanaZonesManagementPageProps {
   onNavigate?: (nav: any) => void;
 }
 
-export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProps> = ({
+const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps> = ({
   currentUser,
   allLeaders,
   onSaveLeader,
@@ -81,10 +81,13 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
 
   // 1. Ámbito de secciones disponibles para este CPV
   const scopedSections = useMemo(() => {
+    const list = Array.isArray(typedCatalog) ? typedCatalog : [];
+    if (!currentUser) return list;
+
     // Si el usuario tiene secciones explícitas asignadas
     if (currentUser.assignedSections && currentUser.assignedSections.length > 0) {
       const set = new Set(currentUser.assignedSections.map(s => String(s).padStart(4, '0')));
-      const filtered = typedCatalog.filter(s => set.has(s.section));
+      const filtered = list.filter(s => set.has(String(s.section).padStart(4, '0')));
       if (filtered.length > 0) return filtered;
     }
 
@@ -94,7 +97,7 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
       return match ? Number(match[1]) : undefined;
     })();
     if (fedNum) {
-      const byFed = typedCatalog.filter(s => s.federalDistrict === Number(fedNum));
+      const byFed = list.filter(s => Number(s.federalDistrict) === Number(fedNum));
       if (byFed.length > 0) return byFed;
     }
 
@@ -104,70 +107,86 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
       return match ? Number(match[1]) : undefined;
     })();
     if (locNum) {
-      const byLoc = typedCatalog.filter(s => s.localDistrict === Number(locNum));
+      const byLoc = list.filter(s => Number(s.localDistrict) === Number(locNum));
       if (byLoc.length > 0) return byLoc;
     }
 
     // Si el CPV está asignado a un municipio por nombre
     const muniName = (currentUser as any).municipioName || currentUser.territoryName;
     if (muniName) {
-      const cleanMuni = muniName.toUpperCase().replace(/^MUNICIPIO DE\s+/i, '').trim();
-      const byMuni = typedCatalog.filter(s => s.municipalityName.toUpperCase().includes(cleanMuni));
+      const cleanMuni = String(muniName).toUpperCase().replace(/^MUNICIPIO DE\s+/i, '').trim();
+      const byMuni = list.filter(s => (s.municipalityName || '').toUpperCase().includes(cleanMuni));
       if (byMuni.length > 0) return byMuni;
     }
 
     // Default Tabasco completo (1,191 secciones)
-    return typedCatalog;
+    return list;
   }, [currentUser]);
 
   const scopedSectionNumbers = useMemo(() => {
-    return new Set(scopedSections.map(s => s.section));
+    return new Set((scopedSections || []).map(s => String(s?.section || '').padStart(4, '0')));
   }, [scopedSections]);
 
   const catalogBySection = useMemo(() => {
     const map = new Map<string, CatalogSectionItem>();
-    scopedSections.forEach(s => map.set(s.section, s));
+    (scopedSections || []).forEach(s => {
+      if (s?.section) {
+        map.set(String(s.section).padStart(4, '0'), s);
+      }
+    });
     return map;
   }, [scopedSections]);
 
   // Agrupaciones disponibles en el ámbito del CPV
   const availableMunicipalities = useMemo(() => {
     const map = new Map<string, { name: string; sections: string[]; nominalTotal: number }>();
-    scopedSections.forEach(s => {
-      const existing = map.get(s.municipalityName) || { name: s.municipalityName, sections: [], nominalTotal: 0 };
-      existing.sections.push(s.section);
-      existing.nominalTotal += s.nominalTotal;
-      map.set(s.municipalityName, existing);
+    (scopedSections || []).forEach(s => {
+      if (!s) return;
+      const mName = s.municipalityName || 'MUNICIPIO';
+      const secStr = String(s.section || '').padStart(4, '0');
+      const existing = map.get(mName) || { name: mName, sections: [], nominalTotal: 0 };
+      existing.sections.push(secStr);
+      existing.nominalTotal += Number(s.nominalTotal) || 0;
+      map.set(mName, existing);
     });
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    return Array.from(map.values()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
   }, [scopedSections]);
 
   const availableLocalDistricts = useMemo(() => {
     const map = new Map<number, { district: number; sections: string[]; nominalTotal: number }>();
-    scopedSections.forEach(s => {
-      const existing = map.get(s.localDistrict) || { district: s.localDistrict, sections: [], nominalTotal: 0 };
-      existing.sections.push(s.section);
-      existing.nominalTotal += s.nominalTotal;
-      map.set(s.localDistrict, existing);
+    (scopedSections || []).forEach(s => {
+      if (!s) return;
+      const dNum = Number(s.localDistrict) || 0;
+      const secStr = String(s.section || '').padStart(4, '0');
+      const existing = map.get(dNum) || { district: dNum, sections: [], nominalTotal: 0 };
+      existing.sections.push(secStr);
+      existing.nominalTotal += Number(s.nominalTotal) || 0;
+      map.set(dNum, existing);
     });
-    return Array.from(map.values()).sort((a, b) => a.district - b.district);
+    return Array.from(map.values()).sort((a, b) => (a.district || 0) - (b.district || 0));
   }, [scopedSections]);
 
   const availableFederalDistricts = useMemo(() => {
     const map = new Map<number, { district: number; sections: string[]; nominalTotal: number; head: string }>();
-    scopedSections.forEach(s => {
-      const existing = map.get(s.federalDistrict) || { district: s.federalDistrict, sections: [], nominalTotal: 0, head: s.districtHead || '' };
-      existing.sections.push(s.section);
-      existing.nominalTotal += s.nominalTotal;
-      map.set(s.federalDistrict, existing);
+    (scopedSections || []).forEach(s => {
+      if (!s) return;
+      const fNum = Number(s.federalDistrict) || 0;
+      const head = s.districtHead || '';
+      const secStr = String(s.section || '').padStart(4, '0');
+      const existing = map.get(fNum) || { district: fNum, sections: [], nominalTotal: 0, head };
+      existing.sections.push(secStr);
+      existing.nominalTotal += Number(s.nominalTotal) || 0;
+      map.set(fNum, existing);
     });
-    return Array.from(map.values()).sort((a, b) => a.district - b.district);
+    return Array.from(map.values()).sort((a, b) => (a.district || 0) - (b.district || 0));
   }, [scopedSections]);
+
+  const userZoneStorageKey = `territorial_zones_${currentUser?.id || currentUser?.leaderId || 'cpv'}`;
 
   // 2. Cargar Zonas registradas desde líderes con level === 'zona' o 'distrital' o storage
   const [zones, setZones] = useState<TerritorialZone[]>(() => {
     try {
-      const saved = localStorage.getItem(`territorial_zones_${currentUser.id}`);
+      const saved = localStorage.getItem(userZoneStorageKey);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -175,9 +194,9 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
     } catch {}
 
     // Derivar de líderes existentes con nivel zona dependientes del CPV
-    const existingZonaLeaders = allLeaders.filter(
+    const existingZonaLeaders = (allLeaders || []).filter(
       l => (l.level === 'zona' || l.level === 'distrital' || l.level === 'responsable_zona') &&
-           (l.parentId === currentUser.leaderId || l.parentId === currentUser.id || !l.parentId)
+           (l.parentId === currentUser?.leaderId || l.parentId === currentUser?.id || !l.parentId)
     );
 
     if (existingZonaLeaders.length > 0) {
@@ -186,7 +205,7 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
         name: l.territoryName || l.name,
         code: l.code || `ZONA-${String(idx + 1).padStart(2, '0')}`,
         color: l.avatarBg || ZONE_COLOR_PALETTE[idx % ZONE_COLOR_PALETTE.length].hex,
-        sections: l.assignedSections || [],
+        sections: (l.assignedSections || []).map(s => String(s).padStart(4, '0')),
         coordinatorId: l.id,
         coordinatorName: l.name,
         coordinatorPhone: l.phone,
@@ -202,9 +221,9 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
   const persistZones = useCallback((newZones: TerritorialZone[]) => {
     setZones(newZones);
     try {
-      localStorage.setItem(`territorial_zones_${currentUser.id}`, JSON.stringify(newZones));
+      localStorage.setItem(userZoneStorageKey, JSON.stringify(newZones));
     } catch {}
-  }, [currentUser.id]);
+  }, [userZoneStorageKey]);
 
   // Mapeo inverso: sección -> Zona
   const sectionToZoneMap = useMemo(() => {
@@ -1360,3 +1379,57 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
     </div>
   );
 };
+
+class CampanaZonesErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: any) {
+    console.error('CampanaZonesErrorBoundary caught an error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 max-w-2xl mx-auto my-12 bg-white border border-rose-200 rounded-none shadow-sm space-y-4">
+          <div className="flex items-center gap-3 text-rose-700">
+            <AlertTriangle className="w-6 h-6 shrink-0" />
+            <h2 className="text-base font-bold">Ocurrió un detalle al cargar el módulo de Zonas</h2>
+          </div>
+          <p className="text-xs text-slate-600">
+            {this.state.error?.message || 'Error inesperado al inicializar la cartografía o datos de zonas.'}
+          </p>
+          <div className="pt-2 flex gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.reload();
+              }}
+              className="px-4 py-2 bg-[#9d2449] hover:bg-[#801d3b] text-white text-xs font-bold rounded-none cursor-pointer"
+            >
+              Recargar Módulo
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProps> = (props) => (
+  <CampanaZonesErrorBoundary>
+    <CampanaZonesManagementPageInner {...props} />
+  </CampanaZonesErrorBoundary>
+);
+
