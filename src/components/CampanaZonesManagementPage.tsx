@@ -461,11 +461,20 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
     }
   };
 
-  // Inicialización y renderizado del Mapa Leaflet
+  // 1. Inicialización de la instancia de Leaflet Map (una sola vez al montar)
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    if (!mapInstanceRef.current) {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+
+    if ((mapContainerRef.current as any)._leaflet_id) {
+      delete (mapContainerRef.current as any)._leaflet_id;
+    }
+
+    try {
       const map = L.map(mapContainerRef.current, {
         zoomControl: false,
         attributionControl: false,
@@ -473,11 +482,25 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
       });
       map.setView([17.9892, -92.9281], 9);
       mapInstanceRef.current = map;
+    } catch (e) {
+      console.error('Error initializing Leaflet map in Zonas', e);
     }
 
-    const map = mapInstanceRef.current;
+    return () => {
+      if (mapInstanceRef.current) {
+        try {
+          mapInstanceRef.current.remove();
+        } catch {}
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
 
-    // Capa base
+  // 2. Capa base de mosaicos (Calles / Satélite)
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
     const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
     const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
@@ -485,18 +508,33 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
 
     const tileLayer = L.tileLayer(tileUrl, { maxZoom: 19, subdomains }).addTo(map);
 
+    return () => {
+      try {
+        map.removeLayer(tileLayer);
+      } catch {}
+    };
+  }, [mapLayer]);
+
+  // 3. Cargar y colorear Polígonos GeoJSON
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
     let isCancelled = false;
 
-    // Cargar GeoJSON de Tabasco
     fetchStateGeoJson('tab').then(geoData => {
       if (isCancelled || !mapInstanceRef.current) return;
 
       if (geoLayerRef.current) {
-        map.removeLayer(geoLayerRef.current);
+        try {
+          map.removeLayer(geoLayerRef.current);
+        } catch {}
         geoLayerRef.current = null;
       }
 
-      if (geoData && geoData.features) {
+      if (!geoData || !geoData.features) return;
+
+      try {
         const geoLayer = L.geoJSON(geoData, {
           filter: (feature) => {
             const sec = String(feature.properties?.seccion || '').padStart(4, '0');
@@ -597,16 +635,15 @@ export const CampanaZonesManagementPage: React.FC<CampanaZonesManagementPageProp
             }
           } catch {}
         }
+      } catch (e) {
+        console.error('Error rendering GeoJSON in Zonas', e);
       }
     });
 
     return () => {
       isCancelled = true;
-      if (tileLayer && map) {
-        map.removeLayer(tileLayer);
-      }
     };
-  }, [mapLayer, scopedSectionNumbers, sectionToZoneMap, selectedZoneFilter, isModalOpen, creationMode]);
+  }, [scopedSectionNumbers, sectionToZoneMap, selectedZoneFilter, isModalOpen, creationMode, mapLayer]);
 
   // Enfocar mapa en una zona específica
   const handleFocusZoneOnMap = (zone: TerritorialZone) => {
