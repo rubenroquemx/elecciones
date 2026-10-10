@@ -439,6 +439,36 @@ app.delete('/api/accounts/:id', async (req, res) => {
 
 // --- RUTAS DE PERFIL DE USUARIO Y VALIDACIÓN POR WHATSAPP (EVOLUTION API) ---
 
+// Obtener perfil actual verificado directamente desde PostgreSQL
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'No autenticado' });
+    }
+
+    let user: any = null;
+    try {
+      user = await prisma.userAccount.findUnique({ where: { id: userId } });
+    } catch {}
+
+    if (!user) {
+      const store = readAccountsStore();
+      user = store.find((a: any) => a.id === userId);
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    const safeUser = { ...user };
+    delete safeUser.password;
+    res.json({ success: true, user: safeUser });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Error al consultar perfil', message: err.message });
+  }
+});
+
 // Actualizar datos del perfil de usuario (Nombre, Usuario, Teléfono, Correo, Acerca de mí, Foto selfie)
 app.put('/api/profile', async (req, res) => {
   try {

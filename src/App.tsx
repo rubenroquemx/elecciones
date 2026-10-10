@@ -24,14 +24,13 @@ import { PromoterNotificationsModal } from './components/PromoterNotificationsMo
 import { CampanaTicketsModal } from './components/CampanaTicketsModal';
 import { ConfiguracionPage } from './components/ConfiguracionPage';
 import { AcercaDePlaceholderPage } from './components/AcercaDePlaceholderPage';
-import { SplashScreen } from './components/SplashScreen';
-import { LoadingScreen } from './components/LoadingScreen';
+import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
+import { SuperadminSaasDashboard } from './components/SuperadminSaasDashboard';
 
 // Code-split heavy views via React.lazy for optimal initial bundle size and PWA responsiveness
 const TerritoryFlowCanvas = lazy(() => import('./components/TerritoryFlowCanvas').then(m => ({ default: m.TerritoryFlowCanvas })));
 const DirectoryTableView = lazy(() => import('./components/DirectoryTableView').then(m => ({ default: m.DirectoryTableView })));
 const SectionsCatalogView = lazy(() => import('./components/SectionsCatalogView').then(m => ({ default: m.SectionsCatalogView })));
-const ExecutiveKpiDesktop = lazy(() => import('./components/ExecutiveKpiDesktop').then(m => ({ default: m.ExecutiveKpiDesktop })));
 const SectionDetailPage = lazy(() => import('./components/SectionDetailPage').then(m => ({ default: m.SectionDetailPage })));
 const TerritorialPromotersAdminView = lazy(() => import('./components/TerritorialPromotersAdminView').then(m => ({ default: m.TerritorialPromotersAdminView })));
 const TerritorialPromoterCreatePage = lazy(() => import('./components/TerritorialPromoterCreatePage').then(m => ({ default: m.TerritorialPromoterCreatePage })));
@@ -40,7 +39,6 @@ const PromoterCitizenCapturePage = lazy(() => import('./components/PromoterCitiz
 const PromoterCitizenDetailPage = lazy(() => import('./components/PromoterCitizenDetailPage').then(m => ({ default: m.PromoterCitizenDetailPage })));
 const PromoterCitizenEditPage = lazy(() => import('./components/PromoterCitizenEditPage').then(m => ({ default: m.PromoterCitizenEditPage })));
 const PromoterSectionsMapView = lazy(() => import('./components/PromoterSectionsMapView').then(m => ({ default: m.PromoterSectionsMapView })));
-const SuperadminSaasDashboard = lazy(() => import('./components/SuperadminSaasDashboard').then(m => ({ default: m.SuperadminSaasDashboard })));
 const CreateCampanaCoordinatorWizardPage = lazy(() => import('./components/CreateCampanaCoordinatorWizardPage').then(m => ({ default: m.CreateCampanaCoordinatorWizardPage })));
 const TerritorialCoordinatorsAdminPage = lazy(() => import('./components/TerritorialCoordinatorsAdminPage').then(m => ({ default: m.TerritorialCoordinatorsAdminPage })));
 const CampanaCoordinatorDetailPage = lazy(() => import('./components/CampanaCoordinatorDetailPage').then(m => ({ default: m.CampanaCoordinatorDetailPage })));
@@ -63,6 +61,7 @@ import {
   saveUserAccountApi,
   deleteUserAccountApi,
   impersonateUserApi,
+  fetchCurrentUserProfileApi,
 } from './services/api';
 import { getAuthToken, setAuthToken } from './services/http';
 
@@ -144,7 +143,6 @@ function clearPendingOfflineId(id: string) {
 }
 
 export function App() {
-  const [showSplash, setShowSplash] = useState(true);
   // Master raw and computed territorial dataset
   const [leadersData, setLeadersData] = useState<TerritorialLeader[]>(() => {
     const deletedSet = getLocalDeletedIds();
@@ -341,8 +339,6 @@ export function App() {
       import('./components/TerritoryFlowCanvas');
       import('./components/DirectoryTableView');
       import('./components/SectionsCatalogView');
-      import('./components/ExecutiveKpiDesktop');
-      import('./components/SuperadminSaasDashboard');
       import('./components/TerritorialPromotersAdminView');
     };
     if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
@@ -544,48 +540,115 @@ export function App() {
 
   const [isCampanaTicketsModalOpen, setIsCampanaTicketsModalOpen] = useState(false);
 
-  // Carga inicial y sincronización de cuentas de usuario desde el servidor (PostgreSQL)
-  useEffect(() => {
-    fetchUserAccountsApi()
-      .then(serverAccounts => {
-        const serverList = Array.isArray(serverAccounts) ? serverAccounts : [];
-        const serverIds = new Set(serverList.map((a: any) => a.id));
-        const serverEmails = new Set(serverList.map((a: any) => String(a.email || '').toLowerCase()));
+  // Sincronización continua de cuentas y perfil de usuario (PostgreSQL <-> Desktop <-> Móvil)
+  const syncAccountsWithServer = useCallback(async () => {
+    try {
+      const serverAccounts = await fetchUserAccountsApi();
+      const serverList = Array.isArray(serverAccounts) ? serverAccounts : [];
+      if (serverList.length === 0) return;
 
-        // Sincronizar hacia el servidor cualquier cuenta local que no esté en PostgreSQL
-        try {
-          const rawLocal = localStorage.getItem('territorial_custom_accounts');
-          if (rawLocal) {
-            const parsedLocal = JSON.parse(rawLocal);
-            if (Array.isArray(parsedLocal)) {
-              parsedLocal.forEach((locAcc: UserAccount) => {
-                const locEmail = String(locAcc.email || '').toLowerCase();
-                if (!serverIds.has(locAcc.id) && !serverEmails.has(locEmail)) {
-                  saveUserAccountApi(locAcc).catch(() => {});
-                }
-              });
-            }
-          }
-        } catch {}
+      const serverIds = new Set(serverList.map((a: any) => a.id));
+      const serverEmails = new Set(serverList.map((a: any) => String(a.email || '').toLowerCase()));
 
-        if (serverList.length > 0) {
-          setAccounts(prev => {
-            const map = new Map<string, UserAccount>();
-            prev.forEach(a => map.set(a.id, a));
-            serverList.forEach(a => {
-              const existing = map.get(a.id);
-              map.set(a.id, { ...existing, ...a, password: existing?.password || a.password });
+      // Sincronizar hacia el servidor cualquier cuenta local no registrada
+      try {
+        const rawLocal = localStorage.getItem('territorial_custom_accounts');
+        if (rawLocal) {
+          const parsedLocal = JSON.parse(rawLocal);
+          if (Array.isArray(parsedLocal)) {
+            parsedLocal.forEach((locAcc: UserAccount) => {
+              const locEmail = String(locAcc.email || '').toLowerCase();
+              if (!serverIds.has(locAcc.id) && !serverEmails.has(locEmail)) {
+                saveUserAccountApi(locAcc).catch(() => {});
+              }
             });
-            const merged = Array.from(map.values());
+          }
+        }
+      } catch {}
+
+      setAccounts(prev => {
+        const map = new Map<string, UserAccount>();
+        prev.forEach(a => map.set(a.id, a));
+        serverList.forEach(a => {
+          const existing = map.get(a.id);
+          map.set(a.id, { ...existing, ...a, password: existing?.password || a.password });
+        });
+        const merged = Array.from(map.values());
+        try {
+          localStorage.setItem('territorial_custom_accounts', JSON.stringify(merged));
+        } catch (e) {}
+        return merged;
+      });
+
+      // Reconciliar currentUser con los datos frescos del servidor (nombre, foto, teléfono, etc.)
+      setCurrentUser(prevUser => {
+        if (!prevUser) return prevUser;
+        const freshAccount = serverList.find((a: any) => 
+          (a.id && a.id === prevUser.id) ||
+          (a.email && prevUser.email && String(a.email).toLowerCase() === String(prevUser.email).toLowerCase()) ||
+          (a.username && prevUser.username && String(a.username).toLowerCase() === String(prevUser.username).toLowerCase())
+        );
+        if (freshAccount) {
+          const updated = {
+            ...prevUser,
+            ...freshAccount,
+            password: prevUser.password || freshAccount.password,
+          };
+          try {
+            localStorage.setItem('territorial_auth_user', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        }
+        return prevUser;
+      });
+
+      // Consultar directamente /api/auth/me para refrescar el perfil autenticado
+      try {
+        const meRes = await fetchCurrentUserProfileApi();
+        if (meRes?.success && meRes.user) {
+          setCurrentUser(prevUser => {
+            if (!prevUser) return meRes.user;
+            const updated = {
+              ...prevUser,
+              ...meRes.user,
+              password: prevUser.password || meRes.user.password,
+            };
             try {
-              localStorage.setItem('territorial_custom_accounts', JSON.stringify(merged));
-            } catch (e) {}
-            return merged;
+              localStorage.setItem('territorial_auth_user', JSON.stringify(updated));
+            } catch {}
+            return updated;
           });
         }
-      })
-      .catch(e => console.warn('Could not fetch server accounts', e));
+      } catch {}
+    } catch (e) {
+      console.warn('Could not sync accounts with server', e);
+    }
   }, []);
+
+  useEffect(() => {
+    syncAccountsWithServer();
+
+    // Sincronización periódica cada 30 segundos y al enfocar pestaña
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'hidden') {
+        syncAccountsWithServer();
+      }
+    }, 30000);
+
+    const handleSyncTrigger = () => {
+      if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+        syncAccountsWithServer();
+      }
+    };
+    window.addEventListener('focus', handleSyncTrigger);
+    document.addEventListener('visibilitychange', handleSyncTrigger);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleSyncTrigger);
+      document.removeEventListener('visibilitychange', handleSyncTrigger);
+    };
+  }, [syncAccountsWithServer]);
 
   const handleImpersonate = useCallback(async (coordinatorAccount: UserAccount) => {
     if (currentUser) {
@@ -1354,19 +1417,15 @@ export function App() {
   // Si no hay sesión activa en el sistema cerrado, mostrar pantalla de acceso
   if (!currentUser) {
     return (
-      <>
-        {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
-        <ClosedSystemLoginScreen
-          accounts={accounts}
-          onLogin={handleSelectUser}
-        />
-      </>
+      <ClosedSystemLoginScreen
+        accounts={accounts}
+        onLogin={handleSelectUser}
+      />
     );
   }
 
   return (
     <div className="flex h-screen w-screen bg-slate-50 text-slate-900 overflow-hidden font-sans relative">
-      {showSplash && <SplashScreen onFinish={() => setShowSplash(false)} />}
       {/* Sidebar Lateral Izquierdo Tradicional */}
       <Sidebar
         activeNav={activeNav}
@@ -1526,7 +1585,7 @@ export function App() {
               const targetAcc = accounts.find(a => a.leaderId === editingUserId || a.username === targetLeader?.username);
               if (!targetLeader) return null;
               return (
-                <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando formulario..." />}>
+                <Suspense fallback={null}>
                   <SubordinateCreatePage
                     currentUser={currentUser!}
                     availableSections={scopedSections}
@@ -1553,7 +1612,7 @@ export function App() {
               const targetAcc = accounts.find(a => a.leaderId === selectedUserDetailId || a.username === targetLeader?.username);
               if (!targetLeader) return null;
               return (
-                <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando expediente..." />}>
+                <Suspense fallback={null}>
                   <UserDetailPage
                     leader={targetLeader}
                     account={targetAcc}
@@ -1579,7 +1638,7 @@ export function App() {
               );
             })()
           ) : detailSectionNumber ? (
-            <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando detalle de sección..." />}>
+            <Suspense fallback={null}>
               <SectionDetailPage
                 sectionNumber={detailSectionNumber}
                 allSections={scopedSections}
@@ -1589,7 +1648,7 @@ export function App() {
               />
             </Suspense>
           ) : (
-            <Suspense fallback={<LoadingScreen fullScreen={false} message="Cargando módulo..." />}>
+            <Suspense fallback={null}>
               {/* WIZARD INDEPENDIENTE PARA CREAR COORDINADOR DE CAMPAÑA (NO MODAL) */}
               {activeNav === 'crear-coordinador' && (
                 <CreateCampanaCoordinatorWizardPage
@@ -1619,10 +1678,6 @@ export function App() {
                     onOpenCreateCoordinatorWizard={() => setActiveNav('crear-coordinador')}
                     onViewCoordinatorDetails={(id) => setSelectedCoordinatorDetailId(id)}
                     onEditCoordinator={(id) => setEditingCoordinatorId(id)}
-                    onOpenWhatsAppConfig={() => {
-                      setSettingsInitialTab('whatsapp-evolution');
-                      setActiveNav('configuracion');
-                    }}
                   />
                 ) : (
                   <ExecutiveKpiDesktop

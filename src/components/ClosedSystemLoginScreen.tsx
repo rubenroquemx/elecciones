@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import type { UserAccount } from '../types/auth';
 import { setAuthToken } from '../services/http';
-import { LoadingScreen } from './LoadingScreen';
 import { 
   User, 
   KeyRound, 
@@ -99,7 +98,6 @@ export const ClosedSystemLoginScreen: React.FC<ClosedSystemLoginScreenProps> = (
 
   return (
     <div className="min-h-screen w-full bg-slate-100 flex flex-col justify-between items-center p-4 sm:p-6 font-sans text-slate-800 relative">
-      {isSubmitting && <LoadingScreen fullScreen message="Iniciando sesión en el sistema..." />}
       {/* Spacer superior para centrado visual */}
       <div className="h-4" />
 

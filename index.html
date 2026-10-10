@@ -16,36 +16,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="theme-color" content="#000000" />
     <!-- Sistema cerrado de gestión territorial -->
-    <style>
-      #static-splash {
-        position: fixed;
-        inset: 0;
-        z-index: 999999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: linear-gradient(180deg, #000000 0%, #2E2E2E 50%, #141414 100%);
-        transition: opacity 0.4s ease-out, visibility 0.4s ease-out;
-      }
-      #static-splash.hidden-splash {
-        opacity: 0;
-        visibility: hidden;
-        pointer-events: none;
-      }
-      #static-splash img {
-        width: 260px;
-        max-width: 75vw;
-        max-height: 64px;
-        object-fit: contain;
-        filter: drop-shadow(0 20px 25px rgba(0, 0, 0, 0.5));
-      }
-    </style>
   </head>
   <body>
-    <!-- Splash Screen Inicial -->
-    <div id="static-splash">
-      <img src="/logo-oscuro.svg" alt="VERTEX" />
-    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -19,12 +19,3 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
-
-// Desvanecer el splash screen estático de inicio de forma suave
-const staticSplash = document.getElementById('static-splash');
-if (staticSplash) {
-  setTimeout(() => {
-    staticSplash.classList.add('hidden-splash');
-    setTimeout(() => staticSplash.remove(), 450);
-  }, 250);
-}

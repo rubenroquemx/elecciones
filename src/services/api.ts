@@ -196,6 +196,19 @@ export async function impersonateUserApi(accountId?: string, leaderId?: string |
   }
 }
 
+// Obtener perfil verificado del usuario autenticado
+export async function fetchCurrentUserProfileApi(): Promise<{ success: boolean; user?: any; error?: string }> {
+  try {
+    const res = await authFetch(`${API_BASE}/api/auth/me`);
+    if (!res.ok) {
+      return { success: false, error: `Error ${res.status}` };
+    }
+    return await res.json();
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
 // Actualizar perfil de usuario
 export async function updateUserProfileApi(userData: any): Promise<{ success: boolean; user?: any; error?: string }> {
   try {
