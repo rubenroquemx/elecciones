@@ -9,6 +9,7 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "start": "tsx server/index.ts",
+    "deploy": "node -e \"fetch('http://194.163.137.184:3000/api/deploy/1192cae33e5cb4217df735983873ba0fc2347b5f10e80ae3',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'}).then(r=>r.text()).then(t=>console.log('🚀 Despliegue en servidor iniciado:', t)).catch(e=>console.error('Error disparando deploy:', e))\"",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:generate": "prisma generate"
