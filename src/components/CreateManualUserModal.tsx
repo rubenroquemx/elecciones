@@ -103,19 +103,44 @@ export const CreateManualUserModal: React.FC<CreateManualUserModalProps> = ({
       .replace(/^\.|\.$/g, '');
   };
 
+  const isSingleSectionMode =
+    selectedLevel === 'seccion' ||
+    currentUser.level === 'zona' ||
+    currentUser.level === 'distrital' ||
+    currentUser.level === 'responsable_zona';
+
+  // Secciones accesibles para el usuario actual (acotadas a su zona si es Coordinador de Zona)
+  const sectionsForUser = useMemo(() => {
+    if (
+      (currentUser.level === 'zona' || currentUser.level === 'distrital' || currentUser.level === 'responsable_zona') &&
+      currentUser.assignedSections &&
+      currentUser.assignedSections.length > 0
+    ) {
+      const set = new Set(currentUser.assignedSections.map((s) => String(s).padStart(4, '0')));
+      const filtered = availableSections.filter((s) => set.has(String(s.sectionNumber).padStart(4, '0')));
+      if (filtered.length > 0) return filtered;
+    }
+    return availableSections;
+  }, [currentUser, availableSections]);
+
   const toggleSection = (secNum: string) => {
-    setAssignedSections((prev) =>
-      prev.includes(secNum) ? prev.filter((s) => s !== secNum) : [...prev, secNum]
-    );
+    if (isSingleSectionMode) {
+      // El coordinador de zona solo puede asignar una sección a cada responsable de sección
+      setAssignedSections((prev) => (prev.includes(secNum) ? [] : [secNum]));
+    } else {
+      setAssignedSections((prev) =>
+        prev.includes(secNum) ? prev.filter((s) => s !== secNum) : [...prev, secNum]
+      );
+    }
   };
 
   const filteredSections = useMemo(() => {
-    if (!sectionSearch.trim()) return availableSections.slice(0, 15);
+    if (!sectionSearch.trim()) return sectionsForUser.slice(0, 15);
     const q = sectionSearch.trim().toLowerCase();
-    return availableSections
+    return sectionsForUser
       .filter((s) => s.sectionNumber.includes(q) || s.municipio?.toLowerCase().includes(q))
-      .slice(0, 20);
-  }, [availableSections, sectionSearch]);
+      .slice(0, 30);
+  }, [sectionsForUser, sectionSearch]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,7 +158,12 @@ export const CreateManualUserModal: React.FC<CreateManualUserModalProps> = ({
       setErrorMsg('La contraseña inicial es obligatoria.');
       return;
     }
-    if (assignedSections.length === 0) {
+    if (isSingleSectionMode) {
+      if (assignedSections.length !== 1) {
+        setErrorMsg('El coordinador de zona solo puede asignar una sección a cada responsable de sección.');
+        return;
+      }
+    } else if (assignedSections.length === 0) {
       setErrorMsg('Debes asignar al menos una sección electoral a esta cuenta.');
       return;
     }
@@ -487,10 +517,14 @@ Asignado por: ${currentUser.name}`);
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                    Demarcación / Sección(es) Asignada(s) *
+                    {isSingleSectionMode
+                      ? 'Sección Electoral Asignada (Solo 1 por Responsable de Sección) *'
+                      : 'Demarcación / Sección(es) Asignada(s) *'}
                   </label>
-                  <span className="text-[10px] text-indigo-600 font-bold">
-                    {assignedSections.length} seleccionada(s)
+                  <span className={`text-[10px] font-bold ${isSingleSectionMode && assignedSections.length === 1 ? 'text-emerald-700 font-mono' : 'text-indigo-600'}`}>
+                    {isSingleSectionMode
+                      ? (assignedSections.length === 1 ? `Sección ${assignedSections[0]} seleccionada` : 'Selecciona 1 sección')
+                      : `${assignedSections.length} seleccionada(s)`}
                   </span>
                 </div>
 

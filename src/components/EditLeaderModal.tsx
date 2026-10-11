@@ -150,23 +150,48 @@ export const EditLeaderModal: React.FC<EditLeaderModalProps> = ({
     }
   }, [isOpen, editingLeader]);
 
+  // Secciones accesibles para el usuario actual (acotadas a su zona si es Coordinador de Zona)
+  const sectionsForUser = useMemo(() => {
+    if (
+      (currentUser.level === 'zona' || currentUser.level === 'distrital' || currentUser.level === 'responsable_zona') &&
+      currentUser.assignedSections &&
+      currentUser.assignedSections.length > 0
+    ) {
+      const set = new Set(currentUser.assignedSections.map((s) => String(s).padStart(4, '0')));
+      const filtered = availableSections.filter((s) => set.has(String(s.sectionNumber).padStart(4, '0')));
+      if (filtered.length > 0) return filtered;
+    }
+    return availableSections;
+  }, [currentUser, availableSections]);
+
   // Filter available sections for the multi-select
   const filteredSections = useMemo(() => {
     const q = sectionFilter.trim().toLowerCase();
-    if (!q) return availableSections;
-    return availableSections.filter(sec => 
+    if (!q) return sectionsForUser;
+    return sectionsForUser.filter(sec => 
       sec.sectionNumber.toLowerCase().includes(q) ||
       (sec.municipio && sec.municipio.toLowerCase().includes(q))
     );
-  }, [availableSections, sectionFilter]);
+  }, [sectionsForUser, sectionFilter]);
 
   if (!isOpen) return null;
 
   const targetLevel: TerritorialLevel = editingLeader ? editingLeader.level : defaultInitialLevel;
   const targetRole = editingLeader ? editingLeader.role : (getDefaultRoleForLevel(targetLevel) || 'Comité de Organización Territorial');
 
+  const isSingleSectionMode =
+    targetLevel === 'seccion' ||
+    currentUser.level === 'zona' ||
+    currentUser.level === 'distrital' ||
+    currentUser.level === 'responsable_zona';
+
   const toggleSection = (secNumber: string) => {
     setFormData(prev => {
+      if (isSingleSectionMode) {
+        // El coordinador de zona solo puede asignar una sección a cada responsable de sección
+        const exists = prev.assignedSections.includes(secNumber);
+        return { ...prev, assignedSections: exists ? [] : [secNumber] };
+      }
       const exists = prev.assignedSections.includes(secNumber);
       const updated = exists 
         ? prev.assignedSections.filter(s => s !== secNumber)
@@ -289,7 +314,12 @@ export const EditLeaderModal: React.FC<EditLeaderModalProps> = ({
       setErrorMsg('El Alias del Comité es obligatorio.');
       return;
     }
-    if (formData.assignedSections.length === 0) {
+    if (isSingleSectionMode) {
+      if (formData.assignedSections.length !== 1) {
+        setErrorMsg('El coordinador de zona solo puede asignar una sección a cada responsable de sección.');
+        return;
+      }
+    } else if (formData.assignedSections.length === 0) {
       setErrorMsg('Debe asignar mínimo una sección electoral a la Demarcación Territorial Asignada.');
       return;
     }
@@ -581,9 +611,11 @@ export const EditLeaderModal: React.FC<EditLeaderModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-slate-700 font-semibold">
-                  Demarcación Territorial Asignada <span className="text-rose-500">*</span>
+                  {isSingleSectionMode ? 'Sección Electoral Asignada' : 'Demarcación Territorial Asignada'} <span className="text-rose-500">*</span>
                   <span className="text-[11px] text-slate-500 font-normal ml-1">
-                    (Secciones electorales que operará este COT. Mínimo 1)
+                    {isSingleSectionMode
+                      ? '(El coordinador de zona solo puede asignar 1 sección por responsable de sección)'
+                      : '(Secciones electorales que operará este COT. Mínimo 1)'}
                   </span>
                 </label>
                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
@@ -591,7 +623,9 @@ export const EditLeaderModal: React.FC<EditLeaderModalProps> = ({
                     ? 'bg-emerald-100 text-emerald-800' 
                     : 'bg-rose-100 text-rose-700'
                 }`}>
-                  {formData.assignedSections.length} {formData.assignedSections.length === 1 ? 'sección' : 'secciones'}
+                  {isSingleSectionMode
+                    ? (formData.assignedSections.length === 1 ? '1 sección asignada' : '0 asignadas (elige 1)')
+                    : `${formData.assignedSections.length} ${formData.assignedSections.length === 1 ? 'sección' : 'secciones'}`}
                 </span>
               </div>
 

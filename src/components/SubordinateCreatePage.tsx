@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import type { TerritorialLeader, TerritorialLevel } from '../types/territory';
 import type { UserAccount } from '../types/auth';
 import type { ElectoralSection } from '../types/sections';
-import { getAllowedChildLevel } from '../utils/hierarchy';
+import { getAllowedChildLevel, getDefaultRoleForLevel } from '../utils/hierarchy';
 import { MEXICAN_STATES, type StateData } from '../data/statesData';
 import { 
   ArrowLeft, 
@@ -22,7 +22,8 @@ import {
   Layers,
   Landmark,
   Loader2,
-  Check
+  Check,
+  Target
 } from 'lucide-react';
 
 export type ElectionType = 'estatal' | 'diputacion_federal' | 'diputacion_local' | 'municipio';
@@ -74,6 +75,9 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
     }
     return getAllowedChildLevel(currentUser.level) || 'cpv';
   }, [currentUser.level, isEditing, initialLeader]);
+
+  const isSeccionLevel = targetChildLevel === 'seccion';
+  const roleTitle = getDefaultRoleForLevel(targetChildLevel);
 
   const generateSecurePassword = () => {
     const chars = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -213,8 +217,51 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
     return Array.from({ length: selectedState.totalLocalDistricts || 15 }, (_, i) => i + 1);
   }, [stateGeoSections, selectedState]);
 
+  // Secciones accesibles para el coordinador (acotadas a su zona si es Coordinador de Zona)
+  const zoneAvailableSections = useMemo(() => {
+    if (
+      (currentUser.level === 'zona' || currentUser.level === 'distrital' || currentUser.level === 'responsable_zona') &&
+      currentUser.assignedSections &&
+      currentUser.assignedSections.length > 0
+    ) {
+      const set = new Set(currentUser.assignedSections.map((s) => String(s).padStart(4, '0')));
+      const filtered = availableSections.filter((s) => set.has(String(s.sectionNumber).padStart(4, '0')));
+      if (filtered.length > 0) return filtered;
+      return currentUser.assignedSections.map((secNum) => ({
+        id: `sec-${secNum}`,
+        sectionNumber: String(secNum).padStart(4, '0'),
+        municipio: 'Zona Asignada',
+        nominalList: 0,
+        goal: 50,
+      } as unknown as ElectoralSection));
+    }
+    return availableSections;
+  }, [currentUser, availableSections]);
+
+  const handleToggleSection = (secNum: string) => {
+    if (isSeccionLevel) {
+      // El coordinador de zona solo puede asignar una sección a cada responsable de sección
+      setSelectedSections((prev) => (prev.includes(secNum) ? [] : [secNum]));
+    } else {
+      setSelectedSections((prev) =>
+        prev.includes(secNum) ? prev.filter((s) => s !== secNum) : [...prev, secNum]
+      );
+    }
+  };
+
+  const searchableZoneSections = useMemo(() => {
+    if (!sectionSearch.trim()) return zoneAvailableSections;
+    const q = sectionSearch.trim().toLowerCase();
+    return zoneAvailableSections.filter(
+      (s) => s.sectionNumber.includes(q) || s.municipio?.toLowerCase().includes(q)
+    );
+  }, [zoneAvailableSections, sectionSearch]);
+
   // Nombre formateado de la demarcación territorial seleccionada
   const defaultTerritoryName = useMemo(() => {
+    if (isSeccionLevel) {
+      return selectedSections.length === 1 ? `Sección ${selectedSections[0]}` : 'Sección Electoral';
+    }
     if (electionType === 'estatal') {
       return `Estado de ${selectedState.commonName} (Cobertura Estatal)`;
     }
@@ -225,11 +272,11 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
       return `Distrito Local ${selectedLocalDistrict} (${selectedState.commonName})`;
     }
     return `Municipio de ${selectedMunicipioName || 'Cabecera'}, ${selectedState.abbr.toUpperCase()}`;
-  }, [electionType, selectedState, selectedFederalDistrict, selectedLocalDistrict, selectedMunicipioName]);
+  }, [isSeccionLevel, selectedSections, electionType, selectedState, selectedFederalDistrict, selectedLocalDistrict, selectedMunicipioName]);
 
   // Secciones calculadas automáticamente según el fragmento territorial seleccionado
   const computedSectionsForElection = useMemo<string[]>(() => {
-    if (stateGeoSections.length === 0) return [];
+    if (isSeccionLevel || stateGeoSections.length === 0) return [];
 
     let filtered: string[] = [];
     if (electionType === 'estatal') {
@@ -253,6 +300,7 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
 
     return Array.from(new Set(filtered)).sort();
   }, [
+    isSeccionLevel,
     stateGeoSections,
     electionType,
     selectedFederalDistrict,
@@ -260,12 +308,12 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
     selectedMunicipioName,
   ]);
 
-  // Asignar automáticamente ese fragmento territorial y sus correspondientes secciones al Coordinador
+  // Asignar automáticamente ese fragmento territorial y sus correspondientes secciones al Coordinador (solo si no es nivel sección)
   useEffect(() => {
-    if (computedSectionsForElection.length > 0) {
+    if (!isSeccionLevel && computedSectionsForElection.length > 0) {
       setSelectedSections(computedSectionsForElection);
     }
-  }, [computedSectionsForElection]);
+  }, [computedSectionsForElection, isSeccionLevel]);
 
   // Mantener actualizado el nombre sugerido de la demarcación si no fue modificado manualmente
   useEffect(() => {
@@ -334,7 +382,7 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      alert('Ingresa el nombre completo del Coordinador de Promoción al Voto.');
+      alert(`Ingresa el nombre completo del ${roleTitle}.`);
       return;
     }
     if (!username.trim()) {
@@ -356,10 +404,19 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
       return;
     }
 
+    if (isSeccionLevel && selectedSections.length !== 1) {
+      alert('El coordinador de zona solo puede asignar una sección a cada responsable de sección. Por favor selecciona exactamente una sección.');
+      return;
+    }
+    if (!isSeccionLevel && selectedSections.length === 0) {
+      alert('Debes asignar al menos una sección electoral.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const coordId = initialLeader?.id || `ldr-cpv-${Date.now()}`;
-      const userId = initialAccount?.id || `usr-cpv-${Date.now()}`;
+      const coordId = initialLeader?.id || `ldr-${targetChildLevel}-${Date.now()}`;
+      const userId = initialAccount?.id || `usr-${targetChildLevel}-${Date.now()}`;
 
       const territoryLabel = territoryName.trim() || defaultTerritoryName;
 
@@ -367,28 +424,31 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
         ...(initialLeader || {}),
         id: coordId,
         name: name.trim(),
-        role: 'Coordinador de Promoción al Voto (CPV)',
+        role: roleTitle,
         level: targetChildLevel,
-        levelIndex: 1,
+        levelIndex: isSeccionLevel ? 3 : (targetChildLevel === 'zona' ? 2 : 1),
         territoryName: territoryLabel,
         parentId: initialLeader ? initialLeader.parentId : (currentUser.isSuperAdmin ? null : (currentUser.leaderId || null)),
         phone: phone.trim() || undefined,
         email: email.trim() || undefined,
         username: cleanUser,
         hasAccount: true,
-        metaGoal: initialLeader?.metaGoal || 5000,
+        metaGoal: isSeccionLevel ? 50 : (initialLeader?.metaGoal || 5000),
         currentCount: initialLeader?.currentCount || 0,
         status: initialLeader?.status || 'en_progreso',
         validationStatus: initialLeader?.validationStatus || 'validado',
         assignedSections: selectedSections,
-        avatarBg: initialLeader?.avatarBg || 'bg-[#9d2449]',
-        notes: `Campaña: ${campaignName.trim() || 'Oficial'} | Candidato: ${candidateName.trim() || name.trim()} | Partido: ${resolvedPartyName} | Elección: ${electionType.toUpperCase()}`,
+        electoralSection: selectedSections[0] || '',
+        avatarBg: initialLeader?.avatarBg || (isSeccionLevel ? 'bg-sky-600' : 'bg-[#9d2449]'),
+        notes: isSeccionLevel
+          ? `Responsable de Sección asignado a Sección ${selectedSections[0] || ''}`
+          : `Campaña: ${campaignName.trim() || 'Oficial'} | Candidato: ${candidateName.trim() || name.trim()} | Partido: ${resolvedPartyName} | Elección: ${electionType.toUpperCase()}`,
         directTeamCount: initialLeader?.directTeamCount || 0,
         campaignName: campaignName.trim() || undefined,
         candidateName: candidateName.trim() || undefined,
         partyName: resolvedPartyName,
         partyId: selectedParty,
-        electionType: electionType,
+        electionType: isSeccionLevel ? ('seccion' as any) : electionType,
         stateId: selectedStateId,
       };
 
@@ -403,12 +463,12 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
         level: targetChildLevel,
         territoryName: territoryLabel,
         assignedSections: selectedSections,
-        avatarBg: initialAccount?.avatarBg || 'bg-[#9d2449]',
-        accountRoleLabel: 'Coordinador de Promoción al Voto (CPV)',
+        avatarBg: initialAccount?.avatarBg || (isSeccionLevel ? 'bg-sky-600' : 'bg-[#9d2449]'),
+        accountRoleLabel: roleTitle,
         campaignName: campaignName.trim() || undefined,
         candidateName: candidateName.trim() || undefined,
         partyName: resolvedPartyName,
-        electionType: electionType,
+        electionType: isSeccionLevel ? ('seccion' as any) : electionType,
         stateId: selectedStateId,
       };
 
@@ -419,7 +479,7 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
       await onSaveCoordinator(updatedLeader, updatedAccount);
     } catch (err) {
       console.error(err);
-      alert('Hubo un error al guardar el registro del Coordinador de Promoción al Voto.');
+      alert(`Hubo un error al guardar el registro del ${roleTitle}.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -427,7 +487,7 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
 
   return (
     <div className="flex-1 flex flex-col h-full bg-slate-50 overflow-y-auto font-sans">
-      {/* 1. Header Oficial: Usuarios > Nuevo Coordinador de Promoción al Voto */}
+      {/* 1. Header Oficial: Usuarios > Nuevo [Rol] */}
       <div className="bg-white border-b border-slate-200 px-4 sm:px-8 py-5 shrink-0">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -441,7 +501,7 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
             </button>
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                Usuarios &gt; {isEditing ? 'Editar Coordinador de Promoción al Voto' : 'Nuevo Coordinador de Promoción al Voto'}
+                Usuarios &gt; {isEditing ? `Editar ${roleTitle}` : `Nuevo ${roleTitle}`}
               </h1>
             </div>
           </div>
@@ -695,272 +755,396 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
                   3. Asignación Territorial y Demarcación
                 </h3>
               </div>
-              <span className="text-[11px] text-slate-400">Delimitación electoral oficial</span>
+              <span className="text-[11px] text-slate-400">
+                {isSeccionLevel ? 'Sección Electoral Única' : 'Delimitación electoral oficial'}
+              </span>
             </div>
 
-            {/* Selector de Tipo de Elección */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Tipo de Elección *
-              </label>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                {/* 1. Estatal */}
-                <button
-                  type="button"
-                  onClick={() => setElectionType('estatal')}
-                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
-                    electionType === 'estatal'
-                      ? 'border-[#9d2449] bg-rose-50/50 shadow-xs ring-2 ring-[#9d2449]'
-                      : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/70 text-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <Landmark className={`w-4 h-4 ${electionType === 'estatal' ? 'text-[#9d2449]' : 'text-slate-500'}`} />
-                      <span className={`text-xs font-bold ${electionType === 'estatal' ? 'text-[#9d2449]' : 'text-slate-900'}`}>
-                        Estatal
-                      </span>
-                    </div>
-                    {electionType === 'estatal' && <CheckCircle2 className="w-4 h-4 text-[#9d2449]" />}
-                  </div>
-                  <p className="text-[10px] text-slate-500 line-clamp-1">Cobertura estatal completa</p>
-                </button>
-
-                {/* 2. Diputación Federal */}
-                <button
-                  type="button"
-                  onClick={() => setElectionType('diputacion_federal')}
-                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
-                    electionType === 'diputacion_federal'
-                      ? 'border-[#9d2449] bg-rose-50/50 shadow-xs ring-2 ring-[#9d2449]'
-                      : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/70 text-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <Building2 className={`w-4 h-4 ${electionType === 'diputacion_federal' ? 'text-[#9d2449]' : 'text-slate-500'}`} />
-                      <span className={`text-xs font-bold ${electionType === 'diputacion_federal' ? 'text-[#9d2449]' : 'text-slate-900'}`}>
-                        Diputación Federal
-                      </span>
-                    </div>
-                    {electionType === 'diputacion_federal' && <CheckCircle2 className="w-4 h-4 text-[#9d2449]" />}
-                  </div>
-                  <p className="text-[10px] text-slate-500 line-clamp-1">Distrito Electoral Federal</p>
-                </button>
-
-                {/* 3. Diputación Local */}
-                <button
-                  type="button"
-                  onClick={() => setElectionType('diputacion_local')}
-                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
-                    electionType === 'diputacion_local'
-                      ? 'border-[#9d2449] bg-rose-50/50 shadow-xs ring-2 ring-[#9d2449]'
-                      : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/70 text-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <Layers className={`w-4 h-4 ${electionType === 'diputacion_local' ? 'text-[#9d2449]' : 'text-slate-500'}`} />
-                      <span className={`text-xs font-bold ${electionType === 'diputacion_local' ? 'text-[#9d2449]' : 'text-slate-900'}`}>
-                        Diputación Local
-                      </span>
-                    </div>
-                    {electionType === 'diputacion_local' && <CheckCircle2 className="w-4 h-4 text-[#9d2449]" />}
-                  </div>
-                  <p className="text-[10px] text-slate-500 line-clamp-1">Distrito Electoral Local</p>
-                </button>
-
-                {/* 4. Municipio */}
-                <button
-                  type="button"
-                  onClick={() => setElectionType('municipio')}
-                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
-                    electionType === 'municipio'
-                      ? 'border-[#9d2449] bg-rose-50/50 shadow-xs ring-2 ring-[#9d2449]'
-                      : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/70 text-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="flex items-center gap-2">
-                      <MapPin className={`w-4 h-4 ${electionType === 'municipio' ? 'text-[#9d2449]' : 'text-slate-500'}`} />
-                      <span className={`text-xs font-bold ${electionType === 'municipio' ? 'text-[#9d2449]' : 'text-slate-900'}`}>
-                        Municipio
-                      </span>
-                    </div>
-                    {electionType === 'municipio' && <CheckCircle2 className="w-4 h-4 text-[#9d2449]" />}
-                  </div>
-                  <p className="text-[10px] text-slate-500 line-clamp-1">Presidencia Municipal</p>
-                </button>
-              </div>
-            </div>
-
-            {/* Selectores Geográficos Condicionales */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-              {/* Selector de Estado (Siempre presente) */}
-              <div className={electionType === 'estatal' ? 'sm:col-span-2' : ''}>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                  Estado de la República *
-                </label>
-                <select
-                  value={selectedStateId}
-                  onChange={(e) => setSelectedStateId(Number(e.target.value))}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] font-medium transition-all"
-                >
-                  {MEXICAN_STATES.map(s => (
-                    <option key={s.stateId} value={s.stateId}>
-                      {s.name} ({s.commonName}) - {s.totalSections} secciones
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Si es Diputación Federal: Selector de Distrito Federal */}
-              {electionType === 'diputacion_federal' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Distrito Electoral Federal *
-                  </label>
-                  <select
-                    value={selectedFederalDistrict}
-                    onChange={(e) => setSelectedFederalDistrict(Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] font-medium transition-all"
-                  >
-                    {availableFederalDistricts.map(dist => (
-                      <option key={dist} value={dist}>
-                        Distrito Federal {String(dist).padStart(2, '0')} ({selectedState.commonName})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Si es Diputación Local: Selector de Distrito Local */}
-              {electionType === 'diputacion_local' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Distrito Electoral Local *
-                  </label>
-                  <select
-                    value={selectedLocalDistrict}
-                    onChange={(e) => setSelectedLocalDistrict(Number(e.target.value))}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] font-medium transition-all"
-                  >
-                    {availableLocalDistricts.map(dist => (
-                      <option key={dist} value={dist}>
-                        Distrito Local {String(dist).padStart(2, '0')} ({selectedState.commonName})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {/* Si es Municipio: Selector de Municipio */}
-              {electionType === 'municipio' && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Municipio *
-                  </label>
-                  <select
-                    value={selectedMunicipioName}
-                    onChange={(e) => setSelectedMunicipioName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] font-medium transition-all"
-                  >
-                    {availableMunicipios.length === 0 ? (
-                      <option value="">Cargando municipios...</option>
-                    ) : (
-                      availableMunicipios.map(m => (
-                        <option key={m} value={m}>
-                          {m}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-              )}
-            </div>
-
-            {/* Tarjeta Informativa de Secciones Asignadas Automáticamente */}
-            <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4.5 space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
-                    {loadingGeo ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-[#9d2449]" />
-                    ) : (
-                      <CheckCircle2 className="w-5 h-5" />
-                    )}
-                  </div>
+            {isSeccionLevel ? (
+              /* Flujo para Responsable de Sección: Asignación de 1 sola sección */
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-rose-50/60 border border-rose-200/70 rounded-xl">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
-                      <span>{selectedSections.length} Secciones Electorales Asignadas</span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                        Cobertura Oficial
-                      </span>
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Este fragmento territorial queda asignado al Coordinador de Promoción al Voto para el despliegue en campo.
+                    <span className="text-xs font-bold text-[#9d2449] flex items-center gap-1.5">
+                      <Target className="w-4 h-4" />
+                      Sección Electoral Asignada (Solo 1 por Responsable de Sección) *
+                    </span>
+                    <p className="text-[11px] text-slate-600 mt-1">
+                      El coordinador de zona solo puede asignar una sección a cada responsable de sección.
                     </p>
                   </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowSectionDetail(prev => !prev)}
-                  className="text-xs font-bold text-[#9d2449] hover:underline cursor-pointer self-start sm:self-auto shrink-0"
-                >
-                  {showSectionDetail ? 'Ocultar secciones' : 'Ver secciones asignadas'}
-                </button>
-              </div>
-
-              {/* Visor colapsable de secciones asignadas */}
-              {showSectionDetail && (
-                <div className="pt-2 border-t border-slate-200/70 space-y-2.5 animate-in fade-in duration-150">
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
-                    <input
-                      type="text"
-                      placeholder="Buscar número de sección asignada..."
-                      value={sectionSearch}
-                      onChange={(e) => setSectionSearch(e.target.value)}
-                      className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#9d2449]"
-                    />
-                  </div>
-
-                  <div className="max-h-40 overflow-y-auto p-2.5 bg-white rounded-xl border border-slate-200 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5">
-                    {visibleSectionsFiltered.map(secNum => (
-                      <div
-                        key={secNum}
-                        className="px-2 py-1 text-[11px] font-mono font-bold rounded-md bg-rose-50 text-[#9d2449] border border-rose-200/80 flex items-center justify-center text-center"
-                      >
-                        {secNum}
-                      </div>
-                    ))}
-                    {visibleSectionsFiltered.length === 0 && (
-                      <p className="col-span-full text-center text-xs text-slate-400 py-3">
-                        No se encontraron secciones con el criterio de búsqueda.
-                      </p>
+                  <div className="shrink-0">
+                    {selectedSections.length === 1 ? (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <CheckCircle2 className="w-4 h-4" />
+                        Sección {selectedSections[0]} asignada
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                        Selecciona 1 sección
+                      </span>
                     )}
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Nombre de la Demarcación Asignada (Prellenado pero editable) */}
-            <div>
-              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                Nombre de la Demarcación / Territorio Asignado
-              </label>
-              <input
-                type="text"
-                placeholder={defaultTerritoryName}
-                value={territoryName}
-                onChange={(e) => setTerritoryName(e.target.value)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all"
-              />
-              <p className="text-[11px] text-slate-400 mt-1">
-                Generado automáticamente según el tipo de elección y estado. Puedes editarlo para personalizar su denominación.
-              </p>
-            </div>
+                {/* Buscador de Sección en la zona */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <input
+                    type="text"
+                    placeholder="Buscar sección por número..."
+                    value={sectionSearch}
+                    onChange={(e) => setSectionSearch(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449]"
+                  />
+                </div>
+
+                {/* Lista / Grid de Secciones */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                      Secciones disponibles en tu zona ({searchableZoneSections.length})
+                    </span>
+                    {selectedSections.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSections([])}
+                        className="text-[11px] text-[#9d2449] hover:underline cursor-pointer"
+                      >
+                        Limpiar selección
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-64 overflow-y-auto p-3 bg-slate-50/70 rounded-xl border border-slate-200">
+                    {searchableZoneSections.map((sec) => {
+                      const isSelected = selectedSections.includes(sec.sectionNumber);
+                      return (
+                        <button
+                          key={sec.sectionNumber}
+                          type="button"
+                          onClick={() => handleToggleSection(sec.sectionNumber)}
+                          className={`p-3 rounded-xl border text-left transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                            isSelected
+                              ? 'bg-rose-50 border-[#9d2449] ring-2 ring-[#9d2449] shadow-xs'
+                              : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-100/70 text-slate-700'
+                          }`}
+                        >
+                          <div className="min-w-0">
+                            <span className={`text-xs font-mono font-bold block ${isSelected ? 'text-[#9d2449]' : 'text-slate-900'}`}>
+                              Sección {sec.sectionNumber}
+                            </span>
+                            {sec.municipio && (
+                              <span className="text-[10px] text-slate-500 truncate block">
+                                {sec.municipio}
+                              </span>
+                            )}
+                          </div>
+                          <div
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${
+                              isSelected
+                                ? 'border-[#9d2449] bg-[#9d2449] text-white'
+                                : 'border-slate-300 bg-white'
+                            }`}
+                          >
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                    {searchableZoneSections.length === 0 && (
+                      <div className="col-span-full py-8 text-center text-xs text-slate-400">
+                        No se encontraron secciones electorales con ese criterio.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Nombre de la Demarcación Asignada */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Nombre de la Demarcación / Territorio Asignado
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={defaultTerritoryName}
+                    value={territoryName}
+                    onChange={(e) => setTerritoryName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Denominación del territorio asignado a este responsable.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              /* Flujo superior para CPV u otros niveles territoriales */
+              <>
+                {/* Selector de Tipo de Elección */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                    Tipo de Elección *
+                  </label>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                    {/* 1. Estatal */}
+                    <button
+                      type="button"
+                      onClick={() => setElectionType('estatal')}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
+                        electionType === 'estatal'
+                          ? 'border-[#9d2449] bg-rose-50/50 shadow-xs ring-2 ring-[#9d2449]'
+                          : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/70 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <Landmark className={`w-4 h-4 ${electionType === 'estatal' ? 'text-[#9d2449]' : 'text-slate-500'}`} />
+                          <span className={`text-xs font-bold ${electionType === 'estatal' ? 'text-[#9d2449]' : 'text-slate-900'}`}>
+                            Estatal
+                          </span>
+                        </div>
+                        {electionType === 'estatal' && <CheckCircle2 className="w-4 h-4 text-[#9d2449]" />}
+                      </div>
+                      <p className="text-[10px] text-slate-500 line-clamp-1">Cobertura estatal completa</p>
+                    </button>
+
+                    {/* 2. Diputación Federal */}
+                    <button
+                      type="button"
+                      onClick={() => setElectionType('diputacion_federal')}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
+                        electionType === 'diputacion_federal'
+                          ? 'border-[#9d2449] bg-rose-50/50 shadow-xs ring-2 ring-[#9d2449]'
+                          : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/70 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <Building2 className={`w-4 h-4 ${electionType === 'diputacion_federal' ? 'text-[#9d2449]' : 'text-slate-500'}`} />
+                          <span className={`text-xs font-bold ${electionType === 'diputacion_federal' ? 'text-[#9d2449]' : 'text-slate-900'}`}>
+                            Diputación Federal
+                          </span>
+                        </div>
+                        {electionType === 'diputacion_federal' && <CheckCircle2 className="w-4 h-4 text-[#9d2449]" />}
+                      </div>
+                      <p className="text-[10px] text-slate-500 line-clamp-1">Distrito Electoral Federal</p>
+                    </button>
+
+                    {/* 3. Diputación Local */}
+                    <button
+                      type="button"
+                      onClick={() => setElectionType('diputacion_local')}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
+                        electionType === 'diputacion_local'
+                          ? 'border-[#9d2449] bg-rose-50/50 shadow-xs ring-2 ring-[#9d2449]'
+                          : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/70 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <Layers className={`w-4 h-4 ${electionType === 'diputacion_local' ? 'text-[#9d2449]' : 'text-slate-500'}`} />
+                          <span className={`text-xs font-bold ${electionType === 'diputacion_local' ? 'text-[#9d2449]' : 'text-slate-900'}`}>
+                            Diputación Local
+                          </span>
+                        </div>
+                        {electionType === 'diputacion_local' && <CheckCircle2 className="w-4 h-4 text-[#9d2449]" />}
+                      </div>
+                      <p className="text-[10px] text-slate-500 line-clamp-1">Distrito Electoral Local</p>
+                    </button>
+
+                    {/* 4. Municipio */}
+                    <button
+                      type="button"
+                      onClick={() => setElectionType('municipio')}
+                      className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
+                        electionType === 'municipio'
+                          ? 'border-[#9d2449] bg-rose-50/50 shadow-xs ring-2 ring-[#9d2449]'
+                          : 'border-slate-200 bg-slate-50/70 hover:bg-slate-100/70 text-slate-700'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center gap-2">
+                          <MapPin className={`w-4 h-4 ${electionType === 'municipio' ? 'text-[#9d2449]' : 'text-slate-500'}`} />
+                          <span className={`text-xs font-bold ${electionType === 'municipio' ? 'text-[#9d2449]' : 'text-slate-900'}`}>
+                            Municipio
+                          </span>
+                        </div>
+                        {electionType === 'municipio' && <CheckCircle2 className="w-4 h-4 text-[#9d2449]" />}
+                      </div>
+                      <p className="text-[10px] text-slate-500 line-clamp-1">Presidencia Municipal</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Selectores Geográficos Condicionales */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  {/* Selector de Estado (Siempre presente) */}
+                  <div className={electionType === 'estatal' ? 'sm:col-span-2' : ''}>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                      Estado de la República *
+                    </label>
+                    <select
+                      value={selectedStateId}
+                      onChange={(e) => setSelectedStateId(Number(e.target.value))}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] font-medium transition-all"
+                    >
+                      {MEXICAN_STATES.map(s => (
+                        <option key={s.stateId} value={s.stateId}>
+                          {s.name} ({s.commonName}) - {s.totalSections} secciones
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Si es Diputación Federal: Selector de Distrito Federal */}
+                  {electionType === 'diputacion_federal' && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Distrito Electoral Federal *
+                      </label>
+                      <select
+                        value={selectedFederalDistrict}
+                        onChange={(e) => setSelectedFederalDistrict(Number(e.target.value))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] font-medium transition-all"
+                      >
+                        {availableFederalDistricts.map(dist => (
+                          <option key={dist} value={dist}>
+                            Distrito Federal {String(dist).padStart(2, '0')} ({selectedState.commonName})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Si es Diputación Local: Selector de Distrito Local */}
+                  {electionType === 'diputacion_local' && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Distrito Electoral Local *
+                      </label>
+                      <select
+                        value={selectedLocalDistrict}
+                        onChange={(e) => setSelectedLocalDistrict(Number(e.target.value))}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] font-medium transition-all"
+                      >
+                        {availableLocalDistricts.map(dist => (
+                          <option key={dist} value={dist}>
+                            Distrito Local {String(dist).padStart(2, '0')} ({selectedState.commonName})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Si es Municipio: Selector de Municipio */}
+                  {electionType === 'municipio' && (
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Municipio *
+                      </label>
+                      <select
+                        value={selectedMunicipioName}
+                        onChange={(e) => setSelectedMunicipioName(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] font-medium transition-all"
+                      >
+                        {availableMunicipios.length === 0 ? (
+                          <option value="">Cargando municipios...</option>
+                        ) : (
+                          availableMunicipios.map(m => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Tarjeta Informativa de Secciones Asignadas Automáticamente */}
+                <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4.5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                        {loadingGeo ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-[#9d2449]" />
+                        ) : (
+                          <CheckCircle2 className="w-5 h-5" />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                          <span>{selectedSections.length} Secciones Electorales Asignadas</span>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                            Cobertura Oficial
+                          </span>
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Este fragmento territorial queda asignado al Coordinador de Promoción al Voto para el despliegue en campo.
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowSectionDetail(prev => !prev)}
+                      className="text-xs font-bold text-[#9d2449] hover:underline cursor-pointer self-start sm:self-auto shrink-0"
+                    >
+                      {showSectionDetail ? 'Ocultar secciones' : 'Ver secciones asignadas'}
+                    </button>
+                  </div>
+
+                  {/* Visor colapsable de secciones asignadas */}
+                  {showSectionDetail && (
+                    <div className="pt-2 border-t border-slate-200/70 space-y-2.5 animate-in fade-in duration-150">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          placeholder="Buscar número de sección asignada..."
+                          value={sectionSearch}
+                          onChange={(e) => setSectionSearch(e.target.value)}
+                          className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-[#9d2449]"
+                        />
+                      </div>
+
+                      <div className="max-h-40 overflow-y-auto p-2.5 bg-white rounded-xl border border-slate-200 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-1.5">
+                        {visibleSectionsFiltered.map(secNum => (
+                          <div
+                            key={secNum}
+                            className="px-2 py-1 text-[11px] font-mono font-bold rounded-md bg-rose-50 text-[#9d2449] border border-rose-200/80 flex items-center justify-center text-center"
+                          >
+                            {secNum}
+                          </div>
+                        ))}
+                        {visibleSectionsFiltered.length === 0 && (
+                          <p className="col-span-full text-center text-xs text-slate-400 py-3">
+                            No se encontraron secciones con el criterio de búsqueda.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Nombre de la Demarcación Asignada (Prellenado pero editable) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Nombre de la Demarcación / Territorio Asignado
+                  </label>
+                  <input
+                    type="text"
+                    placeholder={defaultTerritoryName}
+                    value={territoryName}
+                    onChange={(e) => setTerritoryName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#9d2449] transition-all"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Generado automáticamente según el tipo de elección y estado. Puedes editarlo para personalizar su denominación.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Botones de Acción */}
@@ -979,7 +1163,7 @@ export const SubordinateCreatePage: React.FC<SubordinateCreatePageProps> = ({
               className="px-6 py-2.5 bg-[#9d2449] hover:bg-[#851e3e] text-white font-bold text-xs rounded-xl shadow-xs transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50 active:scale-98"
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : 'Dar de Alta Coordinador de Promoción al Voto')}</span>
+              <span>{isSubmitting ? 'Guardando...' : (isEditing ? 'Guardar Cambios' : `Dar de Alta ${roleTitle}`)}</span>
             </button>
           </div>
         </form>
