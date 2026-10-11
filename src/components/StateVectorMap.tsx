@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { createGoogleTileLayer } from '../utils/mapTiles';
 import {
   MapPin,
   Loader2,
@@ -262,10 +263,7 @@ export const StateVectorMap: React.FC<StateVectorMapProps> = ({
     L.control.zoom({ position: 'bottomright' }).addTo(map);
     L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
 
-    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '© OpenStreetMap contributors',
-    }).addTo(map);
+    const tileLayer = createGoogleTileLayer(activeLayerType === 'sat' ? 'sat' : 'streets').addTo(map);
 
     tileLayerRef.current = tileLayer;
     mapInstanceRef.current = map;
@@ -285,15 +283,7 @@ export const StateVectorMap: React.FC<StateVectorMapProps> = ({
       map.removeLayer(tileLayerRef.current);
     }
 
-    let url = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-    let maxZ = 19;
-
-    if (activeLayerType === 'sat') {
-      url = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      maxZ = 18;
-    }
-
-    tileLayerRef.current = L.tileLayer(url, { maxZoom: maxZ }).addTo(map);
+    tileLayerRef.current = createGoogleTileLayer(activeLayerType === 'sat' ? 'sat' : 'streets').addTo(map);
   }, [activeLayerType]);
 
   // Load GeoJSON Polygons for this State

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { createGoogleTileLayer } from '../utils/mapTiles';
 import { Layers, LocateFixed, MapPin } from 'lucide-react';
 import type { UserAccount } from '../types/auth';
 import type { ElectoralSection } from '../types/sections';
@@ -87,17 +88,8 @@ export const PromoterSectionsMapView: React.FC<PromoterSectionsMapViewProps> = (
         touchZoom: true,
       });
 
-      // Capas de mosaicos
-      const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-
-      const tileUrl = mapType === 'satellite' ? satUrl : osmUrl;
-      const subdomains = mapType === 'satellite' ? ['server'] : ['a', 'b', 'c'];
-
-      L.tileLayer(tileUrl, {
-        maxZoom: 19,
-        subdomains,
-      }).addTo(map);
+      // Capas de mosaicos Google Maps
+      createGoogleTileLayer(mapType === 'satellite' ? 'sat' : 'streets').addTo(map);
 
       // Colores vivos para diferenciar secciones si son varias
       const colors = [

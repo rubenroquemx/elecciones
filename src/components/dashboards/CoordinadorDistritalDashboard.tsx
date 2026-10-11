@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { createGoogleTileLayer } from '../../utils/mapTiles';
 import type { TerritorialLeader } from '../../types/territory';
 import type { UserAccount } from '../../types/auth';
 import type { ElectoralSection } from '../../types/sections';
@@ -81,9 +82,7 @@ export const CoordinadorDistritalDashboard: React.FC<CoordinadorDistritalDashboa
     });
     mapInstanceRef.current = map;
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-    }).addTo(map);
+    createGoogleTileLayer('streets').addTo(map);
 
     const bounds = L.latLngBounds([]);
     let drawn = 0;

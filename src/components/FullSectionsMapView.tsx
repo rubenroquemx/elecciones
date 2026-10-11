@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { createGoogleTileLayer } from '../utils/mapTiles';
 import type { ElectoralSection, SectionStructure } from '../types/sections';
 import {
   Search,
@@ -99,23 +100,7 @@ export const FullSectionsMapView: React.FC<FullSectionsMapViewProps> = ({
         preferCanvas: true,
       });
 
-      const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-
-      const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
-      const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c'];
-
-      L.tileLayer(tileUrl, {
-        maxZoom: 19,
-        subdomains,
-      }).addTo(map);
-
-      L.control
-        .attribution({
-          position: 'bottomright',
-          prefix: '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>',
-        })
-        .addTo(map);
+      createGoogleTileLayer(mapLayer).addTo(map);
 
       mapInstanceRef.current = map;
 

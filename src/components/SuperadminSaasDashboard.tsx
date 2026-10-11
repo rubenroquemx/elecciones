@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { createGoogleTileLayer } from '../utils/mapTiles';
 import type { TerritorialLeader } from '../types/territory';
 import type { UserAccount } from '../types/auth';
 import { WhatsAppIcon } from './icons/WhatsAppIcon';
@@ -134,16 +135,10 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
 
     const map = mapInstanceRef.current;
 
-    // Cambiar capa de satélite / calles de forma limpia sin destruir el mapa
-    const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-    const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-    const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
-    const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c'];
-
     if (tileLayerRef.current) {
       map.removeLayer(tileLayerRef.current);
     }
-    const newTile = L.tileLayer(tileUrl, { maxZoom: 19, subdomains }).addTo(map);
+    const newTile = createGoogleTileLayer(mapLayer === 'sat' ? 'sat' : 'streets').addTo(map);
     tileLayerRef.current = newTile;
 
     const timer = setTimeout(() => {

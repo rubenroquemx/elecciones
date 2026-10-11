@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { createGoogleTileLayer } from '../utils/mapTiles';
 import type { TerritorialLeader } from '../types/territory';
 import type { UserAccount } from '../types/auth';
 import { CARTOGRAPHY_BY_SECTION } from '../data/mockSectionsData';
@@ -94,15 +95,7 @@ export const CampanaCoordinatorDetailPage: React.FC<CampanaCoordinatorDetailPage
     });
     mapInstanceRef.current = map;
 
-    const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-    const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-    const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
-    const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c'];
-
-    L.tileLayer(tileUrl, {
-      maxZoom: 19,
-      subdomains,
-    }).addTo(map);
+    createGoogleTileLayer(mapLayer === 'sat' ? 'sat' : 'streets').addTo(map);
 
     const assigned = coordinator.assignedSections || [];
     const assignedSet = new Set(assigned.map(s => String(s).trim().padStart(4, '0')));

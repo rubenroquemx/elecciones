@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { createGoogleTileLayer } from '../utils/mapTiles';
 import type { ElectoralSection, SectionStructure } from '../types/sections';
 import type { TerritorialLeader } from '../types/territory';
 import { CARTOGRAPHY_BY_SECTION } from '../data/mockSectionsData';
@@ -173,30 +174,8 @@ export const SectionDetailPage: React.FC<SectionDetailPageProps> = ({
         attributionControl: false,
       });
 
-      // Tile layer
-      let tileUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      let subdomains = ['a', 'b', 'c'];
-      let maxZoom = 19;
-
-      if (mapLayer === 'hot') {
-        tileUrl = 'https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
-      } else if (mapLayer === 'sat') {
-        tileUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-        subdomains = ['server'];
-      }
-
-      L.tileLayer(tileUrl, {
-        maxZoom,
-        subdomains,
-      }).addTo(map);
-
-      // Attribution
-      L.control
-        .attribution({
-          position: 'bottomright',
-          prefix: '<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap</a>',
-        })
-        .addTo(map);
+      // Tile layer de Google Maps
+      createGoogleTileLayer(mapLayer === 'sat' ? 'sat' : 'streets').addTo(map);
 
       // Polygon
       if (polygon && polygon.length >= 3) {

@@ -22,6 +22,7 @@ import type { UserAccount } from '../types/auth';
 import type { TerritorialLeader, TerritorialZone } from '../types/territory';
 import tabascoCatalog from '../data/tabascoCatalog.json';
 import { fetchStateGeoJson } from '../services/geoService';
+import { createGoogleTileLayer } from '../utils/mapTiles';
 
 interface CatalogSectionItem {
   section: string;
@@ -593,7 +594,9 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
     if (!mapContainerRef.current) return;
 
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.remove();
+      try {
+        mapInstanceRef.current.remove();
+      } catch {}
       mapInstanceRef.current = null;
     }
 
@@ -609,15 +612,9 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
       });
       map.setView([17.9892, -92.9281], 9);
 
-      const streetsUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-      const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      const tileUrl = mapLayer === 'sat' ? satUrl : streetsUrl;
-      const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c', 'd'];
-
-      const tile = L.tileLayer(tileUrl, {
-        maxZoom: 19,
-        subdomains,
-      }).addTo(map);
+      // Capa base inicial de Google Maps
+      const tile = createGoogleTileLayer(mapLayer);
+      tile.addTo(map);
       tile.bringToBack();
 
       tileLayerRef.current = tile;
@@ -636,7 +633,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
     };
   }, []);
 
-  // 2. Capa base de mosaicos (Calles / Satélite) al alternar
+  // 2. Capa base de Google Maps (Calles / Satélite Híbrido) al alternar
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -648,21 +645,30 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
       tileLayerRef.current = null;
     }
 
-    const streetsUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
-    const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-    const tileUrl = mapLayer === 'sat' ? satUrl : streetsUrl;
-    const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c', 'd'];
-
-    const newTile = L.tileLayer(tileUrl, {
-      maxZoom: 19,
-      subdomains,
-    }).addTo(map);
+    const newTile = createGoogleTileLayer(mapLayer);
+    newTile.addTo(map);
     newTile.bringToBack();
 
     tileLayerRef.current = newTile;
   }, [mapLayer]);
 
-  // 2b. ResizeObserver para ajustar el mapa reactivamente ante cualquier cambio de tamaño
+  // 2b. Re-alinear el viewport de Leaflet inmediatamente al abrir o cerrar el editor
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const t1 = setTimeout(() => map.invalidateSize({ pan: false }), 50);
+    const t2 = setTimeout(() => map.invalidateSize({ pan: false }), 180);
+    const t3 = setTimeout(() => map.invalidateSize({ pan: false }), 360);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [isModalOpen]);
+
+  // 2c. ResizeObserver para ajustar el mapa reactivamente ante cualquier cambio de tamaño
   useEffect(() => {
     const container = mapContainerRef.current;
     if (!container) return;
@@ -713,7 +719,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
           weight: 2,
           opacity: 1,
           fillColor: st.editorColor,
-          fillOpacity: isSat ? 0.65 : 0.55,
+          fillOpacity: isSat ? 0.45 : 0.38,
         };
       }
       const z = st.sectionToZoneMap.get(sec);
@@ -724,7 +730,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
           weight: 0.8,
           opacity: 0.5,
           fillColor: z.color,
-          fillOpacity: 0.18,
+          fillOpacity: 0.12,
         };
       }
     } else {
@@ -738,18 +744,18 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
           weight: matchesFilter ? 2 : 1,
           opacity: isDimmed ? 0.3 : 0.9,
           fillColor: zone.color,
-          fillOpacity: isDimmed ? 0.1 : (isSat ? 0.35 : 0.28),
+          fillOpacity: isDimmed ? 0.08 : (isSat ? 0.32 : 0.25),
         };
       }
     }
 
-    // Sección sin zona asignada: sombreado gris claro traslúcido
+    // Sección sin zona asignada: traslúcido para ver nítidamente las calles y satélite de Google Maps debajo
     return {
-      color: '#64748b',
-      weight: 0.8,
-      opacity: 0.8,
+      color: '#475569',
+      weight: 0.75,
+      opacity: 0.7,
       fillColor: '#94a3b8',
-      fillOpacity: isSat ? 0.28 : 0.2,
+      fillOpacity: isSat ? 0.12 : 0.08,
     };
   }, []);
 
@@ -1348,7 +1354,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
                     mapLayer === 'streets' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Calles
+                  Google Calles
                 </button>
                 <button
                   type="button"
@@ -1357,7 +1363,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
                     mapLayer === 'sat' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Satélite
+                  Google Satélite
                 </button>
               </div>
             </div>
@@ -1382,6 +1388,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
                 <span className="w-3 h-3 inline-block bg-slate-300 border border-slate-400" />
                 Sin zona asignada
               </span>
+              <span className="text-[9px] text-slate-400 font-semibold tracking-wide uppercase">Google Maps</span>
             </div>
 
             {/* Badge informativo de sección en hover */}

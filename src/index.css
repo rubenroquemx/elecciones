@@ -7,6 +7,16 @@
   max-width: none !important;
   max-height: none !important;
   display: block !important;
+  visibility: inherit !important;
+  opacity: 1 !important;
+}
+
+.leaflet-tile-pane {
+  z-index: 200 !important;
+}
+
+.leaflet-overlay-pane {
+  z-index: 400 !important;
 }
 
 
