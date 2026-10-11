@@ -1354,7 +1354,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
                     mapLayer === 'streets' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Google Calles
+                  Calles
                 </button>
                 <button
                   type="button"
@@ -1363,7 +1363,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
                     mapLayer === 'sat' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Google Satélite
+                  Satélite
                 </button>
               </div>
             </div>
@@ -1388,7 +1388,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
                 <span className="w-3 h-3 inline-block bg-slate-300 border border-slate-400" />
                 Sin zona asignada
               </span>
-              <span className="text-[9px] text-slate-400 font-semibold tracking-wide uppercase">Google Maps</span>
+              <span className="text-[9px] text-slate-400 font-semibold tracking-wide uppercase">Cartografía Base</span>
             </div>
 
             {/* Badge informativo de sección en hover */}
