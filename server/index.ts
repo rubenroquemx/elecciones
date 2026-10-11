@@ -1997,45 +1997,58 @@ app.delete('/api/leaders/:id', async (req, res) => {
     const { id } = req.params;
     const currentStore = readBackupStore();
 
+    const isSuperAdmin = !req.user || req.user.isSuperAdmin || req.user.level === 'admin';
+
     // Validar autorización: admin o superior directo
-    if (req.user && !req.user.isSuperAdmin && req.user.level !== 'admin') {
+    if (!isSuperAdmin) {
       const target = currentStore.find((l: any) => l.id === id);
-      if (target && target.parentId !== req.user.leaderId) {
+      if (target && target.parentId !== req.user?.leaderId) {
         return res.status(403).json({ error: 'Solo puedes eliminar a tus subordinados directos.' });
       }
     }
 
-    // Regla estricta: Bloquear si tiene subordinados directos (no reasignar al abuelo)
+    // Regla para usuarios normales: Bloquear si tiene subordinados directos
     const directSubs = currentStore.filter((l: any) => l.parentId === id);
-    if (directSubs.length > 0) {
+    if (directSubs.length > 0 && !isSuperAdmin) {
       return res.status(400).json({ 
         error: `Reasigna o elimina primero a sus ${directSubs.length} subordinados.` 
       });
     }
 
-    // 1. Marcar como borrado definitivo (tombstone)
-    addDeletedId(id);
+    // Para superadministradores, eliminar en cascada limpia todo el subárbol
+    const idsToDelete = isSuperAdmin ? Array.from(getSubtreeLeaderIds(id, currentStore)) : [id];
+    const toDeleteSet = new Set(idsToDelete);
+
+    // 1. Marcar como borrado definitivo (tombstone) todos los IDs
+    idsToDelete.forEach(subId => addDeletedId(subId));
 
     // 2. Eliminar de almacenamiento central resiliente
-    const filteredStore = currentStore.filter((l: any) => l.id !== id);
+    const filteredStore = currentStore.filter((l: any) => !toDeleteSet.has(l.id));
     writeBackupStore(filteredStore);
 
-    // 3. Eliminar cuenta de usuario asociada en backend (Phase 2 item 2.8)
+    // 3. Eliminar cuentas de usuario asociadas en backend (Phase 2 item 2.8)
     try {
-      await prisma.userAccount.deleteMany({ where: { leaderId: id } });
+      await prisma.userAccount.deleteMany({ 
+        where: { 
+          OR: [
+            { id: { in: idsToDelete } },
+            { leaderId: { in: idsToDelete } }
+          ]
+        } 
+      });
     } catch {}
     const accStore = readAccountsStore();
-    const filteredAcc = accStore.filter((a: any) => a.leaderId !== id);
+    const filteredAcc = accStore.filter((a: any) => !toDeleteSet.has(a.id) && !toDeleteSet.has(a.leaderId));
     writeAccountsStore(filteredAcc);
 
     // 4. Eliminar de PostgreSQL si existe (usando deleteMany para no fallar si no existe en la BD)
     try {
-      await prisma.leader.deleteMany({ where: { id } });
+      await prisma.leader.deleteMany({ where: { id: { in: idsToDelete } } });
     } catch (dbErr: any) {
       console.warn('Aviso eliminando en PostgreSQL:', dbErr.message);
     }
 
-    res.json({ success: true, deletedId: id });
+    res.json({ success: true, deletedId: id, deletedIds: idsToDelete });
   } catch (err: any) {
     console.error('Error deleting leader:', err);
     res.status(500).json({ error: 'Error al eliminar líder', details: err.message });

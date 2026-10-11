@@ -550,49 +550,33 @@ export function App() {
       const serverList = Array.isArray(serverAccounts) ? serverAccounts : [];
       if (serverList.length === 0) return;
 
-      const serverIds = new Set(serverList.map((a: any) => a.id));
-      const serverEmails = new Set(serverList.map((a: any) => String(a.email || '').toLowerCase()));
-
-      // Sincronizar hacia el servidor cualquier cuenta local no registrada
-      try {
-        const rawLocal = localStorage.getItem('territorial_custom_accounts');
-        if (rawLocal) {
-          const parsedLocal = JSON.parse(rawLocal);
-          if (Array.isArray(parsedLocal)) {
-            parsedLocal.forEach((locAcc: UserAccount) => {
-              const locEmail = String(locAcc.email || '').toLowerCase();
-              if (!serverIds.has(locAcc.id) && !serverEmails.has(locEmail)) {
-                saveUserAccountApi(locAcc).catch(() => {});
-              }
-            });
-          }
-        }
-      } catch {}
-
       setAccounts(prev => {
-        const prevMap = new Map(prev.map(a => [a.id, a]));
-        let hasChanges = serverList.length !== prev.length;
+        // El servidor central es la única fuente de verdad para cuentas
+        const customFromServer = serverList.filter(
+          (a: any) => !a.isSuperAdmin && a.level !== 'admin'
+        );
+        const merged = [...MOCK_ACCOUNTS, ...customFromServer];
+
+        // Comparar si realmente hay cambios para no disparar re-renderizados innecesarios
+        const prevCustom = prev.filter(a => !a.isSuperAdmin && a.level !== 'admin');
+        let hasChanges = prevCustom.length !== customFromServer.length;
         if (!hasChanges) {
-          for (const s of serverList) {
+          const prevMap = new Map(prevCustom.map(a => [a.id, a]));
+          for (const s of customFromServer) {
             const p = prevMap.get(s.id);
-            if (!p || p.name !== s.name || p.picture !== s.picture || p.phone !== s.phone || p.email !== s.email || p.level !== s.level || p.accountRoleLabel !== s.accountRoleLabel) {
+            if (!p || p.name !== s.name || p.phone !== s.phone || p.email !== s.email || p.level !== s.level || p.accountRoleLabel !== s.accountRoleLabel) {
               hasChanges = true;
               break;
             }
           }
         }
-        if (!hasChanges) return prev;
 
-        const map = new Map<string, UserAccount>();
-        prev.forEach(a => map.set(a.id, a));
-        serverList.forEach(a => {
-          const existing = map.get(a.id);
-          map.set(a.id, { ...existing, ...a, password: existing?.password || a.password });
-        });
-        const merged = Array.from(map.values());
+        // Siempre sobrescribir localStorage con la lista limpia y actualizada del servidor
         try {
-          localStorage.setItem('territorial_custom_accounts', JSON.stringify(merged));
+          localStorage.setItem('territorial_custom_accounts', JSON.stringify(customFromServer));
         } catch (e) {}
+
+        if (!hasChanges) return prev;
         return merged;
       });
 
@@ -1245,12 +1229,13 @@ export function App() {
       });
 
       // 2. Eliminar cuenta de usuario asociada en el cliente y servidor (Phase 2 item 2.8)
-      const accountToDelete = accounts.find(a => a.leaderId === id);
+      const accountToDelete = accounts.find(a => a.leaderId === id || a.id === id || a.id === `usr-${id}`);
       if (accountToDelete) {
+        saveLocalDeletedId(accountToDelete.id);
         setAccounts(prev => {
-          const updated = prev.filter(a => a.leaderId !== id);
+          const updated = prev.filter(a => a.leaderId !== id && a.id !== id && a.id !== accountToDelete.id);
           try {
-            localStorage.setItem('territorial_custom_accounts', JSON.stringify(updated));
+            localStorage.setItem('territorial_custom_accounts', JSON.stringify(updated.filter(x => !x.isSuperAdmin && x.level !== 'admin')));
           } catch {}
           return updated;
         });
@@ -1267,7 +1252,18 @@ export function App() {
         setFilters(f => ({ ...f, focusNodeId: null }));
       }
       deleteLeaderApi(id)
-        .then(() => syncLeadersWithServer())
+        .then(() => {
+          syncLeadersWithServer();
+          fetchUserAccountsApi().then(serverAccounts => {
+            if (Array.isArray(serverAccounts)) {
+              const safeServer = serverAccounts.filter(a => !a.isSuperAdmin && a.level !== 'admin');
+              setAccounts([...MOCK_ACCOUNTS, ...safeServer]);
+              try {
+                localStorage.setItem('territorial_custom_accounts', JSON.stringify(safeServer));
+              } catch {}
+            }
+          }).catch(() => {});
+        })
         .catch(e => console.warn('Delete API error:', e));
     }
   }, [leadersData, accounts, selectedLeaderId, selectedPromovidoId, filters.focusNodeId, syncLeadersWithServer]);

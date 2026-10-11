@@ -54,10 +54,20 @@ export const SuperadminSaasDashboard: React.FC<SuperadminSaasDashboardProps> = (
     const leaderUsernames = new Set(leaderMatches.map(l => (l.username || '').toLowerCase()).filter(Boolean));
     const leaderEmails = new Set(leaderMatches.map(l => (l.email || '').toLowerCase()).filter(Boolean));
 
-    // 2. Incluir también cuentas registradas como CPV / Campaña que aún no aparezcan como líder
+    // 2. Incluir también cuentas registradas como CPV / Campaña que aún no aparezcan como líder (omitiendo eliminadas)
+    const deletedIds = new Set<string>();
+    try {
+      const raw = localStorage.getItem('territorial_deleted_leader_ids');
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr)) arr.forEach((x: string) => deletedIds.add(x));
+      }
+    } catch {}
+
     const extraFromAccounts: TerritorialLeader[] = [];
     accounts.forEach(acc => {
       if (acc.isSuperAdmin || acc.level === 'admin') return;
+      if (deletedIds.has(acc.id) || (acc.leaderId && deletedIds.has(acc.leaderId))) return;
       const accLvl = (acc.level || '').toLowerCase();
       const accRole = (acc.accountRoleLabel || '').toLowerCase();
       const isCpvAccount = 
