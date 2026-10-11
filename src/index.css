@@ -1,5 +1,14 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
+@import "leaflet/dist/leaflet.css";
+
+/* Leaflet Tile Visibility Safeguards */
+.leaflet-container img.leaflet-tile {
+  max-width: none !important;
+  max-height: none !important;
+  display: block !important;
+}
+
 
 @theme {
   --color-primary: #9d2449;

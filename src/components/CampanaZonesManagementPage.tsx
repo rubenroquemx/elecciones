@@ -602,14 +602,20 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
       const map = L.map(mapContainerRef.current, {
         zoomControl: false,
         attributionControl: false,
-        preferCanvas: false,
+        preferCanvas: true,
       });
       map.setView([17.9892, -92.9281], 9);
 
       const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      const initialTile = L.tileLayer(osmUrl, { maxZoom: 19 }).addTo(map);
-      tileLayerRef.current = initialTile;
+      const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+      const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
 
+      const tile = L.tileLayer(tileUrl, {
+        maxZoom: 19,
+        subdomains: mapLayer === 'sat' ? [] : ['a', 'b', 'c'],
+      }).addTo(map);
+
+      tileLayerRef.current = tile;
       mapInstanceRef.current = map;
     } catch (e) {
       console.error('Error initializing Leaflet map in Zonas', e);
@@ -625,7 +631,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
     };
   }, []);
 
-  // 2. Capa base de mosaicos (Calles / Satélite)
+  // 2. Capa base de mosaicos (Calles / Satélite) al alternar
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
@@ -640,12 +646,29 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
     const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
     const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
-    const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c'];
 
-    const newTile = L.tileLayer(tileUrl, { maxZoom: 19, subdomains }).addTo(map);
+    const newTile = L.tileLayer(tileUrl, {
+      maxZoom: 19,
+      subdomains: mapLayer === 'sat' ? [] : ['a', 'b', 'c'],
+    }).addTo(map);
+
     tileLayerRef.current = newTile;
-    newTile.bringToBack();
   }, [mapLayer]);
+
+  // 2b. ResizeObserver para ajustar el mapa reactivamente ante cualquier cambio de tamaño
+  useEffect(() => {
+    const container = mapContainerRef.current;
+    if (!container) return;
+
+    const ro = new ResizeObserver(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize({ pan: false });
+      }
+    });
+
+    ro.observe(container);
+    return () => ro.disconnect();
+  }, []);
 
   // 3. Estilo dinámico de polígonos (lee siempre el estado más reciente vía refs)
   const styleStateRef = useRef({
@@ -834,19 +857,26 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
     });
   }, [sectionToZoneMap, selectedZoneFilter, mapLayer, isModalOpen, editorSelectionSet, zoneColor, editingZoneId, computeSectionStyle]);
 
-  // 3c. Ajustar tamaño del mapa al abrir/cerrar el editor en línea
+  // 3c. Ajustar tamaño del mapa y re-centrar cuando se abre/cierra el editor en línea
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
     const t = setTimeout(() => {
       try {
         map.invalidateSize();
+        if (geoLayerRef.current && geoLayerRef.current.getLayers().length > 0) {
+          const bounds = geoLayerRef.current.getBounds();
+          if (bounds && bounds.isValid()) {
+            map.fitBounds(bounds, { padding: [25, 25], maxZoom: 14 });
+          }
+        }
       } catch {}
-    }, 60);
+    }, 100);
+
     if (isModalOpen) {
       setTimeout(() => {
         editorPanelRef.current?.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 80);
+      }, 120);
     }
     return () => clearTimeout(t);
   }, [isModalOpen]);
@@ -1008,6 +1038,94 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
                   </div>
                 </div>
 
+                {/* Coordinador de Zona y Cuenta de Acceso (Visibles al inicio) */}
+                <div className="space-y-3 pt-3 border-t border-slate-100 bg-slate-50/70 p-3 border rounded-none">
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="w-4 h-4 text-[#9d2449]" />
+                    <label className="block text-[11px] font-bold text-slate-800 uppercase tracking-wide">
+                      Coordinador de Zona y Cuenta de Acceso
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nombre completo del Coordinador *</label>
+                    <input
+                      type="text"
+                      value={coordinatorName}
+                      onChange={e => handleCoordinatorNameChange(e.target.value)}
+                      placeholder="Ej. Juan Pérez López"
+                      className="w-full bg-white border border-slate-300 px-3 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] text-slate-900 font-medium"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Usuario de Acceso *</label>
+                      <input
+                        type="text"
+                        value={coordinatorUsername}
+                        disabled={Boolean(existingCoordinatorAccount)}
+                        onChange={e => setCoordinatorUsername(e.target.value.replace(/\s+/g, '').toLowerCase())}
+                        placeholder="zona_nombre.apellido"
+                        className={`w-full border px-3 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] font-mono text-slate-900 ${
+                          usernameError ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300 bg-white'
+                        } disabled:bg-slate-100 disabled:text-slate-500`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        {existingCoordinatorAccount ? 'Nueva contraseña' : 'Contraseña *'}
+                      </label>
+                      <div className="flex">
+                        <input
+                          type="text"
+                          value={coordinatorPassword}
+                          onChange={e => setCoordinatorPassword(e.target.value)}
+                          placeholder={existingCoordinatorAccount ? 'Sin cambios' : 'Contraseña'}
+                          className="w-full min-w-0 bg-white border border-slate-300 px-2 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] font-mono text-slate-900 font-bold"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setCoordinatorPassword(generateSecurePassword())}
+                          className="px-2.5 bg-slate-100 hover:bg-slate-200 border border-l-0 border-slate-300 text-slate-700 rounded-none cursor-pointer"
+                          title="Generar nueva contraseña segura"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {usernameError && <p className="text-[10px] text-rose-600 font-semibold">{usernameError}</p>}
+                  {existingCoordinatorAccount && (
+                    <p className="text-[10px] text-slate-500">
+                      Esta zona ya tiene la cuenta <strong className="font-mono">@{existingCoordinatorAccount.username}</strong>. Deja la contraseña vacía para conservarla.
+                    </p>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Teléfono / WhatsApp</label>
+                      <input
+                        type="text"
+                        value={coordinatorPhone}
+                        onChange={e => setCoordinatorPhone(e.target.value)}
+                        placeholder="9931234567"
+                        className="w-full bg-white border border-slate-300 px-3 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] font-mono text-slate-900"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Correo Electrónico</label>
+                      <input
+                        type="email"
+                        value={coordinatorEmail}
+                        onChange={e => setCoordinatorEmail(e.target.value)}
+                        placeholder="opcional"
+                        className="w-full bg-white border border-slate-300 px-3 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] text-slate-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+
                 {/* Método */}
                 <div className="space-y-2 pt-3 border-t border-slate-100">
                   <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wide">
@@ -1166,94 +1284,6 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
                       electores
                     </span>
                   </div>
-                </div>
-
-                {/* Coordinador de Zona + Cuenta */}
-                <div className="space-y-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <UserPlus className="w-4 h-4 text-[#9d2449]" />
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wide">
-                      Coordinador de Zona y Cuenta de Acceso
-                    </label>
-                  </div>
-
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Nombre completo *</label>
-                    <input
-                      type="text"
-                      value={coordinatorName}
-                      onChange={e => handleCoordinatorNameChange(e.target.value)}
-                      placeholder="Nombre del Coordinador de Zona"
-                      className="w-full bg-white border border-slate-300 px-3 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] text-slate-900"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Teléfono / WhatsApp</label>
-                      <input
-                        type="text"
-                        value={coordinatorPhone}
-                        onChange={e => setCoordinatorPhone(e.target.value)}
-                        placeholder="9931234567"
-                        className="w-full bg-white border border-slate-300 px-3 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] font-mono text-slate-900"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Correo</label>
-                      <input
-                        type="email"
-                        value={coordinatorEmail}
-                        onChange={e => setCoordinatorEmail(e.target.value)}
-                        placeholder="opcional"
-                        className="w-full bg-white border border-slate-300 px-3 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] text-slate-900"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Usuario *</label>
-                      <input
-                        type="text"
-                        value={coordinatorUsername}
-                        disabled={Boolean(existingCoordinatorAccount)}
-                        onChange={e => setCoordinatorUsername(e.target.value.replace(/\s+/g, '').toLowerCase())}
-                        placeholder="zona_nombre.apellido"
-                        className={`w-full border px-3 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] font-mono text-slate-900 ${
-                          usernameError ? 'border-rose-400 bg-rose-50/30' : 'border-slate-300 bg-white'
-                        } disabled:bg-slate-100 disabled:text-slate-500`}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                        {existingCoordinatorAccount ? 'Nueva contraseña' : 'Contraseña *'}
-                      </label>
-                      <div className="flex">
-                        <input
-                          type="text"
-                          value={coordinatorPassword}
-                          onChange={e => setCoordinatorPassword(e.target.value)}
-                          placeholder={existingCoordinatorAccount ? 'Sin cambios' : 'Contraseña'}
-                          className="w-full min-w-0 bg-white border border-slate-300 px-2 py-2 text-xs rounded-none focus:outline-none focus:ring-1 focus:ring-[#9d2449] font-mono text-slate-900"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setCoordinatorPassword(generateSecurePassword())}
-                          className="px-2 bg-slate-100 hover:bg-slate-200 border border-l-0 border-slate-300 text-slate-700 rounded-none cursor-pointer"
-                          title="Generar contraseña segura"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                  {usernameError && <p className="text-[10px] text-rose-600 font-semibold">{usernameError}</p>}
-                  {existingCoordinatorAccount && (
-                    <p className="text-[10px] text-slate-500">
-                      Esta zona ya tiene la cuenta <strong className="font-mono">@{existingCoordinatorAccount.username}</strong>. Deja la contraseña vacía para conservarla.
-                    </p>
-                  )}
                 </div>
               </div>
 
