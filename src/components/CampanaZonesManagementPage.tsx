@@ -1473,31 +1473,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
         </div>
       </div>
 
-      {/* 4. ALERTA DE SECCIONES VACANTES SI EXISTEN */}
-      {unassignedSections.length > 0 && (
-        <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4 shrink-0">
-          <div className="bg-amber-50 border border-amber-200 p-4 rounded-none flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center gap-3">
-              <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
-              <div>
-                <h4 className="text-xs font-bold text-amber-900">
-                  Tienes {unassignedSections.length} secciones electorales sin asignar a ninguna zona
-                </h4>
-                <p className="text-[11px] text-amber-700 mt-0.5">
-                  ({unassignedSections.slice(0, 8).map(s => s.section).join(', ')}{unassignedSections.length > 8 ? ` y ${unassignedSections.length - 8} más...` : ''})
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleOpenCreateModal(unassignedSections.map(s => s.section))}
-              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-none transition-colors shrink-0 cursor-pointer"
-            >
-              Crear Zona con Secciones Vacantes
-            </button>
-          </div>
-        </div>
-      )}
+
 
       {/* 5. LISTADO DE ZONAS DEFINIDAS */}
       <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6 space-y-4">
