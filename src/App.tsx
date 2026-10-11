@@ -755,7 +755,7 @@ export function App() {
     setTopSuccessNotice(`¡Coordinador de Promoción al Voto (CPV) "${leader.name}" dado de alta con éxito!`);
   }, []);
 
-  const handleSaveNewTerritorialCoordinator = useCallback(async (leader: TerritorialLeader, account: UserAccount) => {
+  const handleSaveNewTerritorialCoordinator = useCallback(async (leader: TerritorialLeader, account: UserAccount, opts?: { stayOnPage?: boolean }) => {
     const savedLeader = await saveLeaderApi(leader, false);
     await saveUserAccountApi(account);
 
@@ -776,7 +776,9 @@ export function App() {
     });
 
     setTopSuccessNotice(`¡${leader.role} "${leader.name}" dado de alta con éxito!`);
-    setActiveNav('usuarios');
+    if (!opts?.stayOnPage) {
+      setActiveNav('usuarios');
+    }
   }, []);
 
   // Registered Electoral Sections with multi-structures
@@ -1783,8 +1785,12 @@ export function App() {
                 <CampanaZonesManagementPage
                   currentUser={currentUser}
                   allLeaders={visibleLeaders}
+                  accounts={accounts}
                   onSaveLeader={handleSaveLeader}
                   onDeleteLeader={handleDeleteLeader}
+                  onSaveCoordinatorAccount={(leader, account) =>
+                    handleSaveNewTerritorialCoordinator(leader, account, { stayOnPage: true })
+                  }
                   onNavigate={setActiveNav}
                 />
               )}

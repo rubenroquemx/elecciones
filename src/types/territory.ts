@@ -134,6 +134,9 @@ export interface TerritorialZone {
   coordinatorId?: string;
   coordinatorName?: string;
   coordinatorPhone?: string;
+  coordinatorEmail?: string;
+  coordinatorUsername?: string;
+  coordinatorAccountId?: string;
   metaGoal?: number;
   description?: string;
   createdAt?: string;
