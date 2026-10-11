@@ -989,7 +989,7 @@ export function App() {
     if (!currentUser) return;
 
     if (isSuperAdminUser) {
-      const allowedAdminPages: MainNavSection[] = ['escritorio', 'mesa-de-ayuda', 'usuarios', 'crear-coordinador', 'crear-coordinador-territorial', 'configuracion', 'acerca-de'];
+      const allowedAdminPages: MainNavSection[] = ['escritorio', 'zonas', 'mesa-de-ayuda', 'usuarios', 'crear-coordinador', 'crear-coordinador-territorial', 'configuracion', 'acerca-de'];
       if (!allowedAdminPages.includes(activeNav)) {
         setActiveNav('escritorio');
       }
@@ -1003,13 +1003,13 @@ export function App() {
     }
 
     const isCPV = currentUser.level === 'cpv' || currentUser.level === 'campana' || currentUser.level === 'estatal';
-    const allowedCPVPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
+    const allowedCPVPages: MainNavSection[] = ['escritorio', 'zonas', 'usuarios', 'crear-coordinador-territorial', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
     if (isCPV && !allowedCPVPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
 
     const isZona = currentUser.level === 'zona' || currentUser.level === 'distrital' || currentUser.level === 'responsable_zona';
-    const allowedZonaPages: MainNavSection[] = ['escritorio', 'usuarios', 'crear-coordinador-territorial', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
+    const allowedZonaPages: MainNavSection[] = ['escritorio', 'zonas', 'usuarios', 'crear-coordinador-territorial', 'estructura', 'secciones', 'configuracion', 'acerca-de'];
     if (isZona && !allowedZonaPages.includes(activeNav)) {
       setActiveNav('escritorio');
     }
