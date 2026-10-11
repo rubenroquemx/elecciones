@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
-  Layers,
   Plus,
   Building2,
   AlertTriangle,
@@ -907,97 +906,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50 flex flex-col font-sans text-slate-800 pb-28">
-      {/* 1. CABECERA & RESUMEN ESTRATÉGICO DE ZONAS */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6 shrink-0 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-5 rounded-none border border-slate-200 shadow-2xs">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                <Layers className="w-5 h-5 text-[#9d2449]" />
-                <span>Definición y Gestión de Zonas Electorales</span>
-              </h1>
-              <span className="text-[11px] font-bold bg-[#9d2449]/10 text-[#9d2449] border border-[#9d2449]/20 px-2.5 py-0.5 rounded-none">
-                Nivel 2 • Coordinación de Promoción al Voto (CPV)
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 mt-1">
-              Divide y organiza estratégicamente tu territorio ({scopedSections.length} secciones en total) en Zonas operativas asignadas a Coordinadores de Zona.
-            </p>
-          </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            {zones.length === 0 && availableMunicipalities.length > 1 && (
-              <button
-                type="button"
-                onClick={handleAutoPartitionByMunicipalities}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                title="Crear automáticamente una zona por cada municipio"
-              >
-                <Sparkles className="w-4 h-4 text-amber-600" />
-                <span>Auto-Zonas por Municipio</span>
-              </button>
-            )}
-
-            {zones.length === 0 && availableLocalDistricts.length > 1 && (
-              <button
-                type="button"
-                onClick={handleAutoPartitionByLocalDistricts}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                title="Crear automáticamente una zona por cada distrito local"
-              >
-                <Sparkles className="w-4 h-4 text-indigo-600" />
-                <span>Auto-Zonas por Dto. Local</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => handleOpenCreateModal()}
-              className="px-4 py-2 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-none text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-98"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Nueva Zona</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 2. TARJETAS DE MÉTRICAS */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white p-4 border border-slate-200 rounded-none shadow-2xs">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block">Zonas Definidas</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black text-slate-900 font-mono">{zones.length}</span>
-              <span className="text-xs text-slate-500 font-medium">zonas</span>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 border border-slate-200 rounded-none shadow-2xs">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block">Secciones Asignadas</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black text-emerald-700 font-mono">{assignedSectionsCount}</span>
-              <span className="text-xs text-slate-500 font-medium">de {scopedSections.length} ({Math.round((assignedSectionsCount / (scopedSections.length || 1)) * 100)}%)</span>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 border border-slate-200 rounded-none shadow-2xs">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block">Secciones Vacantes</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className={`text-2xl font-black font-mono ${unassignedSections.length > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-                {unassignedSections.length}
-              </span>
-              <span className="text-xs text-slate-500 font-medium">sin zona</span>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 border border-slate-200 rounded-none shadow-2xs">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wide block">Electores en Zonas</span>
-            <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-2xl font-black text-slate-900 font-mono">{totalNominalCovered.toLocaleString()}</span>
-              <span className="text-xs text-slate-500 font-medium">de {totalScopeNominal.toLocaleString()}</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* 2b. CREDENCIALES DEL COORDINADOR RECIÉN CREADO */}
       {createdCredentials && (
@@ -1467,20 +1376,74 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
 
             <div
               ref={mapContainerRef}
-              className={`w-full z-0 ${isModalOpen ? 'h-[480px] lg:h-[720px]' : 'h-80 sm:h-96'}`}
+              className={`w-full z-0 ${isModalOpen ? 'h-[50vh] lg:h-[720px]' : 'h-[50vh]'}`}
             />
           </div>
         </div>
       </div>
 
-
-
       {/* 5. LISTADO DE ZONAS DEFINIDAS */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
-            Zonas Registradas ({zones.length})
-          </h3>
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4 space-y-4">
+        {/* Barra compacta de Métricas y Acciones */}
+        <div className="bg-white border border-slate-200 p-2.5 rounded-none shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-4 text-xs flex-wrap">
+            <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+              <span className="text-slate-400 uppercase text-[10px] tracking-wide">Zonas:</span>
+              <span className="font-mono font-bold text-slate-900">{zones.length}</span>
+            </div>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+              <span className="text-slate-400 uppercase text-[10px] tracking-wide">Asignadas:</span>
+              <span className="font-mono font-bold text-emerald-700">{assignedSectionsCount}</span>
+              <span className="text-[11px] text-slate-500 font-normal">de {scopedSections.length} ({Math.round((assignedSectionsCount / (scopedSections.length || 1)) * 100)}%)</span>
+            </div>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+              <span className="text-slate-400 uppercase text-[10px] tracking-wide">Vacantes:</span>
+              <span className={`font-mono font-bold ${unassignedSections.length > 0 ? 'text-amber-600' : 'text-slate-500'}`}>{unassignedSections.length}</span>
+            </div>
+            <span className="text-slate-300 hidden sm:inline">•</span>
+            <div className="flex items-center gap-1.5 font-semibold text-slate-800">
+              <span className="text-slate-400 uppercase text-[10px] tracking-wide">Electores:</span>
+              <span className="font-mono font-bold text-slate-900">{totalNominalCovered.toLocaleString()}</span>
+              <span className="text-[11px] text-slate-500 font-normal">de {totalScopeNominal.toLocaleString()}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {zones.length === 0 && availableMunicipalities.length > 1 && (
+              <button
+                type="button"
+                onClick={handleAutoPartitionByMunicipalities}
+                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                title="Crear automáticamente una zona por cada municipio"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                <span>Auto-Municipios</span>
+              </button>
+            )}
+
+            {zones.length === 0 && availableLocalDistricts.length > 1 && (
+              <button
+                type="button"
+                onClick={handleAutoPartitionByLocalDistricts}
+                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                title="Crear automáticamente una zona por cada distrito local"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Auto-Distritos</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleOpenCreateModal()}
+              className="px-3.5 py-1.5 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-none text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-98"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nueva Zona</span>
+            </button>
+          </div>
         </div>
 
         {zones.length === 0 ? (
