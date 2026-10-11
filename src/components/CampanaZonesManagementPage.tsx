@@ -90,6 +90,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const geoLayerRef = useRef<L.GeoJSON | null>(null);
 
   const [mapLayer, setMapLayer] = useState<'streets' | 'sat'>('streets');
@@ -560,43 +561,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
     });
   };
 
-  // Auto-partición rápida por Distritos Locales
-  const handleAutoPartitionByLocalDistricts = () => {
-    if (availableLocalDistricts.length === 0) return;
-    if (!window.confirm(`Se crearán automáticamente ${availableLocalDistricts.length} zonas basadas en los distritos locales asignados. ¿Deseas continuar?`)) return;
 
-    const autoZones: TerritorialZone[] = availableLocalDistricts.map((d, idx) => ({
-      id: `zona-dto-local-${d.district}-${Date.now() + idx}`,
-      name: `Zona ${String(idx + 1).padStart(2, '0')} - Dto. Local ${d.district}`,
-      code: `ZONA-${String(idx + 1).padStart(2, '0')}`,
-      color: ZONE_COLOR_PALETTE[idx % ZONE_COLOR_PALETTE.length].hex,
-      sections: d.sections,
-      creationMode: 'distritos_locales',
-      metaGoal: d.sections.length * 50,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }));
-
-    persistZones(autoZones);
-    autoZones.forEach(z => {
-      onSaveLeader?.({
-        id: z.id,
-        name: `Coordinador ${z.name}`,
-        role: 'Coordinador de Zona',
-        level: 'zona',
-        levelIndex: 1,
-        parentId: currentUser.leaderId || currentUser.id,
-        territoryName: z.name,
-        code: z.code,
-        assignedSections: z.sections,
-        metaGoal: z.metaGoal || z.sections.length * 50,
-        currentCount: 0,
-        status: 'en_progreso',
-        validationStatus: 'validado',
-        avatarBg: z.color,
-      });
-    });
-  };
 
   // Toggle sección en Modal
   const toggleSectionInModal = (secNum: string) => {
@@ -637,9 +602,14 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
       const map = L.map(mapContainerRef.current, {
         zoomControl: false,
         attributionControl: false,
-        preferCanvas: true,
+        preferCanvas: false,
       });
       map.setView([17.9892, -92.9281], 9);
+
+      const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      const initialTile = L.tileLayer(osmUrl, { maxZoom: 19 }).addTo(map);
+      tileLayerRef.current = initialTile;
+
       mapInstanceRef.current = map;
     } catch (e) {
       console.error('Error initializing Leaflet map in Zonas', e);
@@ -660,18 +630,21 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
     const map = mapInstanceRef.current;
     if (!map) return;
 
+    if (tileLayerRef.current) {
+      try {
+        map.removeLayer(tileLayerRef.current);
+      } catch {}
+      tileLayerRef.current = null;
+    }
+
     const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
     const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
     const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
     const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c'];
 
-    const tileLayer = L.tileLayer(tileUrl, { maxZoom: 19, subdomains }).addTo(map);
-
-    return () => {
-      try {
-        map.removeLayer(tileLayer);
-      } catch {}
-    };
+    const newTile = L.tileLayer(tileUrl, { maxZoom: 19, subdomains }).addTo(map);
+    tileLayerRef.current = newTile;
+    newTile.bringToBack();
   }, [mapLayer]);
 
   // 3. Estilo dinámico de polígonos (lee siempre el estado más reciente vía refs)
@@ -735,18 +708,18 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
           weight: matchesFilter ? 2 : 1,
           opacity: isDimmed ? 0.3 : 0.9,
           fillColor: zone.color,
-          fillOpacity: isDimmed ? 0.1 : (isSat ? 0.45 : 0.35),
+          fillOpacity: isDimmed ? 0.1 : (isSat ? 0.35 : 0.28),
         };
       }
     }
 
-    // Sección sin zona asignada: sombreado gris claro
+    // Sección sin zona asignada: sombreado gris claro traslúcido
     return {
-      color: '#94a3b8',
+      color: '#64748b',
       weight: 0.8,
-      opacity: 0.9,
-      fillColor: '#cbd5e1',
-      fillOpacity: isSat ? 0.6 : 0.5,
+      opacity: 0.8,
+      fillColor: '#94a3b8',
+      fillOpacity: isSat ? 0.28 : 0.2,
     };
   }, []);
 
@@ -1420,18 +1393,6 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-600" />
                 <span>Auto-Municipios</span>
-              </button>
-            )}
-
-            {zones.length === 0 && availableLocalDistricts.length > 1 && (
-              <button
-                type="button"
-                onClick={handleAutoPartitionByLocalDistricts}
-                className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-none text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
-                title="Crear automáticamente una zona por cada distrito local"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                <span>Auto-Distritos</span>
               </button>
             )}
 
