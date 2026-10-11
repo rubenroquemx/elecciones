@@ -44,7 +44,6 @@ export function createGoogleTileLayer(type: GoogleMapLayerType = 'streets'): L.T
   const layer = L.tileLayer(cfg.primaryUrl, {
     maxZoom: cfg.maxZoom,
     attribution: cfg.attribution,
-    crossOrigin: true,
   });
 
   // Failover automático transparente: si un mosaico falla en la red, se carga desde el CDN alternativo

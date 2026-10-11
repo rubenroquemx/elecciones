@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vertex-cache-v2';
+const CACHE_NAME = 'vertex-cache-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -24,6 +24,10 @@ self.addEventListener('fetch', (event) => {
   
   // Evitar interceptar llamadas a API
   if (event.request.url.includes('/api/')) return;
+
+  // IMPORTANTE: Solo interceptar peticiones del mismo origen (archivos estáticos propios)
+  // Dejar que el navegador cargue directamente los mosaicos cartográficos externos (OSM, Esri, etc.)
+  if (!event.request.url.startsWith(self.location.origin)) return;
 
   // Para navegación / HTML, siempre ir a la red primero para evitar servir versiones antiguas
   if (event.request.mode === 'navigate' || event.request.destination === 'document') {

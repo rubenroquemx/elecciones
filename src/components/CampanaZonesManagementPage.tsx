@@ -899,7 +899,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
 
     if (isModalOpen) {
       setTimeout(() => {
-        editorPanelRef.current?.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        editorPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 120);
     }
     return () => timers.forEach(clearTimeout);
@@ -983,14 +983,91 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
         </div>
       )}
 
-      {/* 3. MAPA CARTOGRÁFICO INTERACTIVO DE ZONAS + EDITOR EN LÍNEA */}
-      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4 shrink-0">
-        <div className={`grid gap-4 ${isModalOpen ? 'grid-cols-1 lg:grid-cols-[440px_minmax(0,1fr)]' : 'grid-cols-1'}`}>
+      {/* 3. MAPA CARTOGRÁFICO INTERACTIVO DE ZONAS (ARRIBA) + FORMULARIO DE EDICIÓN (ABAJO) */}
+      <div className="max-w-7xl mx-auto w-full px-4 sm:px-6 pt-4 shrink-0 space-y-4">
+        {/* MAPA ARRIBA - ANCHO COMPLETO */}
+        <div className="relative bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs">
+          {/* Controles Flotantes Discretos de Capa */}
+          <div className="absolute top-3 right-3 z-[500] flex items-center gap-2">
+            {selectedZoneFilter !== 'all' && !isModalOpen && (
+              <button
+                type="button"
+                onClick={() => setSelectedZoneFilter('all')}
+                className="px-2.5 py-1 text-[11px] font-bold bg-slate-900 text-white shadow-md rounded-none flex items-center gap-1 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+                <span>Ver Todas las Zonas</span>
+              </button>
+            )}
+
+            <div className="flex items-center bg-white/95 backdrop-blur-xs border border-slate-200 rounded-none p-0.5 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setMapLayer('streets')}
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
+                  mapLayer === 'streets' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Calles
+              </button>
+              <button
+                type="button"
+                onClick={() => setMapLayer('sat')}
+                className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
+                  mapLayer === 'sat' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Satélite
+              </button>
+            </div>
+          </div>
+
+          {/* Indicaciones de edición sobre el mapa */}
           {isModalOpen && (
-            <div
-              ref={editorPanelRef}
-              className="bg-white border border-slate-200 rounded-none shadow-xs flex flex-col lg:h-[720px] order-2 lg:order-1"
-            >
+            <div className="absolute top-3 left-3 z-[500] bg-white/95 border border-slate-200 shadow-xs px-3 py-1.5 text-[11px] text-slate-700 rounded-none flex items-center gap-2 pointer-events-none">
+              <MousePointerClick className="w-3.5 h-3.5 text-[#9d2449]" />
+              <span>Clic en una sección para agregarla o quitarla</span>
+            </div>
+          )}
+
+          {/* Leyenda */}
+          <div className="absolute bottom-3 right-3 z-[500] bg-white/95 border border-slate-200 shadow-xs px-2.5 py-1.5 text-[10px] text-slate-600 rounded-none flex items-center gap-3 pointer-events-none">
+            {isModalOpen && (
+              <span className="flex items-center gap-1">
+                <span className="w-3 h-3 inline-block border" style={{ backgroundColor: zoneColor, borderColor: zoneColor }} />
+                Zona en edición
+              </span>
+            )}
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 inline-block bg-slate-300 border border-slate-400" />
+              Sin zona asignada
+            </span>
+            <span className="text-[9px] text-slate-400 font-semibold tracking-wide uppercase">Cartografía Base</span>
+          </div>
+
+          {/* Badge informativo de sección en hover */}
+          {hoveredSection && (
+            <div className="absolute bottom-3 left-3 z-[500] bg-slate-900/90 backdrop-blur-xs text-white px-3 py-1.5 text-xs font-mono rounded-none shadow-lg border border-white/10 pointer-events-none">
+              Sección: <strong>{hoveredSection}</strong> • {
+                isModalOpen && editorSelectionSet.has(hoveredSection)
+                  ? (zoneName || 'Zona en edición')
+                  : sectionToZoneMap.get(hoveredSection)?.name || 'Sin zona'
+              }
+            </div>
+          )}
+
+          <div
+            ref={mapContainerRef}
+            className="w-full z-0 h-[50vh] sm:h-[520px] lg:h-[580px]"
+          />
+        </div>
+
+        {/* FORMULARIO ABAJO */}
+        {isModalOpen && (
+          <div
+            ref={editorPanelRef}
+            className="bg-white border border-slate-200 rounded-none shadow-xs flex flex-col"
+          >
               {/* Cabecera Editor */}
               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
@@ -1331,83 +1408,6 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
               </div>
             </div>
           )}
-
-          <div className="relative bg-white rounded-none border border-slate-200 overflow-hidden shadow-xs order-1 lg:order-2">
-            {/* Controles Flotantes Discretos de Capa */}
-            <div className="absolute top-3 right-3 z-[500] flex items-center gap-2">
-              {selectedZoneFilter !== 'all' && !isModalOpen && (
-                <button
-                  type="button"
-                  onClick={() => setSelectedZoneFilter('all')}
-                  className="px-2.5 py-1 text-[11px] font-bold bg-slate-900 text-white shadow-md rounded-none flex items-center gap-1 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Ver Todas las Zonas</span>
-                </button>
-              )}
-
-              <div className="flex items-center bg-white/95 backdrop-blur-xs border border-slate-200 rounded-none p-0.5 shadow-2xs">
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('streets')}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
-                    mapLayer === 'streets' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Calles
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMapLayer('sat')}
-                  className={`px-2.5 py-1 text-[10px] font-bold rounded-none cursor-pointer transition-colors ${
-                    mapLayer === 'sat' ? 'bg-[#9d2449] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Satélite
-                </button>
-              </div>
-            </div>
-
-            {/* Indicaciones de edición sobre el mapa */}
-            {isModalOpen && (
-              <div className="absolute top-3 left-3 z-[500] bg-white/95 border border-slate-200 shadow-xs px-3 py-1.5 text-[11px] text-slate-700 rounded-none flex items-center gap-2 pointer-events-none">
-                <MousePointerClick className="w-3.5 h-3.5 text-[#9d2449]" />
-                <span>Clic en una sección para agregarla o quitarla</span>
-              </div>
-            )}
-
-            {/* Leyenda */}
-            <div className="absolute bottom-3 right-3 z-[500] bg-white/95 border border-slate-200 shadow-xs px-2.5 py-1.5 text-[10px] text-slate-600 rounded-none flex items-center gap-3 pointer-events-none">
-              {isModalOpen && (
-                <span className="flex items-center gap-1">
-                  <span className="w-3 h-3 inline-block border" style={{ backgroundColor: zoneColor, borderColor: zoneColor }} />
-                  Zona en edición
-                </span>
-              )}
-              <span className="flex items-center gap-1">
-                <span className="w-3 h-3 inline-block bg-slate-300 border border-slate-400" />
-                Sin zona asignada
-              </span>
-              <span className="text-[9px] text-slate-400 font-semibold tracking-wide uppercase">Cartografía Base</span>
-            </div>
-
-            {/* Badge informativo de sección en hover */}
-            {hoveredSection && (
-              <div className="absolute bottom-3 left-3 z-[500] bg-slate-900/90 backdrop-blur-xs text-white px-3 py-1.5 text-xs font-mono rounded-none shadow-lg border border-white/10 pointer-events-none">
-                Sección: <strong>{hoveredSection}</strong> • {
-                  isModalOpen && editorSelectionSet.has(hoveredSection)
-                    ? (zoneName || 'Zona en edición')
-                    : sectionToZoneMap.get(hoveredSection)?.name || 'Sin zona'
-                }
-              </div>
-            )}
-
-            <div
-              ref={mapContainerRef}
-              className={`w-full z-0 ${isModalOpen ? 'h-[50vh] lg:h-[720px]' : 'h-[50vh]'}`}
-            />
-          </div>
-        </div>
       </div>
 
       {/* 5. LISTADO DE ZONAS DEFINIDAS */}
