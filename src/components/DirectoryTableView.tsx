@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import type { 
-  TerritorialLeader 
-} from '../types/territory';
+import type { TerritorialLeader } from '../types/territory';
+import type { UserAccount } from '../types/auth';
 import { LEVEL_CONFIG } from '../data/mockTerritoryData';
 import { 
   CheckCircle2, 
@@ -14,7 +13,8 @@ import {
   Phone,
   MapPin,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogIn
 } from 'lucide-react';
 
 interface DirectoryTableViewProps {
@@ -24,6 +24,9 @@ interface DirectoryTableViewProps {
   onFocusSubtree: (id: string) => void;
   onEditLeader: (leader: TerritorialLeader) => void;
   onDeleteLeader: (id: string) => void;
+  currentUser?: UserAccount;
+  accounts?: UserAccount[];
+  onImpersonate?: (account: UserAccount) => void;
 }
 
 export const DirectoryTableView: React.FC<DirectoryTableViewProps> = ({
@@ -33,6 +36,9 @@ export const DirectoryTableView: React.FC<DirectoryTableViewProps> = ({
   onFocusSubtree,
   onEditLeader,
   onDeleteLeader,
+  currentUser,
+  accounts,
+  onImpersonate,
 }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const pageSize = 35;
@@ -238,6 +244,31 @@ export const DirectoryTableView: React.FC<DirectoryTableViewProps> = ({
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
                             </button>
+                            {(currentUser?.level === 'admin' || currentUser?.isSuperAdmin) && onImpersonate && leader.level !== 'promovido' && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const acc = accounts?.find(a => a.leaderId === leader.id || a.id === leader.id) || {
+                                    id: `usr-${leader.id}`,
+                                    username: leader.username || `user_${leader.id.slice(0, 6)}`,
+                                    name: leader.name,
+                                    email: leader.email || `${leader.username || 'usuario'}@elecciones.legislab.app`,
+                                    phone: leader.phone,
+                                    leaderId: leader.id,
+                                    level: leader.level,
+                                    territoryName: leader.territoryName,
+                                    accountRoleLabel: leader.role,
+                                    avatarBg: leader.avatarBg || 'bg-[#9d2449]',
+                                    assignedSections: leader.assignedSections,
+                                  };
+                                  onImpersonate(acc);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-white hover:bg-[#9d2449] rounded-lg transition-colors cursor-pointer"
+                                title={`Entrar a la cuenta de ${leader.name} (Super Admin)`}
+                              >
+                                <LogIn className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => onFocusSubtree(leader.id)}

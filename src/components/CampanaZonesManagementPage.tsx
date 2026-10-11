@@ -15,7 +15,8 @@ import {
   Copy,
   UserPlus,
   RefreshCw,
-  MousePointerClick
+  MousePointerClick,
+  LogIn
 } from 'lucide-react';
 import type { UserAccount } from '../types/auth';
 import type { TerritorialLeader, TerritorialZone } from '../types/territory';
@@ -78,6 +79,7 @@ interface CampanaZonesManagementPageProps {
   onDeleteLeader?: (leaderId: string, isCitizen?: boolean) => void;
   onSaveCoordinatorAccount?: (leader: TerritorialLeader, account: UserAccount) => Promise<void> | void;
   onNavigate?: (nav: any) => void;
+  onImpersonate?: (account: UserAccount) => void;
 }
 
 const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps> = ({
@@ -87,6 +89,7 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
   onSaveLeader,
   onDeleteLeader,
   onSaveCoordinatorAccount,
+  onImpersonate,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -602,18 +605,20 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
       const map = L.map(mapContainerRef.current, {
         zoomControl: false,
         attributionControl: false,
-        preferCanvas: true,
+        preferCanvas: false,
       });
       map.setView([17.9892, -92.9281], 9);
 
-      const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      const streetsUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
       const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-      const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
+      const tileUrl = mapLayer === 'sat' ? satUrl : streetsUrl;
+      const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c', 'd'];
 
       const tile = L.tileLayer(tileUrl, {
         maxZoom: 19,
-        subdomains: mapLayer === 'sat' ? [] : ['a', 'b', 'c'],
+        subdomains,
       }).addTo(map);
+      tile.bringToBack();
 
       tileLayerRef.current = tile;
       mapInstanceRef.current = map;
@@ -643,14 +648,16 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
       tileLayerRef.current = null;
     }
 
-    const osmUrl = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+    const streetsUrl = 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
     const satUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
-    const tileUrl = mapLayer === 'sat' ? satUrl : osmUrl;
+    const tileUrl = mapLayer === 'sat' ? satUrl : streetsUrl;
+    const subdomains = mapLayer === 'sat' ? ['server'] : ['a', 'b', 'c', 'd'];
 
     const newTile = L.tileLayer(tileUrl, {
       maxZoom: 19,
-      subdomains: mapLayer === 'sat' ? [] : ['a', 'b', 'c'],
+      subdomains,
     }).addTo(map);
+    newTile.bringToBack();
 
     tileLayerRef.current = newTile;
   }, [mapLayer]);
@@ -861,9 +868,13 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
-    const t = setTimeout(() => {
+
+    const runResize = () => {
       try {
-        map.invalidateSize();
+        map.invalidateSize({ pan: false });
+        if (tileLayerRef.current) {
+          tileLayerRef.current.bringToBack();
+        }
         if (geoLayerRef.current && geoLayerRef.current.getLayers().length > 0) {
           const bounds = geoLayerRef.current.getBounds();
           if (bounds && bounds.isValid()) {
@@ -871,14 +882,21 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
           }
         }
       } catch {}
-    }, 100);
+    };
+
+    const timers = [
+      setTimeout(runResize, 50),
+      setTimeout(runResize, 150),
+      setTimeout(runResize, 300),
+      setTimeout(runResize, 500),
+    ];
 
     if (isModalOpen) {
       setTimeout(() => {
         editorPanelRef.current?.parentElement?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 120);
     }
-    return () => clearTimeout(t);
+    return () => timers.forEach(clearTimeout);
   }, [isModalOpen]);
 
   // Enfocar mapa en una zona específica
@@ -1552,6 +1570,34 @@ const CampanaZonesManagementPageInner: React.FC<CampanaZonesManagementPageProps>
                             >
                               Ver Mapa
                             </button>
+
+                            {zone.coordinatorUsername && onImpersonate && (currentUser.level === 'admin' || currentUser.isSuperAdmin) && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const acc = accounts.find(a => a.username?.toLowerCase() === zone.coordinatorUsername?.toLowerCase() || a.id === zone.id || a.leaderId === zone.id) || {
+                                    id: `usr-${zone.id}`,
+                                    username: zone.coordinatorUsername || 'coordinador_zona',
+                                    name: zone.coordinatorName || zone.name,
+                                    email: zone.coordinatorEmail || `${zone.coordinatorUsername || 'coordinador'}@elecciones.legislab.app`,
+                                    phone: zone.coordinatorPhone,
+                                    leaderId: zone.id,
+                                    level: 'zona' as const,
+                                    territoryName: zone.name,
+                                    accountRoleLabel: 'Coordinador de Zona',
+                                    avatarBg: zone.color,
+                                    assignedSections: zone.sections,
+                                    assignedBy: currentUser.name,
+                                  };
+                                  onImpersonate(acc);
+                                }}
+                                className="px-2.5 py-1.5 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-none text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer shadow-2xs active:scale-98"
+                                title={`Entrar a la cuenta de ${zone.coordinatorName} (Coordinador de Zona)`}
+                              >
+                                <LogIn className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Entrar</span>
+                              </button>
+                            )}
 
                             <button
                               type="button"

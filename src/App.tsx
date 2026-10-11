@@ -27,6 +27,7 @@ import { AcercaDePlaceholderPage } from './components/AcercaDePlaceholderPage';
 import { ExecutiveKpiDesktop } from './components/ExecutiveKpiDesktop';
 import { SuperadminSaasDashboard } from './components/SuperadminSaasDashboard';
 import { CampanaZonesManagementPage } from './components/CampanaZonesManagementPage';
+import { ImpersonateSubAccountModal } from './components/ImpersonateSubAccountModal';
 
 // Code-split heavy views via React.lazy for optimal initial bundle size and PWA responsiveness
 const TerritoryFlowCanvas = lazy(() => import('./components/TerritoryFlowCanvas').then(m => ({ default: m.TerritoryFlowCanvas })));
@@ -47,7 +48,7 @@ const CampanaCoordinatorEditPage = lazy(() => import('./components/CampanaCoordi
 const SuperadminTicketsPage = lazy(() => import('./components/SuperadminTicketsPage').then(m => ({ default: m.SuperadminTicketsPage })));
 const SubordinateCreatePage = lazy(() => import('./components/SubordinateCreatePage').then(m => ({ default: m.SubordinateCreatePage })));
 const UserDetailPage = lazy(() => import('./components/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
-import { Users, Bell, CheckCircle2, X, MapPin, BarChart3, LifeBuoy, Settings } from 'lucide-react';
+import { Users, Bell, CheckCircle2, X, MapPin, BarChart3, LifeBuoy, Settings, ArrowLeft } from 'lucide-react';
 import type { ExtractedINEData } from './utils/ineScanner';
 import { getStateById, DEFAULT_STATE_ID, DEFAULT_STATE } from './data/statesData';
 import {
@@ -540,6 +541,7 @@ export function App() {
   });
 
   const [isCampanaTicketsModalOpen, setIsCampanaTicketsModalOpen] = useState(false);
+  const [isImpersonateSubAccountModalOpen, setIsImpersonateSubAccountModalOpen] = useState(false);
 
   // Sincronización continua de cuentas y perfil de usuario (PostgreSQL <-> Desktop <-> Móvil)
   const syncAccountsWithServer = useCallback(async () => {
@@ -1489,6 +1491,39 @@ export function App() {
       <div className={`flex-1 flex flex-col min-w-0 h-full ${
         currentUser?.level === 'promotor' ? 'overflow-y-auto md:overflow-hidden' : 'overflow-hidden'
       }`}>
+        {/* Banner Persistente de Impersonación Activa (Superadmin) */}
+        {impersonatingAdminUser && (
+          <aside 
+            aria-label="Sesión en subcuenta"
+            className="sticky top-0 z-[100] bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-slate-950 px-4 py-2 border-b border-amber-600 shadow-md flex items-center justify-between gap-3 text-xs font-semibold shrink-0"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-2.5 h-2.5 rounded-full bg-slate-950 animate-ping shrink-0" />
+              <div className="flex items-center gap-1.5 flex-wrap min-w-0">
+                <span className="font-bold text-slate-950">
+                  Navegando como subcuenta:
+                </span>
+                <span className="bg-slate-950 text-white px-2 py-0.5 rounded-none font-bold truncate">
+                  {currentUser?.name} {currentUser?.username ? `(@${currentUser.username})` : ''}
+                </span>
+                <span className="text-amber-950 font-medium truncate">
+                  • {currentUser?.accountRoleLabel || currentUser?.level} • {currentUser?.territoryName}
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleExitImpersonation}
+              className="px-3 py-1 bg-slate-950 hover:bg-slate-800 text-white font-bold rounded-none transition-all shadow-xs shrink-0 flex items-center gap-1.5 cursor-pointer active:scale-95"
+              title="Finalizar impersonación y regresar a la sesión de Super Administrador"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              <span>Volver a Super Admin</span>
+            </button>
+          </aside>
+        )}
+
         {/* Top Header con Breadcrumbs, Switcher de Estructura, Búsqueda y Switcher de Usuario en esquina superior derecha */}
         <TopHeader
           activeNav={activeNav}
@@ -1515,6 +1550,7 @@ export function App() {
           onNavChange={handleNavChange}
           impersonatingAdminUser={impersonatingAdminUser}
           onExitImpersonation={handleExitImpersonation}
+          onOpenImpersonateSubAccount={() => setIsImpersonateSubAccountModalOpen(true)}
         />
 
         {/* Barra de niveles solo activa en vista Estructura */}
@@ -1792,6 +1828,7 @@ export function App() {
                     handleSaveNewTerritorialCoordinator(leader, account, { stayOnPage: true })
                   }
                   onNavigate={setActiveNav}
+                  onImpersonate={handleImpersonate}
                 />
               )}
 
@@ -1826,6 +1863,9 @@ export function App() {
                   onFocusSubtree={handleFocusSubtree}
                   onEditLeader={handleOpenEditModal}
                   onDeleteLeader={handleDeleteLeader}
+                  currentUser={currentUser}
+                  accounts={accounts}
+                  onImpersonate={handleImpersonate}
                 />
               )}
 
@@ -2063,6 +2103,18 @@ export function App() {
           isOpen={isCampanaTicketsModalOpen}
           onClose={() => setIsCampanaTicketsModalOpen(false)}
           currentUser={currentUser}
+        />
+      )}
+
+      {/* Modal de Impersonación Universal de Subcuentas (Superadmin) */}
+      {currentUser && (currentUser.level === 'admin' || currentUser.isSuperAdmin) && (
+        <ImpersonateSubAccountModal
+          isOpen={isImpersonateSubAccountModalOpen}
+          onClose={() => setIsImpersonateSubAccountModalOpen(false)}
+          accounts={accounts}
+          allLeaders={leadersData}
+          currentUser={currentUser}
+          onImpersonate={handleImpersonate}
         />
       )}
 

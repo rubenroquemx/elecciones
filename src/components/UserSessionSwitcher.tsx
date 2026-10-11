@@ -8,7 +8,9 @@ import {
   MapPin,
   CheckCircle2,
   User,
-  ArrowLeft
+  ArrowLeft,
+  LogIn,
+  ChevronRight
 } from 'lucide-react';
 
 interface UserSessionSwitcherProps {
@@ -21,6 +23,7 @@ interface UserSessionSwitcherProps {
   onOpenProfile?: () => void;
   impersonatingAdminUser?: UserAccount | null;
   onExitImpersonation?: () => void;
+  onOpenImpersonateSubAccount?: () => void;
 }
 
 export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
@@ -29,6 +32,7 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
   onOpenProfile,
   impersonatingAdminUser,
   onExitImpersonation,
+  onOpenImpersonateSubAccount,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -126,6 +130,26 @@ export const UserSessionSwitcher: React.FC<UserSessionSwitcherProps> = ({
               >
                 <span>Volver al Panel Superadmin</span>
                 <ArrowLeft className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Entrar a Subcuenta (Superadmin) */}
+          {(currentUser.level === 'admin' || currentUser.isSuperAdmin) && onOpenImpersonateSubAccount && (
+            <div className="p-2 bg-rose-50/60 border-b border-rose-100">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsOpen(false);
+                  onOpenImpersonateSubAccount();
+                }}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-[#9d2449] hover:bg-[#801d3b] text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <LogIn className="w-3.5 h-3.5" />
+                  <span>Entrar a una Subcuenta</span>
+                </div>
+                <ChevronRight className="w-3.5 h-3.5 opacity-80" />
               </button>
             </div>
           )}

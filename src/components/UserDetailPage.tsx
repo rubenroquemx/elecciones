@@ -349,7 +349,7 @@ export const UserDetailPage: React.FC<UserDetailPageProps> = ({
             )}
 
             {/* BOTÓN ENTRAR A SU CUENTA (IMPERSONAR - ADMIN) */}
-            {currentUser.isSuperAdmin && onImpersonate && (
+            {(currentUser.isSuperAdmin || currentUser.level === 'admin') && onImpersonate && (
               <button
                 type="button"
                 onClick={() => onImpersonate(targetAccount)}

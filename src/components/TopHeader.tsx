@@ -18,7 +18,8 @@ import {
   LifeBuoy,
   PanelLeftClose,
   PanelLeftOpen,
-  Layers
+  Layers,
+  LogIn
 } from 'lucide-react';
 import type { FilterOptions } from '../types/territory';
 import type { UserAccount } from '../types/auth';
@@ -50,6 +51,7 @@ interface TopHeaderProps {
   onNavChange?: (nav: MainNavSection) => void;
   impersonatingAdminUser?: UserAccount | null;
   onExitImpersonation?: () => void;
+  onOpenImpersonateSubAccount?: () => void;
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
@@ -77,6 +79,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
   onNavChange,
   impersonatingAdminUser,
   onExitImpersonation,
+  onOpenImpersonateSubAccount,
 }) => {
   const isCampana = currentUser?.level === 'cpv' || currentUser?.level === 'campana' || currentUser?.level === 'estatal';
   const isAdmin = currentUser?.level === 'admin' || currentUser?.isSuperAdmin;
@@ -374,6 +377,19 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             </button>
           )}
 
+          {/* Botón Entrar a Subcuenta (Exclusivo Superadmin) */}
+          {isAdmin && onOpenImpersonateSubAccount && (
+            <button
+              type="button"
+              onClick={onOpenImpersonateSubAccount}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#9d2449] hover:bg-[#801d3b] text-white rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer active:scale-98 shrink-0"
+              title="Entrar a cualquier subcuenta del sistema (Super Admin)"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Entrar a Subcuenta</span>
+            </button>
+          )}
+
           {/* User Session Switcher - Top Bar Esquina Superior Derecha */}
           {currentUser && onSelectUser && (
             <div className="border-l border-slate-200 pl-2">
@@ -387,6 +403,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
                 onOpenProfile={() => onNavChange?.('configuracion')}
                 impersonatingAdminUser={impersonatingAdminUser}
                 onExitImpersonation={onExitImpersonation}
+                onOpenImpersonateSubAccount={onOpenImpersonateSubAccount}
               />
             </div>
           )}
